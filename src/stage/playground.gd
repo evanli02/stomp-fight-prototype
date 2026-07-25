@@ -5,7 +5,10 @@ extends Node2D
 ## tweak while tuning feel.
 
 const TILE: int = 16
-const ARENA: Vector2i = Vector2i(40, 22)  ## tiles — "Small" per DESIGN 6.1
+## Wider than a real "Small" stage (DESIGN 6.1) on purpose: a b-hop chain needs a
+## runway long enough to build and carry a capped run, which a 40-tile stage
+## cannot give while also holding the wall-jump alcove.
+const ARENA: Vector2i = Vector2i(60, 22)
 const FLASH_TIME: float = 0.35
 
 const TERRAIN_COLOR: Color = Color(0.16, 0.18, 0.28)
@@ -24,9 +27,14 @@ func _ready() -> void:
 	player.perfect_window_hit.connect(_on_perfect_window_hit)
 	queue_redraw()
 
-## Sealed box (DESIGN 6.1) plus the shapes M1 needs to exercise: a long flat run
-## for b-hop chains, two facing pillars for wall-jump chains, a raised platform,
-## and an overhang to dash into (ceilings reset the air dash, DESIGN 4.4).
+## Sealed box (DESIGN 6.1) laid out so every M1 technique has somewhere to happen,
+## and nothing sits in the arc of a running jump (apex puts the player's head at
+## y=212, so the runway is kept clear above that):
+##   - spawn ledge at the left, to run off for coyote time
+##   - 592px of clear floor for b-hop chains
+##   - facing pillars at the right for wall-jump chains
+##   - an overhang too high to jump into but reachable by dash (ceilings reset
+##     the air dash, DESIGN 4.4)
 func _arena_blocks() -> Array[Rect2]:
 	var w := float(ARENA.x * TILE)
 	var h := float(ARENA.y * TILE)
@@ -36,10 +44,10 @@ func _arena_blocks() -> Array[Rect2]:
 		Rect2(0.0, 0.0, w, t),
 		Rect2(0.0, 0.0, t, h),
 		Rect2(w - t, 0.0, t, h),
-		Rect2(192.0, 112.0, t, h - t - 112.0),
-		Rect2(320.0, 112.0, t, h - t - 112.0),
-		Rect2(416.0, 240.0, 144.0, t),
-		Rect2(432.0, 144.0, 96.0, t),
+		Rect2(16.0, 256.0, 160.0, t),
+		Rect2(768.0, 112.0, t, 224.0),
+		Rect2(880.0, 112.0, t, 224.0),
+		Rect2(400.0, 160.0, 96.0, t),
 	]
 
 func _build_arena() -> void:

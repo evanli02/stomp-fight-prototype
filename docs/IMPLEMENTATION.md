@@ -130,7 +130,7 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"`) — c
 
 ## 7. Milestone order (build in this order)
 
-1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Implemented; awaiting the in-editor feel pass that closes the exit criteria.*
+1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero.
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD.
 4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova.
@@ -158,3 +158,5 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
 
 - **GUT** (Godot Unit Test addon) for: MatchState (lives/elim/round-win/ult economy), cooldown ticking incl. benched heroes, stun refresh rule, coinflip/stage-picker logic. Stubs in `tests/`.
 - Feel is tested by humans in `playground.tscn` (debug overlay shows state, velocity, momentum charge, dash charges, perfect-window hits).
+- **Movement mechanics** have a headless harness at `tests/movement_harness.tscn` — synthetic input through the playground, asserting the DESIGN 4 numbers (jump heights, momentum decay, b-hop preservation, dash charges/air lock, wall-jump chain decay and aim tilt). Not GUT: it needs a live scene tree and real collision. Run it after touching `src/player/`:
+  `Godot --headless --path . res://tests/movement_harness.tscn` (non-zero exit on failure).
