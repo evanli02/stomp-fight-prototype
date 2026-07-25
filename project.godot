@@ -1,0 +1,36 @@
+; Overstomp — Godot 4.4+ project
+; Input actions are registered in code by the InputConfig autoload
+; (src/autoload/input_config.gd) so bindings stay documented and rebindable.
+
+config_version=5
+
+[application]
+
+config/name="Overstomp"
+config/description="1v1/2v2/3v3 stomp-to-kill hero platform fighter."
+run/main_scene="res://src/main.tscn"
+config/features=PackedStringArray("4.4", "GL Compatibility")
+config/icon="res://icon.svg"
+
+[autoload]
+
+GameManager="*res://src/autoload/game_manager.gd"
+MatchState="*res://src/autoload/match_state.gd"
+InputConfig="*res://src/autoload/input_config.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="viewport"
+window/stretch/aspect="keep"
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

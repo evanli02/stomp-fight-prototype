@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Skyla"
+accent_color = Color("2de2e6")
+ability_cooldown = 8.0

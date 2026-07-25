@@ -1,0 +1,13 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/stage/playground.gd" id="1"]
+
+[node name="Playground" type="Node2D"]
+script = ExtResource("1")
+
+[node name="TODO" type="Label" parent="."]
+offset_left = 24.0
+offset_top = 24.0
+offset_right = 640.0
+offset_bottom = 120.0
+text = "M1: build flat ground + walls (StaticBody2D), spawn Player, add debug overlay."
