@@ -4,3 +4,15 @@
 
 [resource]
 script = ExtResource("1")
+stomp_stun_time = 0.6
+stomp_grace_time = 1.2
+stomp_victim_bounce = 260.0
+stomp_attacker_bounce = -420.0
+stomp_min_relative_fall_speed = 40.0
+stun_duel_loss = 0.3
+stun_deadeye_bolt = 0.8
+stun_line = 0.4
+stun_explosion = 0.5
+stun_nova_ult = 1.0
+stun_mason_ult_block = 0.5
+spawn_protection_time = 2.0

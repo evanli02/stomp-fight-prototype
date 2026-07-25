@@ -34,7 +34,7 @@ overstomp/
 |---|---|
 | `GameManager` (`src/autoload/game_manager.gd`) | Match lifecycle: lobby config → round loop (hero select → stage select → combat → results). Owns the seeded RNG and the hero roster registry. |
 | `MatchState` (`src/autoload/match_state.gd`) | Single source of truth for: per-player rosters, per-hero lives, eliminations, ultimate availability, round wins, coinflip/stage-pick ownership. Pure data + signals; no scene refs. Fully unit-testable. |
-| `InputConfig` (`src/autoload/input_config.gd`) | Device detection (KBM vs controller), rebinding persistence (`user://input.cfg`), the R2+L2 ultimate chord resolver, and the shared aim-vector provider. |
+| `InputConfig` (`src/autoload/input_config.gd`) | Device detection (KBM vs controller), rebinding persistence (`user://input.cfg`), the R2+L2 ultimate chord resolver, and the shared aim-vector provider. `poll(player_id, body)` returns an `InputFrame` (`src/autoload/input_frame.gd`) — the one place gameplay reads inputs, so a rollback layer can swap the source (§9). |
 
 **Rule:** scenes read `MatchState` and connect to its signals; only `GameManager` and combat-event emitters mutate it.
 
@@ -70,9 +70,22 @@ set_head_hurtbox_enabled(on: bool)        # grace / Wisp ult only
 ```
 Abilities and terrain never touch state internals or velocity fields directly.
 
+### Tick ownership
+`Player._physics_process` drives the frame: sample `InputFrame` → tick timers →
+`StateMachine.tick(delta)` (states set velocity) → `move_and_slide()` → post-move
+surface bookkeeping. The machine deliberately has **no** `_physics_process` of its
+own so the body moves exactly once, after the running state has finished with
+`velocity`. `StateMachine.setup(player)` wires child states and enters the initial
+state; it is called from `Player._ready()` so the player's `@onready` refs are live.
+
 ### Movement helpers (shared, in `player.gd`)
-- `perfect_window_check(kind)` — one implementation backing b-hop **and** perfect wall jump.
+- `perfect_window_check(time_since_contact, window)` — one implementation backing b-hop **and** perfect wall jump.
 - `momentum` model: `velocity.x` plus a `momentum_charge: float` (0..1) that scales the run-speed cap; built on ground time, preserved by perfect windows, decayed by normal landings/skids.
+- `speed_cap()` — `run_speed_base..run_speed_cap` by momentum, times the dash boost while it lasts.
+- `ground_accel()` / `air_accel()` — derived from `ground_redirect_time` so accel and redirect stay one knob.
+- `can_dash()` / `consume_dash_charge()` — charge count plus the airborne-consecutive lock.
+- `has_buffered_jump()` / `consume_jump_buffer()`, `wall_is_jumpable(normal)`, `build_momentum(delta)`.
+- Contact bookkeeping the states read: `time_since_landing`, `time_since_wall_contact`, `wall_normal`, `wall_jump_chain`, `coyote_remaining`, `landing_settled`.
 
 ## 4. Terrain contract
 
@@ -106,6 +119,8 @@ Ultimates: `InputConfig` resolves the input → `AbilitySlot` asks `MatchState.t
 
 Wall-jump duels: contact window tracked in `player.gd` (`duel_window` frames); first `WallJump` input wins → `other.apply_stun(duel_stun)`; simultaneous → both get juiced impulse.
 
+Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"`) — consumed by the playground overlay today, by VFX/SFX in M6.
+
 ## 6. Match flow (GameManager FSM)
 
 `LOBBY → HERO_SELECT → STAGE_SELECT → ROUND_ACTIVE → ROUND_RESULTS → (loop | MATCH_RESULTS)`
@@ -115,7 +130,7 @@ Wall-jump duels: contact window tracked in `player.gd` (`duel_window` frames); f
 
 ## 7. Milestone order (build in this order)
 
-1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay.
+1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Implemented; awaiting the in-editor feel pass that closes the exit criteria.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero.
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD.
 4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova.

@@ -34,6 +34,21 @@ func aim_vector(player_global_pos: Vector2, viewport: Viewport) -> Vector2:
 	var mouse := viewport.get_camera_2d().get_global_mouse_position() if viewport.get_camera_2d() else viewport.get_mouse_position()
 	return (mouse - player_global_pos).normalized()
 
+## Sample one player's intent for this physics tick. All gameplay reads inputs
+## through here, never through Input directly (IMPLEMENTATION.md 9).
+## TODO(M2): route per-player — device index / action suffixes for local 2P.
+func poll(_player_id: int, body: Node2D) -> InputFrame:
+	var frame := InputFrame.new()
+	frame.move = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	frame.aim = aim_vector(body.global_position, body.get_viewport())
+	frame.jump_pressed = Input.is_action_just_pressed(&"jump")
+	frame.jump_held = Input.is_action_pressed(&"jump")
+	frame.dash_pressed = Input.is_action_just_pressed(&"dash")
+	frame.ability_pressed = Input.is_action_just_pressed(&"ability")
+	frame.swap_pressed = Input.is_action_just_pressed(&"swap")
+	frame.ultimate_pressed = Input.is_action_just_pressed(&"ultimate")
+	return frame
+
 # TODO(M2): chord resolver — on R2 or L2 press, buffer CHORD_WINDOW; if the other
 # arrives in time, emit ultimate and SUPPRESS the buffered dash/swap (CLAUDE.md checklist).
 

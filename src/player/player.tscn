@@ -1,0 +1,95 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="Script" path="res://src/player/player.gd" id="1"]
+[ext_resource type="Script" path="res://src/player/states/state_machine.gd" id="2"]
+[ext_resource type="Script" path="res://src/player/states/idle.gd" id="3"]
+[ext_resource type="Script" path="res://src/player/states/run.gd" id="4"]
+[ext_resource type="Script" path="res://src/player/states/skid.gd" id="5"]
+[ext_resource type="Script" path="res://src/player/states/air.gd" id="6"]
+[ext_resource type="Script" path="res://src/player/states/dash.gd" id="7"]
+[ext_resource type="Script" path="res://src/player/states/wall_slide.gd" id="8"]
+[ext_resource type="Script" path="res://src/player/states/wall_jump.gd" id="9"]
+[ext_resource type="Script" path="res://src/player/states/pole_climb.gd" id="10"]
+[ext_resource type="Script" path="res://src/player/states/stunned.gd" id="11"]
+[ext_resource type="Resource" path="res://src/config/movement_config.tres" id="12"]
+[ext_resource type="Resource" path="res://src/config/combat_config.tres" id="13"]
+[ext_resource type="Texture2D" path="res://assets/characters/deadeye_idle_32x48.png" id="14"]
+
+[sub_resource type="RectangleShape2D" id="body_shape"]
+size = Vector2(32, 48)
+
+[sub_resource type="RectangleShape2D" id="head_shape"]
+size = Vector2(32, 12)
+
+[sub_resource type="RectangleShape2D" id="feet_shape"]
+size = Vector2(32, 10)
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 3
+script = ExtResource("1")
+movement = ExtResource("12")
+combat = ExtResource("13")
+
+[node name="Sprite" type="Sprite2D" parent="."]
+texture = ExtResource("14")
+
+[node name="BodyShape" type="CollisionShape2D" parent="."]
+shape = SubResource("body_shape")
+
+[node name="HeadHurtbox" type="Area2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, -18)
+collision_layer = 4
+collision_mask = 0
+monitoring = false
+
+[node name="Shape" type="CollisionShape2D" parent="HeadHurtbox"]
+shape = SubResource("head_shape")
+
+[node name="StompBox" type="Area2D" parent="."]
+unique_name_in_owner = true
+position = Vector2(0, 19)
+collision_layer = 0
+collision_mask = 4
+
+[node name="Shape" type="CollisionShape2D" parent="StompBox"]
+shape = SubResource("feet_shape")
+
+[node name="StateMachine" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("2")
+initial_state = NodePath("Idle")
+
+[node name="Idle" type="Node" parent="StateMachine"]
+script = ExtResource("3")
+
+[node name="Run" type="Node" parent="StateMachine"]
+script = ExtResource("4")
+
+[node name="Skid" type="Node" parent="StateMachine"]
+script = ExtResource("5")
+
+[node name="Air" type="Node" parent="StateMachine"]
+script = ExtResource("6")
+
+[node name="Dash" type="Node" parent="StateMachine"]
+script = ExtResource("7")
+
+[node name="WallSlide" type="Node" parent="StateMachine"]
+script = ExtResource("8")
+
+[node name="WallJump" type="Node" parent="StateMachine"]
+script = ExtResource("9")
+
+[node name="PoleClimb" type="Node" parent="StateMachine"]
+script = ExtResource("10")
+
+[node name="Stunned" type="Node" parent="StateMachine"]
+script = ExtResource("11")
+
+[node name="AbilitySlot" type="Node" parent="."]
+unique_name_in_owner = true
+
+[node name="AimPivot" type="Node2D" parent="."]
+unique_name_in_owner = true

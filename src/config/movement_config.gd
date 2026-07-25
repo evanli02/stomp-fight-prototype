@@ -8,6 +8,11 @@ class_name MovementConfig extends Resource
 @export var accel_time_to_cap: float = 1.5    ## seconds of running to full momentum
 @export var ground_redirect_time: float = 0.1 ## flip time at base speed
 @export var skid_time_at_cap: float = 0.22
+## Ground accel is derived as 2*run_speed_base/ground_redirect_time (a full flip in
+## that time), so acceleration and redirect stay coupled to one knob.
+@export var ground_friction: float = 2600.0   ## no-input ground decel (DESIGN 4.1 leaves this open)
+@export var momentum_keep_on_landing: float = 0.5 ## normal (non-b-hop) landing, DESIGN 4.2
+@export var momentum_keep_on_skid: float = 0.25   ## after a skid redirect, DESIGN 4.1
 
 @export_group("Air")
 @export var gravity: float = 1400.0
@@ -37,5 +42,9 @@ class_name MovementConfig extends Resource
 @export var walljump_later_up_mult: float = 0.15 ## consecutive jumps: mostly horizontal
 @export var walljump_aim_cone_deg: float = 35.0  ## aim-tilt range away from wall
 @export var walljump_perfect_window: float = 0.08
+@export var momentum_keep_on_wall_jump: float = 0.75 ## non-perfect wall jump (wall analog of landing)
+## Surfaces flatter than this are ceilings/slopes and are never wall-jumpable
+## (DESIGN 4.4). Compared against |wall_normal.x|.
+@export var wall_normal_min_x: float = 0.8
 @export var duel_juice_mult: float = 1.2         ## simultaneous player wall-jump bonus
 @export var duel_window_frames: int = 4

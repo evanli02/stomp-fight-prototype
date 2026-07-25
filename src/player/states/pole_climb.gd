@@ -1,6 +1,6 @@
 class_name PoleClimbState extends PlayerState
-## TODO(M1): implement per DESIGN 4 and IMPLEMENTATION.md 3.
-## See docs/DESIGN.md for this state's rules before implementing.
+## Terrain-specific state: grabbing a pole zeroes momentum, then you crawl and
+## jump off either side (DESIGN 6.2). TODO(M5) — lands with the Pole element.
 
 func enter(_params: Dictionary = {}) -> void:
 	pass

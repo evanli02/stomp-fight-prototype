@@ -1,9 +1,16 @@
 class_name IdleState extends PlayerState
-## TODO(M1): implement per DESIGN 4 and IMPLEMENTATION.md 3.
-## See docs/DESIGN.md for this state's rules before implementing.
+## Grounded with no horizontal input: bleed speed off with ground friction
+## (DESIGN 4.1).
 
-func enter(_params: Dictionary = {}) -> void:
-	pass
-
-func physics_update(_delta: float) -> void:
-	pass
+func physics_update(delta: float) -> void:
+	if try_dash():
+		return
+	if try_ground_jump():
+		return
+	if not player.is_on_floor():
+		machine.change_state(&"Air")
+		return
+	player.velocity.y = 0.0
+	player.velocity.x = move_toward(player.velocity.x, 0.0, player.movement.ground_friction * delta)
+	if not is_zero_approx(player.input.move.x):
+		machine.change_state(&"Run")
