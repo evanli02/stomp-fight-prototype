@@ -20,9 +20,9 @@ class_name MovementConfig extends Resource
 @export var air_control_ratio: float = 0.15   ## fraction of ground accel
 
 @export_group("Jump")
-@export var jump_impulse_min: float = -420.0  ## min hop (~2.5 tiles)
-@export var jump_hold_force: float = -900.0   ## applied while held, up to...
-@export var jump_hold_time_max: float = 0.22  ## ...this long (~4.5 tiles total)
+@export var jump_impulse_min: float = -335.0  ## min hop (2.5 tiles = sqrt(2*gravity*40))
+@export var jump_hold_force: float = -760.0   ## applied while held, up to...
+@export var jump_hold_time_max: float = 0.22  ## ...this long (4.5 tiles total)
 @export var coyote_time: float = 0.1
 @export var jump_buffer_time: float = 0.12
 @export var bhop_window: float = 0.08         ## perfect-landing window preserving momentum
