@@ -12,3 +12,11 @@ var dash_pressed: bool = false
 var ability_pressed: bool = false
 var swap_pressed: bool = false
 var ultimate_pressed: bool = false
+
+## Did the player do anything this tick? Ends spawn protection early
+## (DESIGN 3.3). Aim is excluded: a mouse sitting still still reports a
+## direction, and nudging a stick is not "acting."
+func any_action() -> bool:
+	return not is_zero_approx(move.x) or not is_zero_approx(move.y) \
+		or jump_pressed or jump_held or dash_pressed \
+		or ability_pressed or swap_pressed or ultimate_pressed

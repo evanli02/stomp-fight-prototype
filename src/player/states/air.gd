@@ -9,7 +9,9 @@ func enter(params: Dictionary = {}) -> void:
 	_hold_time = 0.0
 	_holding = false
 	if params.get("jump", false):
-		player.velocity.y = player.movement.jump_impulse_min
+		# Stomp bounces come in through the same door as jumps so they inherit
+		# hold-extension for free (DESIGN 3.2).
+		player.velocity.y = params.get("impulse_y", player.movement.jump_impulse_min)
 		_holding = true
 		if params.get("perfect", false):
 			# B-hop: the landing never gets to charge friction, so 100% of the

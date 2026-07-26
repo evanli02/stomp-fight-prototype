@@ -18,14 +18,29 @@ var round_wins: Dictionary = {}          # team_id -> wins
 var last_round_loser_team: int = -1
 
 func register_player(player_id: int, team_id: int, hero_ids: Array[StringName]) -> void:
-	assert(hero_ids.size() == HEROES_PER_PLAYER)
+	## A real round always registers HEROES_PER_PLAYER (hero select enforces it in
+	## M3); short rosters are allowed so the M2 combat scenes can run a single
+	## dummy hero without faking two more.
+	assert(hero_ids.size() > 0 and hero_ids.size() <= HEROES_PER_PLAYER)
 	var heroes := {}
 	for h in hero_ids:
 		heroes[h] = LIVES_PER_HERO
 	players[player_id] = { "team": team_id, "heroes": heroes, "ult_available": true }
 
+func clear_players() -> void:
+	## Wipe the roster before a scene registers its own. Round wins survive —
+	## they belong to the match, not the round.
+	players.clear()
+
+## Is this player part of the current round? Debug scenes (playground) run
+## bodies that were never registered, and a stomp there must not crash.
+func has_player(player_id: int) -> bool:
+	return players.has(player_id)
+
 func lose_life(player_id: int, hero_id: StringName) -> void:
 	var p: Dictionary = players[player_id]
+	if p.heroes[hero_id] <= 0:
+		return  # already eliminated: there is nothing left to take
 	p.heroes[hero_id] -= 1
 	life_lost.emit(player_id, hero_id, p.heroes[hero_id])
 	if p.heroes[hero_id] <= 0:

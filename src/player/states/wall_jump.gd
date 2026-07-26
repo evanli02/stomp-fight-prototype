@@ -11,6 +11,12 @@ func enter(_params: Dictionary = {}) -> void:
 	var impulse := Vector2(n.x * cfg.walljump_impulse.x, cfg.walljump_impulse.y * up_mult)
 	impulse = _apply_aim_tilt(impulse)
 
+	# Kicking off another player is a duel: whoever inputs first stuns the other,
+	# and a tie juices both (DESIGN 3.4). The player arbitrates; the state just
+	# takes the multiplier back.
+	if player.wall_player != null and is_instance_valid(player.wall_player):
+		impulse *= player.claim_wall_duel(player.wall_player, impulse)
+
 	# Wall analog of the b-hop: jumping inside the window keeps the momentum
 	# charge (and so the speed cap) you arrived with.
 	if player.perfect_window_check(player.time_since_wall_contact, cfg.walljump_perfect_window):
