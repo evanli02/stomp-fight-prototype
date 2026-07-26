@@ -19,6 +19,8 @@ func physics_update(delta: float) -> void:
 	if not player.is_on_floor():
 		machine.change_state(&"Air")
 		return
+	if try_crouch():  # bailing out of a redirect into a slide is legal tech
+		return
 	_remaining -= delta
 	player.velocity.y = 0.0
 	player.velocity.x = move_toward(player.velocity.x, 0.0, player.ground_accel() * delta)

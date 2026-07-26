@@ -82,14 +82,16 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 - Momentum redirect midair is **gradual**, never instant (dash is the instant-redirect tool).
 
 ### 4.2 Jumping
-- **Variable-height jump**: holding jump extends rise (min hop ≈ 2.5 tiles, full hold ≈ 4.5 tiles).
+- **Variable-height jump**: holding jump extends rise (min hop ≈ 1.25 tiles, full hold ≈ 4.5 tiles). The tap and the hold are far apart on purpose — the tap is a shuffle, and height is something you ask for.
 - Coyote time (~0.1 s) and jump buffering (~0.12 s) — non-negotiable feel features.
 - **B-hopping**: landing and jumping within a **perfect-timing window** (`bhop_window ≈ 0.08 s`) preserves 100% of horizontal momentum (normal landing applies ground friction immediately). Chained b-hops let you carry (not exceed) capped run speed indefinitely.
 
 ### 4.3 Omnidirectional dash
 - **2 charges**, short shared recharge (`dash_recharge ≈ 2.5 s per charge`).
-- Direction: on a **surface**, dash is constrained parallel to that surface (along ground, along wall while sliding); **airborne**, dash is fully omnidirectional (aim direction, else input direction, else facing).
-- The dash itself is **very short** (~0.12 s, ~3 tiles) and grants a **brief acceleration boost** after it ends (~0.4 s of raised speed cap) — dashes are momentum tools, not teleports.
+- Direction: on a **surface**, dash is constrained parallel to that surface (along ground, along wall while sliding); **airborne**, dash is fully omnidirectional, steered by the **movement input** (left stick / WASD), else facing. The aim vector belongs to abilities and never steers movement — two directions fighting over one action reads as the controls disagreeing with you.
+- The dash is **very short** (~0.12 s) and grants a **brief acceleration boost** after it ends (~0.4 s of raised speed cap) — dashes are momentum tools, not teleports.
+  - **Ground dash ≈ 6 tiles**: the reposition tool, and the reason spacing on the floor is a real decision.
+  - **Air dash ≈ 3 tiles**, and its **upward** component is cut to about a third. An up-dash at parity with the jump beats the jump at its own job and collapses the whole vertical game into "dash up".
 - **Air restriction:** two charges cannot be used **consecutively in the air**; after an airborne dash you must touch a surface (ground, wall, ceiling, or another player) before dashing again. On a surface, back-to-back dashes are legal.
 
 ### 4.4 Walls
@@ -97,14 +99,23 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 - **Wall jump**:
   - First wall jump has full up-and-away impulse.
   - **Consecutive wall jumps** (without touching ground) keep horizontal push but have **little-to-no upward** component — wall-jump chains move you *across*, not *up*.
-  - **Aimed wall jumps**: the ability-aim vector (mouse cursor / right stick) tilts the wall-jump direction within a cone away from the wall.
+  - **Steered wall jumps**: the **movement input** tilts the wall-jump direction within a cone (~35°) away from the wall. Holding into the wall steepens the jump; holding away flattens it into distance. Neutral gives the plain up-and-away impulse.
   - **Perfect wall jump**: jumping within `walljump_perfect_window` (~0.08 s) of wall contact preserves momentum, mirroring b-hop rules — this is the wall analog of b-hopping.
 - **Ceilings can never be wall-jumped.** (They can be dash-touched to reset the air-dash restriction.)
 
-### 4.5 Movement state machine (implementation shape)
+### 4.5 Crouch & slide
+- **Crouch** = hold down while grounded. The body is **half height** and the head hurtbox drops with it, so crouching changes where you can be hit, not whether you can be.
+- **Slide** = crouch while running with real speed (`slide_min_speed ≈ 200 px/s`). Speed and momentum bleed away steadily; below `slide_exit_speed` the slide settles into a crouch.
+- **You cannot dash out of a slide.** Dash is the instant-redirect tool, and allowing it would turn the slide into a free way to hold speed instead of a commitment.
+- **You can jump out of a slide**, and it is the point of sliding: little height (~80% of the *minimum* hop) but a hard horizontal launch (~1.5× current speed), briefly above the normal cap. The slide jump is **not** hold-extendable — it is a committed leap, not a better jump.
+- Slide → jump → land → slide is the intended ground-chain alongside b-hopping, and it trades the ability to change your mind for distance.
+
+### 4.6 Movement state machine (implementation shape)
 
 ```
 Idle ↔ Run → Skid
+  ↓      ↓  (down held)
+  └→ Crouch ↔ Slide → slide jump
   ↓  Jump/Fall (variable jump, coyote, buffer)
 Air ↔ Dash (omni)  ↔ WallSlide → WallJump
   ↓
@@ -190,6 +201,7 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 | Action | Mouse & Keyboard | Controller |
 |---|---|---|
 | Move | WASD | Left stick |
+| Crouch / slide | S (hold) | Left stick down (hold) |
 | Jump (variable) | Space | R1 (right bumper) |
 | Aim | Mouse cursor (Enter-the-Gungeon-style reticle) | Right stick |
 | Dash | Shift | R2 (right trigger) |

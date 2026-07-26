@@ -11,6 +11,8 @@ func physics_update(delta: float) -> void:
 	if not player.is_on_floor():
 		machine.change_state(&"Air")
 		return
+	if try_crouch():
+		return
 	var dir := player.input.move.x
 	if is_zero_approx(dir):
 		machine.change_state(&"Idle")

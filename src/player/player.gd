@@ -24,6 +24,7 @@ var air_dash_locked: bool = false       ## set after airborne dash, cleared on s
 var stun_remaining: float = 0.0
 var grace_remaining: float = 0.0
 var active_hero: StringName = &""
+var crouched: bool = false
 ## Downward speed carried into the current contact, kept alive for
 ## stomp_fall_memory_time. move_and_slide() zeroes velocity.y the frame a body
 ## lands, which is a frame before the areas report their overlap, so the fall
@@ -65,11 +66,23 @@ var _duel_impulse: Vector2 = Vector2.ZERO
 const BLINK_PERIOD: float = 0.16
 const BLINK_ALPHA: float = 0.35
 
+## Stick deflection that counts as "down" (DESIGN 4.6). A deadzone, not a feel
+## number: below it a diagonal run would drop into a crouch.
+const CROUCH_INPUT_THRESHOLD: float = 0.5
+
 @onready var sprite: Sprite2D = %Sprite
 @onready var state_machine: StateMachine = %StateMachine
 @onready var head_hurtbox: Area2D = %HeadHurtbox
 @onready var stomp_box: Area2D = %StompBox
 @onready var ability_slot: Node = %AbilitySlot
+@onready var body_shape: CollisionShape2D = %BodyShape
+@onready var body_shape_crouch: CollisionShape2D = %BodyShapeCrouch
+@onready var head_shape: CollisionShape2D = %HeadShape
+@onready var head_shape_crouch: CollisionShape2D = %HeadShapeCrouch
+## Read off the scene rather than restated here, so the shapes stay the one
+## source of truth for how tall the body is standing and crouched.
+@onready var _stand_half_height: float = (body_shape.shape as RectangleShape2D).size.y * 0.5
+@onready var _crouch_half_height: float = (body_shape_crouch.shape as RectangleShape2D).size.y * 0.5
 
 func _ready() -> void:
 	dash_charges_left = movement.dash_charges
@@ -110,6 +123,26 @@ func start_spawn_protection() -> void:
 	spawn_protected = true
 	set_head_hurtbox_enabled(false)
 
+func set_crouched(on: bool) -> void:
+	## Half-height body and a head hurtbox that moves down with it (DESIGN 4.6).
+	## Owned here rather than in Crouch/Slide because both states share it and
+	## every exit route — including being stunned out of a slide — has to restore
+	## the standing shape.
+	if crouched == on:
+		return
+	crouched = on
+	# Deferred: swapping collision shapes from inside the physics callback is not
+	# allowed while the space is flushing queries. Both swaps land in the same
+	# flush, so there is never a frame with no body shape at all.
+	body_shape.set_deferred(&"disabled", on)
+	body_shape_crouch.set_deferred(&"disabled", not on)
+	head_shape.set_deferred(&"disabled", on)
+	head_shape_crouch.set_deferred(&"disabled", not on)
+	# Placeholder art: squash the standing sprite and drop it onto the new
+	# bottom edge. Replaced by real crouch frames in M6.
+	sprite.scale.y = _crouch_half_height / _stand_half_height if on else 1.0
+	sprite.position.y = _stand_half_height - _crouch_half_height if on else 0.0
+
 func respawn_at(spawn_position: Vector2) -> void:
 	## Put the body back at a spawn point with movement bookkeeping cleared. Does
 	## NOT touch lives or rosters — MatchState owns those.
@@ -121,6 +154,7 @@ func respawn_at(spawn_position: Vector2) -> void:
 	wall_jump_chain = 0
 	fall_speed_memory = 0.0
 	stun_remaining = 0.0
+	set_crouched(false)
 	_clear_duel_claim()
 	state_machine.change_state(&"Air")
 	start_spawn_protection()
@@ -188,11 +222,12 @@ func on_stomp_landed(victim: Player) -> void:
 #endregion
 
 func _process(_delta: float) -> void:
-	# Presentation only. The timer it reads is ticked on the physics step, and
+	# Presentation only. The values it reads are all set on the physics step, and
 	# the sprite's RGB is left alone so a team tint survives the blink.
 	var blink_off := grace_remaining > 0.0 \
 		and fmod(grace_remaining, BLINK_PERIOD) < BLINK_PERIOD * 0.5
 	sprite.modulate.a = BLINK_ALPHA if blink_off else 1.0
+	sprite.flip_h = facing < 0
 
 func _physics_process(delta: float) -> void:
 	input = InputConfig.poll(player_id, self)
@@ -359,6 +394,10 @@ func ground_accel() -> float:
 
 func air_accel() -> float:
 	return ground_accel() * movement.air_control_ratio
+
+## Down held past the deadzone — the entry condition for crouch and slide.
+func wants_crouch() -> bool:
+	return input.move.y > CROUCH_INPUT_THRESHOLD
 
 func can_dash() -> bool:
 	return dash_charges_left > 0 and not air_dash_locked

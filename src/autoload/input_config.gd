@@ -130,7 +130,8 @@ func poll(player_id: int, body: Node2D) -> InputFrame:
 	return frame
 
 ## Live aim vector: right stick on pad, mouse (relative to player) on KBM.
-## Feeds abilities AND aimed wall jumps / air dashes (DESIGN 4.4, 7).
+## Feeds abilities only — movement (dash direction, wall-jump tilt) is steered by
+## the movement input, never by aim (DESIGN 4.3, 4.4).
 ##
 ## The aim_* actions are checked first for BOTH devices. On a pad they are the
 ## right stick; on KBM they ship unbound, which leaves a directional-aim channel

@@ -5,7 +5,7 @@ class_name InputFrame extends RefCounted
 ## (IMPLEMENTATION.md 9).
 
 var move: Vector2 = Vector2.ZERO   ## left stick / WASD, components in -1..1
-var aim: Vector2 = Vector2.ZERO    ## always-live aim direction, normalized (DESIGN 7)
+var aim: Vector2 = Vector2.ZERO    ## always-live aim for abilities, normalized (DESIGN 7)
 var jump_pressed: bool = false     ## edge
 var jump_held: bool = false        ## level — drives variable jump height
 var dash_pressed: bool = false

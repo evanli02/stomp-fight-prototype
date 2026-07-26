@@ -20,8 +20,11 @@ class_name MovementConfig extends Resource
 @export var air_control_ratio: float = 0.15   ## fraction of ground accel
 
 @export_group("Jump")
-@export var jump_impulse_min: float = -335.0  ## min hop (2.5 tiles = sqrt(2*gravity*40))
-@export var jump_hold_force: float = -760.0   ## applied while held, up to...
+@export var jump_impulse_min: float = -237.0  ## min hop (1.25 tiles = sqrt(2*gravity*20))
+## Applied while held, up to jump_hold_time_max. At exactly -gravity the hold
+## cancels the fall instead of fighting it, so the rise is a flat climb and the
+## full-hold apex still lands on DESIGN 4.2's 4.5 tiles from the lower minimum.
+@export var jump_hold_force: float = -1400.0
 @export var jump_hold_time_max: float = 0.22  ## ...this long (4.5 tiles total)
 @export var coyote_time: float = 0.1
 @export var jump_buffer_time: float = 0.12
@@ -31,7 +34,11 @@ class_name MovementConfig extends Resource
 @export var dash_charges: int = 2
 @export var dash_recharge: float = 2.5        ## seconds per charge
 @export var dash_duration: float = 0.12
-@export var dash_distance: float = 48.0       ## ~3 tiles
+@export var dash_distance: float = 48.0       ## ~3 tiles, airborne and along walls
+@export var dash_distance_ground: float = 96.0 ## ~6 tiles: the ground dash is the reposition tool
+## Airborne dashes keep their full horizontal reach but only this share of their
+## upward one — at parity an up-dash beats a jump and nothing else matters.
+@export var air_dash_up_mult: float = 0.33
 @export var dash_boost_time: float = 0.4      ## raised speed cap after dash
 @export var dash_boost_cap_mult: float = 1.15
 
@@ -40,7 +47,7 @@ class_name MovementConfig extends Resource
 @export var wall_slide_speed_neutral: float = 260.0
 @export var walljump_impulse: Vector2 = Vector2(360.0, -420.0)
 @export var walljump_later_up_mult: float = 0.15 ## consecutive jumps: mostly horizontal
-@export var walljump_aim_cone_deg: float = 35.0  ## aim-tilt range away from wall
+@export var walljump_steer_cone_deg: float = 35.0 ## movement-input tilt range away from wall
 @export var walljump_perfect_window: float = 0.08
 @export var momentum_keep_on_wall_jump: float = 0.75 ## non-perfect wall jump (wall analog of landing)
 ## Surfaces flatter than this are ceilings/slopes and are never wall-jumpable
@@ -48,3 +55,15 @@ class_name MovementConfig extends Resource
 @export var wall_normal_min_x: float = 0.8
 @export var duel_juice_mult: float = 1.2         ## simultaneous player wall-jump bonus
 @export var duel_window_frames: int = 4
+
+@export_group("Crouch & slide")
+## Crouching out of a run below this speed is just a crouch; at or above it the
+## run converts into a slide (DESIGN 4.6).
+@export var slide_min_speed: float = 200.0
+@export var slide_friction: float = 420.0        ## px/s^2 bled while sliding
+@export var slide_momentum_decay: float = 0.8    ## momentum_charge lost per second sliding
+@export var slide_exit_speed: float = 90.0       ## slower than this and the slide is over
+## The slide jump trades height for distance: a fraction of the minimum hop
+## upward, and a hard horizontal launch off whatever speed the slide still has.
+@export var slide_jump_up_mult: float = 0.8
+@export var slide_jump_speed_mult: float = 1.5

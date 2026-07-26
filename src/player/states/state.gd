@@ -19,6 +19,15 @@ func try_dash() -> bool:
 		return true
 	return false
 
+## Down while grounded (DESIGN 4.6). Carrying real speed into it converts the run
+## into a slide; anything slower is just a crouch. Returns true if it fired.
+func try_crouch() -> bool:
+	if not player.is_on_floor() or not player.wants_crouch():
+		return false
+	var fast := absf(player.velocity.x) >= player.movement.slide_min_speed
+	machine.change_state(&"Slide" if fast else &"Crouch")
+	return true
+
 ## Buffered jump off ground or coyote time. A jump inside the b-hop window keeps
 ## 100% of horizontal momentum (DESIGN 4.2) — the perfect flag carries that.
 func try_ground_jump() -> bool:

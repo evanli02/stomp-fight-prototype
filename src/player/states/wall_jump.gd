@@ -1,15 +1,15 @@
 class_name WallJumpState extends PlayerState
-## One-tick impulse state (DESIGN 4.4): away from the wall, tilted within the aim
-## cone, with the upward component collapsing on consecutive jumps so chains
-## travel across rather than up. Ceilings never reach here — WallSlide filters
-## them by normal.
+## One-tick impulse state (DESIGN 4.4): away from the wall, tilted within the
+## steering cone, with the upward component collapsing on consecutive jumps so
+## chains travel across rather than up. Ceilings never reach here — WallSlide
+## filters them by normal.
 
 func enter(_params: Dictionary = {}) -> void:
 	var cfg := player.movement
 	var n := player.wall_normal
 	var up_mult := 1.0 if player.wall_jump_chain == 0 else cfg.walljump_later_up_mult
 	var impulse := Vector2(n.x * cfg.walljump_impulse.x, cfg.walljump_impulse.y * up_mult)
-	impulse = _apply_aim_tilt(impulse)
+	impulse = _apply_steer_tilt(impulse)
 
 	# Kicking off another player is a duel: whoever inputs first stuns the other,
 	# and a tie juices both (DESIGN 3.4). The player arbitrates; the state just
@@ -29,12 +29,13 @@ func enter(_params: Dictionary = {}) -> void:
 	player.facing = signi(n.x)
 	machine.change_state(&"Air")
 
-## Tilt the impulse toward the live aim vector, clamped to the cone so an aimed
-## wall jump can never point back into the wall (DESIGN 4.4).
-func _apply_aim_tilt(impulse: Vector2) -> Vector2:
-	var aim := player.input.aim
-	if aim.length() < 0.1:
+## Tilt the impulse toward the movement input, clamped to the cone so a steered
+## wall jump can never point back into the wall (DESIGN 4.4). Holding into the
+## wall steepens the jump, holding away flattens it.
+func _apply_steer_tilt(impulse: Vector2) -> Vector2:
+	var steer := player.input.move
+	if steer.length() < 0.1:
 		return impulse
-	var cone := deg_to_rad(player.movement.walljump_aim_cone_deg)
-	var tilt := clampf(angle_difference(impulse.angle(), aim.angle()), -cone, cone)
+	var cone := deg_to_rad(player.movement.walljump_steer_cone_deg)
+	var tilt := clampf(angle_difference(impulse.angle(), steer.angle()), -cone, cone)
 	return impulse.rotated(tilt)

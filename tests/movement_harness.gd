@@ -81,6 +81,8 @@ func _run() -> void:
 	await _check_dash()
 	await _check_wall()
 	await _check_overhang()
+	await _check_crouch()
+	await _check_slide()
 
 func _check_land() -> void:
 	await step(60)
@@ -102,13 +104,13 @@ func _check_run_to_cap() -> void:
 	await step(30)
 
 func _check_jump_heights() -> void:
-	# Min hop: DESIGN 4.2 says ~2.5 tiles (40px).
+	# Min hop: DESIGN 4.2 says ~1.25 tiles (20px).
 	await reset_at(Vector2(200, 300))
 	press(&"jump")
 	await step(1)
 	release(&"jump")
 	var min_apex: float = await measure_apex(90)
-	check("min hop ~= 2.5 tiles", near(min_apex, 40.0, 6.0), "apex=%.1fpx (%.2f tiles)" % [min_apex, min_apex / 16.0])
+	check("min hop ~= 1.25 tiles", near(min_apex, 20.0, 5.0), "apex=%.1fpx (%.2f tiles)" % [min_apex, min_apex / 16.0])
 
 	# Full hold: DESIGN 4.2 says ~4.5 tiles (72px).
 	await reset_at(Vector2(200, 300))
@@ -116,7 +118,7 @@ func _check_jump_heights() -> void:
 	var full_apex: float = await measure_apex(90)
 	release(&"jump")
 	check("full hold ~= 4.5 tiles", near(full_apex, 72.0, 8.0), "apex=%.1fpx (%.2f tiles)" % [full_apex, full_apex / 16.0])
-	check("hold extends the jump", full_apex > min_apex + 20.0,
+	check("hold extends the jump", full_apex > min_apex * 2.5,
 		"min=%.1f full=%.1f" % [min_apex, full_apex])
 	await step(20)
 
@@ -169,7 +171,7 @@ func _check_bhop() -> void:
 
 func _check_dash() -> void:
 	await reset_at(Vector2(200, 300))
-	# Ground dash: surface-parallel, no air lock.
+	# Ground dash: surface-parallel, no air lock, and the long one (DESIGN 4.3).
 	press(&"move_right")
 	await step(5)
 	press(&"dash")
@@ -180,14 +182,41 @@ func _check_dash() -> void:
 	check("ground dash does not air-lock", not _player.air_dash_locked)
 	check("ground dash is horizontal", is_zero_approx(_player.velocity.y),
 		"vy=%.1f" % _player.velocity.y)
+	check("ground dash runs at the ground distance",
+		near(_player.velocity.x, _player.movement.dash_distance_ground / _player.movement.dash_duration, 1.0),
+		"vx=%.1f" % _player.velocity.x)
+	check("ground dash covers about twice the air dash",
+		near(_player.movement.dash_distance_ground, _player.movement.dash_distance * 2.0, 8.0),
+		"ground=%.0f air=%.0f" % [_player.movement.dash_distance_ground, _player.movement.dash_distance])
 	await step(15)
 	release(&"move_right")
 
-	# Air dash: locks out the second consecutive airborne dash (DESIGN 4.3).
-	# Aim is pinned right into open floor — an air dash follows the aim vector,
-	# and an unpinned one lands on the spawn ledge, clearing the lock we test.
+	# An upward air dash is cut to a fraction of its reach (DESIGN 4.3): at
+	# parity it beats the jump outright.
 	await reset_at(Vector2(300, 300))
-	press(&"aim_right")
+	press(&"jump")
+	await step(6)
+	release(&"jump")
+	press(&"move_up")
+	press(&"dash")
+	await step(3)  # the just_pressed edge needs a frame; the dash holds velocity
+	var up_speed := _player.velocity.y
+	release(&"dash")
+	release(&"move_up")
+	var flat_speed := _player.movement.dash_distance / _player.movement.dash_duration
+	check("upward air dash is cut to air_dash_up_mult",
+		near(up_speed, -flat_speed * _player.movement.air_dash_up_mult, 12.0),
+		"vy=%.1f expected=%.1f" % [up_speed, -flat_speed * _player.movement.air_dash_up_mult])
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
+	await step(10)
+
+	# Air dash: locks out the second consecutive airborne dash (DESIGN 4.3).
+	# Direction is pinned right into open floor — an air dash follows the
+	# movement input, and an unpinned one lands on the spawn ledge, clearing the
+	# lock we are trying to test.
+	await reset_at(Vector2(300, 300))
+	press(&"move_right")
 	press(&"jump")
 	await step(6)
 	release(&"jump")
@@ -203,7 +232,7 @@ func _check_dash() -> void:
 	release(&"dash")
 	check("second airborne dash is blocked", _player.dash_charges_left == after_first,
 		"charges=%d" % _player.dash_charges_left)
-	release(&"aim_right")
+	release(&"move_right")
 	while not _player.is_on_floor():
 		await get_tree().physics_frame
 	check("landing clears the air-dash lock", not _player.air_dash_locked)
@@ -212,54 +241,59 @@ func _check_dash() -> void:
 func _check_wall() -> void:
 	# Pillar B spans y=112..336 with its left face at x=880. Start airborne and
 	# adjacent — grounded contact with a wall is Run, not WallSlide.
-	await _reach_wall(0, &"aim_left")
+	await _reach_wall(0, &"")
 	check("reaches wall slide", state() == "WallSlide", "state=%s pos=%.1f" % [state(), _player.global_position.x])
 	check("wall slide is slower than free fall",
 		_player.velocity.y <= _player.movement.wall_slide_speed_hold + 20.0,
 		"vy=%.1f" % _player.velocity.y)
-	release(&"aim_left")
 
-	# The aim vector is ALWAYS live and tilts every wall jump (DESIGN 4.4/7), so
-	# it has to be pinned or these comparisons measure the mouse, not the chain.
-	var first_up: float = await _wall_jump_vy(0, &"aim_left")
+	# Neutral movement input: the plain untilted impulse, and the baseline the
+	# steered jumps below are compared against.
+	var first_up: float = await _wall_jump_vy(0, &"")
 	check("wall jump leaves the wall", _player.wall_jump_chain == 1 and _player.velocity.x < 0.0,
 		"chain=%d vx=%.1f" % [_player.wall_jump_chain, _player.velocity.x])
+	check("neutral wall jump is the untilted impulse",
+		near(first_up, _player.movement.walljump_impulse.y, 12.0),
+		"vy=%.1f expected=%.1f" % [first_up, _player.movement.walljump_impulse.y])
 
-	# Same aim, chain=1: consecutive jumps go across, not up (DESIGN 4.4).
-	var second_up: float = await _wall_jump_vy(1, &"aim_left")
+	# chain=1: consecutive jumps go across, not up (DESIGN 4.4).
+	var second_up: float = await _wall_jump_vy(1, &"")
 	check("consecutive wall jump loses upward impulse", second_up > first_up * 0.5,
 		"first vy=%.1f second vy=%.1f" % [first_up, second_up])
 	check("consecutive wall jump keeps horizontal push", absf(_player.velocity.x) > 200.0,
 		"vx=%.1f" % _player.velocity.x)
 
-	# Aiming up should steepen the same jump — proves the tilt follows the aim
-	# rather than fighting it.
-	var aimed_up: float = await _wall_jump_vy(0, &"aim_up")
-	check("aimed wall jump tilts toward the aim", aimed_up < first_up,
-		"horizontal-aim vy=%.1f up-aim vy=%.1f" % [first_up, aimed_up])
+	# Holding up steepens the same jump, holding away from the wall flattens it:
+	# the tilt follows the movement stick, not the aim (DESIGN 4.4).
+	var steered_up: float = await _wall_jump_vy(0, &"move_up")
+	check("wall jump tilts toward the movement input", steered_up < first_up - 40.0,
+		"neutral vy=%.1f up-held vy=%.1f" % [first_up, steered_up])
+	var steered_away: float = await _wall_jump_vy(0, &"move_left")
+	check("holding away from the wall flattens the jump", steered_away > first_up + 40.0,
+		"neutral vy=%.1f away-held vy=%.1f" % [first_up, steered_away])
 
-## Fall onto pillar B's left face with the aim pinned, holding until the slide
-## actually registers.
-func _reach_wall(chain: int, aim_action: StringName) -> bool:
+## Fall onto pillar B's left face, holding until the slide actually registers.
+## steer_action is pressed before the jump and left held; pass &"" for neutral.
+func _reach_wall(chain: int, steer_action: StringName) -> bool:
 	await reset_at(Vector2(861, 180), 2)
 	_player.wall_jump_chain = chain
-	press(aim_action)
 	press(&"move_right")
 	for i in 30:
 		await get_tree().physics_frame
 		if state() == "WallSlide":
 			release(&"move_right")
+			if steer_action != &"":
+				press(steer_action)
 			return true
 	release(&"move_right")
 	return false
 
-## Wall-jump off pillar B at a forced chain count and pinned aim, returning
+## Wall-jump off pillar B at a forced chain count and steering input, returning
 ## velocity.y on the exact frame the jump fires (before gravity touches it).
-func _wall_jump_vy(chain: int, aim_action: StringName) -> float:
-	var reached: bool = await _reach_wall(chain, aim_action)
+func _wall_jump_vy(chain: int, steer_action: StringName) -> float:
+	var reached: bool = await _reach_wall(chain, steer_action)
 	if not reached:
 		check("wall-jump setup reached the wall (chain=%d)" % chain, false, "state=%s" % state())
-		release(aim_action)
 		return 0.0
 	press(&"jump")
 	var vy := 0.0
@@ -269,28 +303,108 @@ func _wall_jump_vy(chain: int, aim_action: StringName) -> float:
 			vy = _player.velocity.y
 			break
 	release(&"jump")
-	release(aim_action)
+	if steer_action != &"":
+		release(steer_action)
 	return vy
 
-## The overhang (x=400..496, y=160..176) is above jump height: dash up into it
-## and confirm it reads as a ceiling, not a wall (DESIGN 4.4).
-func _check_overhang() -> void:
-	await reset_at(Vector2(440, 300))
-	press(&"jump")
-	await step(8)
-	release(&"jump")
-	press(&"aim_up")
+## Down while standing still: a crouch, half the body height (DESIGN 4.6).
+func _check_crouch() -> void:
+	await reset_at(Vector2(200, 300))
+	var stand_height := _body_height()
+	press(&"move_down")
+	await step(3)  # the shape swap is deferred by a frame
+	check("down on the ground crouches", state() == "Crouch", "state=%s" % state())
+	check("crouching halves the body", near(_body_height(), stand_height * 0.5, 1.0),
+		"standing=%.0f crouched=%.0f" % [stand_height, _body_height()])
+	check("the crouched head hurtbox drops with the body",
+		_player.head_shape_crouch.disabled == false and _player.head_shape.disabled,
+		"stand_disabled=%s crouch_disabled=%s"
+		% [_player.head_shape.disabled, _player.head_shape_crouch.disabled])
+	release(&"move_down")
+	await step(3)
+	check("releasing down stands you back up", state() == "Idle" and not _player.crouched,
+		"state=%s crouched=%s" % [state(), _player.crouched])
+	check("standing restores the full body", near(_body_height(), stand_height, 1.0),
+		"height=%.0f" % _body_height())
+
+## Down out of a run: a slide that bleeds speed, refuses dashes, and can be
+## cashed in for a long flat jump (DESIGN 4.6).
+func _check_slide() -> void:
+	await reset_at(Vector2(200, 300))
+	press(&"move_right")
+	await step(60)
+	var entry_speed := absf(_player.velocity.x)
+	var entry_charge := _player.momentum_charge
+	press(&"move_down")
+	await step(2)
+	check("down out of a run slides", state() == "Slide", "state=%s vx=%.1f" % [state(), entry_speed])
+	check("sliding lowers the body", _player.crouched)
+
+	var charges_before := _player.dash_charges_left
 	press(&"dash")
 	await step(3)
 	release(&"dash")
-	release(&"aim_up")
+	check("dash is refused while sliding",
+		state() == "Slide" and _player.dash_charges_left == charges_before,
+		"state=%s charges=%d" % [state(), _player.dash_charges_left])
+
+	await step(12)
+	check("sliding bleeds speed", absf(_player.velocity.x) < entry_speed - 40.0,
+		"%.1f -> %.1f" % [entry_speed, absf(_player.velocity.x)])
+	check("sliding bleeds momentum", _player.momentum_charge < entry_charge,
+		"%.2f -> %.2f" % [entry_charge, _player.momentum_charge])
+
+	# The slide jump: little height, a lot of launch.
+	var pre_jump_speed := absf(_player.velocity.x)
+	press(&"jump")
+	await step(2)
+	release(&"jump")
+	check("slide jump launches horizontally",
+		absf(_player.velocity.x) > pre_jump_speed * 1.2,
+		"%.1f -> %.1f" % [pre_jump_speed, absf(_player.velocity.x)])
+	check("slide jump stands you back up", not _player.crouched)
+	release(&"move_down")
+	var apex: float = await measure_apex(90)
+	check("slide jump stays low", apex < 20.0, "apex=%.1fpx" % apex)
+	release(&"move_right")
+	await step(20)
+
+## Height of whichever body shape is currently enabled.
+func _body_height() -> float:
+	var shape: CollisionShape2D = _player.body_shape_crouch if _player.crouched else _player.body_shape
+	return (shape.shape as RectangleShape2D).size.y
+
+## The overhang (x=400..496, y=184..200) sits just above the apex of a full jump
+## and just inside the reach of an up-dash taken at that apex. Confirm a jump
+## alone misses it, a dash touches it, and that it reads as a ceiling rather
+## than a wall (DESIGN 4.3, 4.4).
+func _check_overhang() -> void:
+	await reset_at(Vector2(440, 300))
+	press(&"jump")
+	await step(30)  # full hold, all the way to the apex
+	release(&"jump")
+	check("a jump alone does not reach the overhang", not _player.is_on_ceiling(),
+		"y=%.1f" % _player.global_position.y)
+
+	await reset_at(Vector2(440, 300))
+	press(&"jump")
+	# Dash at the apex: the dash replaces velocity outright, so spending it while
+	# still rising fast throws away the climb it was meant to extend.
+	await step(22)
+	release(&"jump")
+	press(&"move_up")
+	press(&"dash")
+	await step(3)
+	release(&"dash")
+	release(&"move_up")
 	var hit_ceiling := false
 	for i in 20:
 		await get_tree().physics_frame
 		if _player.is_on_ceiling():
 			hit_ceiling = true
 			break
-	check("dash reaches the overhang", hit_ceiling, "y=%.1f" % _player.global_position.y)
+	check("an up-dash at the apex reaches the overhang", hit_ceiling,
+		"y=%.1f" % _player.global_position.y)
 	check("ceiling never becomes a wall", state() != "WallSlide", "state=%s" % state())
 	check("ceiling touch clears the air-dash lock", not _player.air_dash_locked)
 	await step(20)

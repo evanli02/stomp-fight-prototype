@@ -10,6 +10,8 @@ func physics_update(delta: float) -> void:
 	if not player.is_on_floor():
 		machine.change_state(&"Air")
 		return
+	if try_crouch():
+		return
 	player.velocity.y = 0.0
 	player.velocity.x = move_toward(player.velocity.x, 0.0, player.movement.ground_friction * delta)
 	if not is_zero_approx(player.input.move.x):

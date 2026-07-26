@@ -47,12 +47,16 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 ├── Sprite/AnimatedSprite2D         swapped per hero skin
 ├── StateMachine (Node)             state_machine.gd
 │   ├── Idle / Run / Skid
+│   ├── Crouch / Slide              half-height body; slide bleeds speed, jumps flat
 │   ├── Air (jump, fall, variable height, coyote, buffer, b-hop check)
 │   ├── Dash                        charges, surface-parallel vs omni, air-consecutive lock
 │   ├── WallSlide / WallJump        consecutive decay, aim tilt, perfect window
 │   ├── PoleClimb
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd
+├── BodyShape / BodyShapeCrouch     one enabled at a time; crouch is half height,
+│                                   bottom-aligned, swapped via set_deferred
 ├── HeadHurtbox (Area2D)            top 25%; disabled during grace
+│   └── HeadShape / HeadShapeCrouch  the crouched box is the top 25% of the short body
 ├── StompBox (Area2D)               bottom 20% + 6px past the feet; relative fall speed
 │                                   (bodies stop on contact, so at exactly the
 │                                   design box the two rects meet on a line)
@@ -69,6 +73,7 @@ apply_stun(duration: float)               # refresh rule: max(remaining, new)
 request_state(state_name: StringName)     # e.g. Skyla double-jump requests Air with params
 grant_speed_buff(mult: float, dur: float)
 set_head_hurtbox_enabled(on: bool)        # grace / Wisp ult only
+set_crouched(on: bool)                    # half-height body + matching head box
 start_spawn_protection()                  # head hurtbox off until timeout OR first action
 respawn_at(pos: Vector2)                  # body + movement bookkeeping only; lives are MatchState's
 ```

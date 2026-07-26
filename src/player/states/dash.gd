@@ -13,7 +13,13 @@ func enter(_params: Dictionary = {}) -> void:
 	# No two consecutive dashes airborne; any surface touch clears the lock.
 	if not on_surface:
 		player.air_dash_locked = true
-	_velocity = _resolve_direction() * (player.movement.dash_distance / player.movement.dash_duration)
+	var distance := player.movement.dash_distance_ground if player.is_on_floor() \
+		else player.movement.dash_distance
+	_velocity = _resolve_direction() * (distance / player.movement.dash_duration)
+	if not on_surface and _velocity.y < 0.0:
+		# Airborne dashes buy height at a heavy discount — a full-strength upward
+		# dash outclimbs the jump and flattens the whole vertical game (DESIGN 4.3).
+		_velocity.y *= player.movement.air_dash_up_mult
 	player.velocity = _velocity
 
 func physics_update(delta: float) -> void:
@@ -30,9 +36,9 @@ func _resolve_direction() -> Vector2:
 	if player.is_on_wall() and player.wall_is_jumpable(player.get_wall_normal()):
 		# Along the wall; neutral input climbs.
 		return Vector2(0.0, signf(move.y) if not is_zero_approx(move.y) else -1.0)
-	# Airborne: aim, else input, else facing (DESIGN 4.3).
-	if player.input.aim.length() > 0.1:
-		return player.input.aim.normalized()
+	# Airborne: movement input, else facing (DESIGN 4.3). The dash is steered by
+	# the stick you are already moving with, not by the aim vector — aim belongs
+	# to abilities, and stealing it for movement made the two fight each other.
 	if move.length() > 0.1:
 		return move.normalized()
 	return Vector2(float(player.facing), 0.0)
