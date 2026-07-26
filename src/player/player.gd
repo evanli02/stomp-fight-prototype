@@ -30,6 +30,8 @@ var active_hero: StringName = &""
 var crouched: bool = false
 ## Animation that must finish before the state machine drives the sprite again.
 var _oneshot: StringName = &""
+var _equipped_ability: Ability = null
+var _equipped_ultimate: Ability = null
 ## Downward speed carried into the current contact, kept alive for
 ## stomp_fall_memory_time. move_and_slide() zeroes velocity.y the frame a body
 ## lands, which is a frame before the areas report their overlap, so the fall
@@ -142,6 +144,59 @@ func set_hero(data: HeroData) -> void:
 	if data != null and data.sprite_frames != null:
 		sprite.sprite_frames = data.sprite_frames
 		sprite.play(&"idle")
+
+func equip_hero(hero_id: StringName) -> void:
+	## Put a hero in the body: skin plus their ability component. Position,
+	## velocity, momentum, and stun are all deliberately untouched — the incoming
+	## hero inherits the outgoing hero's situation (DESIGN 2.4).
+	active_hero = hero_id
+	var data := GameManager.hero_data(hero_id)
+	if data == null:
+		return
+	set_hero(data)
+	for child in ability_slot.get_children():
+		child.queue_free()
+	_equipped_ability = _instance_ability(data.ability_scene, hero_id, data.ability_cooldown, false)
+	_equipped_ultimate = _instance_ability(data.ultimate_scene, hero_id, 0.0, true)
+
+func _instance_ability(scene: PackedScene, hero_id: StringName,
+		cooldown: float, is_ult: bool) -> Ability:
+	if scene == null:
+		return null
+	var node := scene.instantiate()
+	var ability := node as Ability
+	if ability == null:
+		node.queue_free()
+		return null
+	ability.player = self
+	ability.hero_id = hero_id
+	ability.cooldown = cooldown
+	ability.is_ultimate = is_ult
+	ability_slot.add_child(ability)
+	return ability
+
+## Cycle to the next living hero. No cooldown and no cost, but blocked while
+## stunned — swapping must never be a way out of a stun (CLAUDE.md checklist).
+func try_swap() -> bool:
+	if stun_remaining > 0.0 or not MatchState.has_player(player_id):
+		return false
+	var target := MatchState.next_living_hero(player_id)
+	if not MatchState.swap_to(player_id, target):
+		return false
+	equip_hero(target)
+	return true
+
+func try_ability() -> bool:
+	if stun_remaining > 0.0 or _equipped_ability == null:
+		return false
+	return _equipped_ability.try_fire(input.aim)
+
+func try_ultimate() -> bool:
+	## Also blocked while stunned (CLAUDE.md checklist). The spend happens inside
+	## Ability.try_fire via MatchState, so a blocked ult is never consumed.
+	if stun_remaining > 0.0 or _equipped_ultimate == null:
+		return false
+	return _equipped_ultimate.try_fire(input.aim)
 
 func play_elimination() -> void:
 	## The confetti pop for a hero's last life (DESIGN 3.3). One-shot: it holds
@@ -275,6 +330,7 @@ func _update_animation() -> void:
 func _physics_process(delta: float) -> void:
 	input = InputConfig.poll(player_id, self)
 	_tick_timers(delta)
+	_handle_hero_input()
 	state_machine.tick(delta)
 	var was_on_floor := is_on_floor()
 	# Sampled before the move because the collision that ends a fall also erases
@@ -287,6 +343,18 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_post_move(was_on_floor)
 	_scan_stomps()
+
+## Swap, ability, and ultimate all read from the same InputFrame the movement
+## states do. The ultimate is checked first: on a controller it arrives as the
+## R2+L2 chord, and InputConfig has already suppressed the dash and swap that
+## made it (DESIGN 7).
+func _handle_hero_input() -> void:
+	if input.ultimate_pressed:
+		try_ultimate()
+	if input.ability_pressed:
+		try_ability()
+	if input.swap_pressed:
+		try_swap()
 
 func _tick_timers(delta: float) -> void:
 	fall_speed_memory = move_toward(fall_speed_memory, 0.0,

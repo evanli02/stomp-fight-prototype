@@ -1,0 +1,198 @@
+extends Node
+## Match structure harness (M3). Covers the rules that decide who is on the
+## field and what they are allowed to do: rosters, hero swap, per-hero cooldowns
+## that tick while benched, the one-ultimate-per-round economy, round wins, and
+## the reset between rounds.
+##
+## Most of this is pure logic on the autoloads and needs no bodies. The parts
+## that do — swapping actually re-equipping the player, stun blocking swap and
+## ult — run against the real duel scene.
+##   Godot --headless --path . res://tests/match_harness.tscn
+## Exits non-zero if any check fails.
+
+var _failures: int = 0
+var _stage: Node2D
+var _p1: Player
+var _p2: Player
+
+func _ready() -> void:
+	_stage = load("res://src/stage/duel.tscn").instantiate() as Node2D
+	add_child(_stage)
+	await get_tree().physics_frame
+	_p1 = _stage.get_node("%Player1") as Player
+	_p2 = _stage.get_node("%Player2") as Player
+	await _run()
+	print("\n%s" % ("ALL CHECKS PASSED" if _failures == 0 else "%d CHECK(S) FAILED" % _failures))
+	get_tree().quit(1 if _failures > 0 else 0)
+
+#region harness
+func step(frames: int) -> void:
+	for i in frames:
+		await get_tree().physics_frame
+
+func check(label: String, ok: bool, detail: String = "") -> void:
+	if not ok:
+		_failures += 1
+	print("%s %s %s" % ["PASS" if ok else "FAIL", label, detail])
+
+## Take every life off a hero without needing a body to stomp it.
+func kill_hero(pid: int, hero: StringName) -> void:
+	for i in MatchState.LIVES_PER_HERO:
+		MatchState.lose_life(pid, hero)
+#endregion
+
+func _run() -> void:
+	await _check_rosters()
+	await _check_swap()
+	await _check_swap_equips_the_body()
+	await _check_stun_blocks_swap_and_ult()
+	await _check_cooldowns_tick_while_benched()
+	await _check_ultimate_economy()
+	await _check_round_win_and_reset()
+
+func _check_rosters() -> void:
+	check("the match starts in ROUND_ACTIVE",
+		GameManager.phase == GameManager.Phase.ROUND_ACTIVE,
+		"phase=%d" % GameManager.phase)
+	check("each seat has three heroes",
+		MatchState.roster(0).size() == 3 and MatchState.roster(1).size() == 3,
+		"p1=%s p2=%s" % [MatchState.roster(0), MatchState.roster(1)])
+	check("every hero starts on two lives",
+		MatchState.lives_of(0, MatchState.roster(0)[2]) == MatchState.LIVES_PER_HERO)
+	check("the first hero in the roster starts active",
+		MatchState.active_hero(0) == MatchState.roster(0)[0],
+		"active=%s" % MatchState.active_hero(0))
+
+func _check_swap() -> void:
+	var roster: Array = MatchState.roster(0)
+	check("swapping to the active hero is refused",
+		not MatchState.can_swap_to(0, MatchState.active_hero(0)))
+	check("swapping to a living bench hero is allowed",
+		MatchState.can_swap_to(0, roster[1]))
+	check("swap succeeds", MatchState.swap_to(0, roster[1]))
+	check("the active hero changed", MatchState.active_hero(0) == roster[1],
+		"active=%s" % MatchState.active_hero(0))
+
+	# A dead hero can never be swapped to (DESIGN 2.2).
+	kill_hero(0, roster[2])
+	check("swapping to an eliminated hero is refused", not MatchState.can_swap_to(0, roster[2]))
+	check("cycling skips the eliminated hero",
+		MatchState.next_living_hero(0) == roster[0],
+		"next=%s" % MatchState.next_living_hero(0))
+	MatchState.reset_round()
+	await step(1)
+
+func _check_swap_equips_the_body() -> void:
+	MatchState.reset_round()
+	_p1.equip_hero(MatchState.active_hero(0))
+	await step(2)
+	var before := _p1.active_hero
+	var frames_before := _p1.sprite.sprite_frames
+	var pos_before := _p1.global_position
+	_p1.velocity = Vector2(180, -90)
+	var vel_before := _p1.velocity
+
+	check("the body swaps hero", _p1.try_swap(), "active=%s" % _p1.active_hero)
+	check("the equipped hero changed", _p1.active_hero != before,
+		"%s -> %s" % [before, _p1.active_hero])
+	check("the sprite frames changed with it", _p1.sprite.sprite_frames != frames_before)
+	# DESIGN 2.4: the incoming hero inherits the outgoing hero's situation.
+	check("swapping does not move the body", _p1.global_position.is_equal_approx(pos_before),
+		"%s -> %s" % [pos_before, _p1.global_position])
+	check("swapping keeps velocity", _p1.velocity.is_equal_approx(vel_before),
+		"%s -> %s" % [vel_before, _p1.velocity])
+
+func _check_stun_blocks_swap_and_ult() -> void:
+	var active_before := _p1.active_hero
+	_p1.apply_stun(0.5)
+	await step(1)
+	check("swap is blocked while stunned", not _p1.try_swap())
+	check("the stunned player keeps their hero", _p1.active_hero == active_before,
+		"active=%s" % _p1.active_hero)
+	check("ultimate is blocked while stunned", not _p1.try_ultimate())
+	check("a blocked ultimate is not spent", MatchState.ult_available(0))
+	_p1.stun_remaining = 0.0
+	await step(1)
+
+func _check_cooldowns_tick_while_benched() -> void:
+	MatchState.reset_round()
+	var roster: Array = MatchState.roster(0)
+	var benched: StringName = roster[1]
+	MatchState.swap_to(0, roster[0])
+	MatchState.start_cooldown(0, benched, 2.0)
+	check("starting a cooldown registers it",
+		is_equal_approx(MatchState.cooldown_remaining(0, benched), 2.0),
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, benched))
+	check("a hero on cooldown is not ready", not MatchState.is_ability_ready(0, benched))
+
+	# Benched cooldowns keep running — swapping out must never reset an ability
+	# (CLAUDE.md checklist). GameManager ticks them during ROUND_ACTIVE.
+	await step(30)
+	var after := MatchState.cooldown_remaining(0, benched)
+	check("a benched hero's cooldown still ticks", after < 1.75 and after > 1.0,
+		"remaining=%.2f after 0.5s" % after)
+	check("the benched hero is still benched", MatchState.active_hero(0) != benched)
+
+	var ready: bool = false
+	for i in 200:
+		await get_tree().physics_frame
+		if MatchState.is_ability_ready(0, benched):
+			ready = true
+			break
+	check("the cooldown reaches zero and stays there", ready
+		and MatchState.cooldown_remaining(0, benched) == 0.0,
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, benched))
+
+func _check_ultimate_economy() -> void:
+	MatchState.reset_round()
+	check("the ultimate starts available", MatchState.ult_available(0))
+	check("spending the ultimate succeeds", MatchState.try_spend_ultimate(0))
+	check("the ultimate is now gone", not MatchState.ult_available(0))
+	check("a second spend is refused", not MatchState.try_spend_ultimate(0))
+	# One per PLAYER, shared across the trio (DESIGN 2.3) — swapping does not
+	# hand you a fresh one.
+	MatchState.swap_to(0, MatchState.next_living_hero(0))
+	check("swapping heroes does not restore the ultimate", not MatchState.ult_available(0))
+	check("the other player's ultimate is untouched", MatchState.ult_available(1))
+	MatchState.reset_round()
+	check("the round reset restores the ultimate", MatchState.ult_available(0))
+
+func _check_round_win_and_reset() -> void:
+	MatchState.reset_round()
+	var wins_before := MatchState.wins_for(0)
+	var winners: Array[int] = []
+	MatchState.round_won.connect(func(team: int) -> void: winners.append(team))
+
+	var roster: Array = MatchState.roster(1).duplicate()
+	for i in roster.size():
+		kill_hero(1, roster[i])
+		if i < roster.size() - 1:
+			check("the round is still live with %d hero(es) left" % (roster.size() - i - 1),
+				winners.is_empty(), "winners=%s" % [winners])
+	check("wiping the whole trio ends the round", winners == [0], "winners=%s" % [winners])
+	check("the winning team banks a round win", MatchState.wins_for(0) == wins_before + 1,
+		"wins=%d" % MatchState.wins_for(0))
+	check("the loser is recorded for stage pick", MatchState.last_round_loser_team == 1,
+		"loser=%d" % MatchState.last_round_loser_team)
+	check("round 1 stage pick goes to the coinflip winner",
+		MatchState.stage_picker(0, 1) == 1)
+	check("later rounds are picked by the previous loser",
+		MatchState.stage_picker(1, 1) == 1)
+
+	# The arena calls end_round; GameManager holds results, then starts the next.
+	# Flag lives in an array because GDScript lambdas capture locals by VALUE —
+	# assigning a captured bool inside the closure updates only the copy.
+	var started: Array[bool] = [false]
+	GameManager.round_started.connect(func(_i: int) -> void: started[0] = true)
+	for i in 400:
+		await get_tree().physics_frame
+		if started[0]:
+			break
+	check("the next round starts after the results banner", started[0],
+		"phase=%d" % GameManager.phase)
+	check("the reset restores every hero to full lives",
+		MatchState.lives_of(1, roster[0]) == MatchState.LIVES_PER_HERO
+		and MatchState.lives_of(1, roster[2]) == MatchState.LIVES_PER_HERO,
+		"lives=%d,%d" % [MatchState.lives_of(1, roster[0]), MatchState.lives_of(1, roster[2])])
+	check("round wins survive the reset", MatchState.wins_for(0) == wins_before + 1,
+		"wins=%d" % MatchState.wins_for(0))

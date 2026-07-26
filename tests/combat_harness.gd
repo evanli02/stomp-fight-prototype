@@ -13,7 +13,6 @@ extends Node
 ## what the combat rules do once bodies are in contact, and hand-flown approaches
 ## make that setup flaky without testing anything extra.
 
-const DUMMY_HERO: StringName = &"dummy"
 ## Floor top in duel.tscn is y=336, so a standing body's centre sits here.
 const FLOOR_Y: float = 312.0
 
@@ -51,12 +50,23 @@ func check(label: String, ok: bool, detail: String = "") -> void:
 		_failures += 1
 	print("%s %s %s" % ["PASS" if ok else "FAIL", label, detail])
 
+## Lives on whichever hero is currently out for that seat.
 func lives_of(player_id: int) -> int:
-	return MatchState.players[player_id]["heroes"][DUMMY_HERO]
+	return MatchState.lives_of(player_id, MatchState.active_hero(player_id))
 
 ## Park a player somewhere with every combat timer cleared, so each check starts
 ## from the same state regardless of what the previous one did to them.
+##
+## Teleporting a body is not instant as far as the physics server is concerned:
+## if whatever it was resting on has moved or vanished, the next move_and_slide()
+## can depenetrate it a long way — velocity untouched, position thrown across the
+## arena. Settling for a frame and re-asserting makes the placement stick.
 func place(p: Player, pos: Vector2) -> void:
+	_park(p, pos)
+	await get_tree().physics_frame
+	_park(p, pos)
+
+func _park(p: Player, pos: Vector2) -> void:
 	p.global_position = pos
 	p.velocity = Vector2.ZERO
 	p.stun_remaining = 0.0
@@ -78,12 +88,16 @@ func _run() -> void:
 	await _check_only_stomps_cost_lives()
 	await _check_stomp()
 	await _check_grace_blocks_the_chain()
-	await _check_last_life_ends_the_round()
+	await _check_last_life_swaps_in_the_next_hero()
 	await _check_wall_duel_stun()
 	await _check_wall_duel_simultaneous()
 
 func _check_registration() -> void:
 	check("both players are registered", MatchState.has_player(0) and MatchState.has_player(1))
+	check("each seat gets a full trio",
+		MatchState.roster(0).size() == MatchState.HEROES_PER_PLAYER
+		and MatchState.roster(1).size() == MatchState.HEROES_PER_PLAYER,
+		"p1=%s p2=%s" % [MatchState.roster(0), MatchState.roster(1)])
 	check("each hero starts on 2 lives", lives_of(0) == 2 and lives_of(1) == 2,
 		"p1=%d p2=%d" % [lives_of(0), lives_of(1)])
 	check("seats hold different devices",
@@ -92,8 +106,8 @@ func _check_registration() -> void:
 
 ## DESIGN 3.4: you can stand on shoulders. Only falling onto the head box counts.
 func _check_standing_on_head_is_not_a_stomp() -> void:
-	place(_p2, Vector2(400, FLOOR_Y))
-	place(_p1, Vector2(400, FLOOR_Y - 48))  # feet resting on P2's head
+	await place(_p2, Vector2(400, FLOOR_Y))
+	await place(_p1, Vector2(400, FLOOR_Y - 48))  # feet resting on P2's head
 	await step(30)                          # longer than stomp_fall_memory_time
 	check("standing on a head costs no life", lives_of(1) == 2, "lives=%d" % lives_of(1))
 	check("standing on a head applies no stun", is_zero_approx(_p2.stun_remaining))
@@ -106,8 +120,8 @@ func _check_only_stomps_cost_lives() -> void:
 	check("stun and knockback cost no life", lives_of(1) == 2, "lives=%d" % lives_of(1))
 
 func _check_stomp() -> void:
-	place(_p2, Vector2(400, FLOOR_Y))
-	place(_p1, Vector2(400, FLOOR_Y - 110))  # ~60px of fall onto the head
+	await place(_p2, Vector2(400, FLOOR_Y))
+	await place(_p1, Vector2(400, FLOOR_Y - 110))  # ~60px of fall onto the head
 	var stomps: Array[Player] = []
 	_p1.stomp_landed.connect(func(victim: Player) -> void: stomps.append(victim))
 	await step(30)
@@ -122,7 +136,7 @@ func _check_stomp() -> void:
 
 func _check_grace_blocks_the_chain() -> void:
 	# Same fall again while grace is still running: the chain has to be refused.
-	place(_p1, Vector2(400, FLOOR_Y - 110))
+	await place(_p1, Vector2(400, FLOOR_Y - 110))
 	_p2.global_position = Vector2(400, FLOOR_Y)
 	_p2.velocity = Vector2.ZERO
 	check("grace is still running for the second drop", _p2.grace_remaining > 0.0,
@@ -130,28 +144,35 @@ func _check_grace_blocks_the_chain() -> void:
 	await step(30)
 	check("grace refuses the chained stomp", lives_of(1) == 1, "lives=%d" % lives_of(1))
 
-func _check_last_life_ends_the_round() -> void:
+## The second stomp on a hero pops it and the player's NEXT hero comes in at
+## their spawn (DESIGN 3.3). The round only ends when the whole trio is gone,
+## which the match harness covers.
+func _check_last_life_swaps_in_the_next_hero() -> void:
 	var eliminated: Array[StringName] = []
-	var winners: Array[int] = []
 	MatchState.hero_eliminated.connect(func(_pid: int, hid: StringName) -> void: eliminated.append(hid))
-	MatchState.round_won.connect(func(team: int) -> void: winners.append(team))
 	var grace_ended: bool = await wait_until(func() -> bool: return _p2.grace_remaining <= 0.0)
 	check("grace expires on its own", grace_ended, "grace=%.2f" % _p2.grace_remaining)
-	place(_p2, Vector2(400, FLOOR_Y))
-	place(_p1, Vector2(400, FLOOR_Y - 110))
+	var doomed := MatchState.active_hero(1)
+	await place(_p2, Vector2(400, FLOOR_Y))
+	await place(_p1, Vector2(400, FLOOR_Y - 110))
 	await step(30)
-	check("the second stomp empties the hero", lives_of(1) == 0, "lives=%d" % lives_of(1))
-	check("hero_eliminated fires", eliminated.has(DUMMY_HERO), "fired=%s" % [eliminated])
-	check("round_won goes to the surviving team", winners == [0], "winners=%s" % [winners])
-	# The stage resets 2.5s after the win; wait it out so later checks own the bodies.
-	var reset: bool = await wait_until(func() -> bool: return lives_of(1) == 2)
-	check("the round reset restores lives", reset and lives_of(0) == 2,
-		"p1=%d p2=%d" % [lives_of(0), lives_of(1)])
+	check("the second stomp empties the hero",
+		MatchState.lives_of(1, doomed) == 0, "lives=%d" % MatchState.lives_of(1, doomed))
+	check("hero_eliminated fires", eliminated.has(doomed), "fired=%s" % [eliminated])
+
+	var swapped: bool = await wait_until(func() -> bool: return MatchState.active_hero(1) != doomed)
+	check("the next hero is auto-swapped in", swapped,
+		"active=%s" % MatchState.active_hero(1))
+	check("the incoming hero arrives on full lives", lives_of(1) == 2, "lives=%d" % lives_of(1))
+	check("the incoming hero gets spawn protection", _p2.spawn_protected or _p2.grace_remaining > 0.0,
+		"protected=%s grace=%.2f" % [_p2.spawn_protected, _p2.grace_remaining])
+	check("the eliminated player is not out yet", not MatchState.is_out(1),
+		"living=%s" % [MatchState.living_heroes(1)])
 
 ## Integration path: P1 clings to P2's flank and kicks off it (DESIGN 3.4).
 func _check_wall_duel_stun() -> void:
-	place(_p2, Vector2(400, FLOOR_Y))
-	place(_p1, Vector2(367, FLOOR_Y - 20))
+	await place(_p2, Vector2(400, FLOOR_Y))
+	await place(_p1, Vector2(367, FLOOR_Y - 20))
 	Input.action_press(InputConfig.action(0, &"move_right"))  # hold into P2
 	var clung := false
 	for i in 40:
@@ -187,8 +208,8 @@ func _check_wall_duel_stun() -> void:
 ## Arbitration path: both inputs land inside duel_window_frames, so both get the
 ## juice and neither is stunned — allies included (DESIGN 3.4).
 func _check_wall_duel_simultaneous() -> void:
-	place(_p1, Vector2(367, FLOOR_Y - 20))
-	place(_p2, Vector2(400, FLOOR_Y - 20))
+	await place(_p1, Vector2(367, FLOOR_Y - 20))
+	await place(_p2, Vector2(400, FLOOR_Y - 20))
 	await step(2)
 	var juice := _p1.movement.duel_juice_mult
 	var first_impulse := Vector2(-360.0, -420.0)

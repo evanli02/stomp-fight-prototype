@@ -4,8 +4,8 @@ class_name Ability extends Node
 ## self-contained effect scenes. Abilities can NEVER remove a life (CLAUDE.md 1).
 ##
 ## Cooldowns are PER HERO and keep ticking while the hero is benched
-## (DESIGN 2.4) — cooldown state therefore lives in a per-player registry keyed
-## by hero id, not on this (freed on swap) node. TODO(M3): CooldownLedger.
+## (DESIGN 2.4) — cooldown state therefore lives in MatchState, keyed by player
+## and hero, not on this node, which is freed the moment its hero is swapped out.
 
 signal fired
 signal cooldown_started(duration: float)
@@ -33,7 +33,11 @@ func _execute(_aim: Vector2) -> void:
 	pass
 
 func _on_cooldown() -> bool:
-	return false # TODO(M3): read CooldownLedger
+	if not MatchState.has_player(player.player_id):
+		return false  # debug scenes with unregistered bodies
+	return not MatchState.is_ability_ready(player.player_id, hero_id)
 
 func _start_cooldown() -> void:
-	cooldown_started.emit(cooldown) # TODO(M3): write CooldownLedger
+	if MatchState.has_player(player.player_id):
+		MatchState.start_cooldown(player.player_id, hero_id, cooldown)
+	cooldown_started.emit(cooldown)

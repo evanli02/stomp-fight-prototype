@@ -1,7 +1,8 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=4 format=3]
 
 [ext_resource type="Script" path="res://src/stage/duel.gd" id="1"]
 [ext_resource type="PackedScene" path="res://src/player/player.tscn" id="2"]
+[ext_resource type="Script" path="res://src/ui/hud.gd" id="3"]
 
 [node name="Duel" type="Node2D"]
 script = ExtResource("1")
@@ -18,15 +19,18 @@ position = Vector2(120, 220)
 unique_name_in_owner = true
 position = Vector2(680, 220)
 
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("3")
+
 [node name="Debug" type="CanvasLayer" parent="."]
 
 [node name="Readout" type="Label" parent="Debug"]
 unique_name_in_owner = true
 offset_left = 16.0
-offset_top = 12.0
-offset_right = 700.0
-offset_bottom = 260.0
-theme_override_font_sizes/font_size = 16
+offset_top = 116.0
+offset_right = 760.0
+offset_bottom = 360.0
+theme_override_font_sizes/font_size = 14
 text = "…"
 
 [node name="Banner" type="Label" parent="Debug"]

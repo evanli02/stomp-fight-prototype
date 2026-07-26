@@ -33,8 +33,8 @@ overstomp/
 
 | Autoload | Responsibility |
 |---|---|
-| `GameManager` (`src/autoload/game_manager.gd`) | Match lifecycle: lobby config → round loop (hero select → stage select → combat → results). Owns the seeded RNG and the hero roster registry. |
-| `MatchState` (`src/autoload/match_state.gd`) | Single source of truth for: per-player rosters, per-hero lives, eliminations, ultimate availability, round wins, coinflip/stage-pick ownership. Pure data + signals; no scene refs. Fully unit-testable. |
+| `GameManager` (`src/autoload/game_manager.gd`) | Match lifecycle: lobby config → round loop (hero select → stage select → combat → results). Owns the seeded RNG, the hero roster registry (`hero_data(id)`, cached), and the results countdown. **Ticks ability cooldowns, and only during `ROUND_ACTIVE`** — so nothing burns down behind a results banner. Holds no scene references. |
+| `MatchState` (`src/autoload/match_state.gd`) | Single source of truth for: per-player rosters, active hero, per-hero lives, eliminations, **per-hero ability cooldowns**, ultimate availability, round wins, coinflip/stage-pick ownership. Pure data + signals; no scene refs. Fully testable without a tree. |
 | `InputConfig` (`src/autoload/input_config.gd`) | Per-seat action namespaces (`p0_jump`, `p1_jump`, … — always via `action(player_id, base)`), device assignment (`assign_device`, seat 0 KBM / seat 1 pad by default), the R2+L2 ultimate chord resolver, and the shared aim-vector provider. `poll(player_id, body)` returns an `InputFrame` (`src/autoload/input_frame.gd`) — the one place gameplay reads inputs, so a rollback layer can swap the source (§9) — and is memoised per tick, so the chord state advances exactly once a frame. Rebind persistence to `user://input.cfg` lands with the rebind UI (M6). |
 
 **Rule:** scenes read `MatchState` and connect to its signals; only `GameManager` and combat-event emitters mutate it.
@@ -75,6 +75,8 @@ request_state(state_name: StringName)     # e.g. Skyla double-jump requests Air 
 grant_speed_buff(mult: float, dur: float)
 set_head_hurtbox_enabled(on: bool)        # grace / Wisp ult only
 set_hero(data: HeroData)                  # re-skin in place; never respawns, never touches movement
+equip_hero(hero_id: StringName)           # skin + ability components for that hero
+try_swap() / try_ability() / try_ultimate()   # all three refuse while stunned
 play_elimination()                        # one-shot confetti pop, holds the sprite until it ends
 set_crouched(on: bool)                    # half-height body + matching head box
 start_spawn_protection()                  # head hurtbox off until timeout OR first action
@@ -139,7 +141,9 @@ StompBox overlap + fall-speed check (attacker's player.gd, post-move, in player_
 ```
 A stomp landed while the attacker is stunned applies the bounce but does not return control. `lose_life` on an already-empty hero is a no-op.
 
-Ultimates: `InputConfig` resolves the input → `AbilitySlot` asks `MatchState.try_spend_ultimate(player_id)` → only on `true` does the ult fire.
+Hero elimination continues into the swap flow (DESIGN 3.3): the arena hears `hero_eliminated`, plays the confetti pop, waits `RESPAWN_DELAY`, then brings in `MatchState.next_living_hero()` at that seat's spawn with protection. If the trio is empty instead, `round_won` is already on its way.
+
+Ultimates: `InputConfig` resolves the input → the equipped ultimate asks `MatchState.try_spend_ultimate(player_id)` → only on `true` does it fire. Abilities read and write cooldowns through `MatchState`, keyed by player **and hero**, because the ability node is freed the moment its hero is swapped out and cannot be the thing remembering. Swap, ability, and ultimate are all refused while stunned (CLAUDE.md checklist).
 
 Wall-jump duels (`player.gd`, `claim_wall_duel`): jumping off another player opens a claim stamped with the physics frame. If the other player answers within `duel_window_frames`, both are juiced (`duel_juice_mult`) and nobody is stunned — the earlier jumper is paid as an impulse delta. Unanswered, the claim resolves at the end of the window with `other.apply_stun(stun_duel_loss)`. The stun is deferred precisely so a tie is reachable; applying it with the jump would stun the loser out of the input that ties it. Resolution is by frame number, never by contact order (§9).
 
@@ -150,13 +154,15 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 `LOBBY → HERO_SELECT → STAGE_SELECT → ROUND_ACTIVE → ROUND_RESULTS → (loop | MATCH_RESULTS)`
 
 - Stage pick ownership: round 1 = seeded coinflip winner; later = loser of previous round (`MatchState.stage_picker()`).
-- Round reset: lives → 2×3, cooldowns cleared, ultimate restored, stage reloaded.
+- Round reset: lives → 2×3, cooldowns cleared, ultimate restored, active hero back to the first pick.
+- **Who calls what:** the arena owns the bodies and calls `GameManager.end_round()` when it has shown the result; GameManager holds `RESULTS_TIME`, then either starts the next round (`round_started`) or ends the match (`match_won`). GameManager never touches a node — that separation is what lets the match harness drive whole rounds without a stage.
+- Implemented as of M3: `start_match`, the round loop, results countdown, best-of resolution. **Not yet: the hero-select and stage-select screens** — arenas hand `start_match()` a roster directly (`duel.gd: SEAT_ROSTERS`).
 
 ## 7. Milestone order (build in this order)
 
 1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
-3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD.
+3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Spine done and verified headlessly (2026-07-26): 3-hero rosters, free swap, per-hero cooldowns ticking while benched, one-ult-per-round, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. **Outstanding: the hero-select and stage-select screens** — arenas currently hand GameManager a fixed roster.*
 4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova.
 5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab.
 6. **M6 — Formats & polish**: 2v2/3v3, stage select flow, Bo3/Bo5, VFX/SFX pass, remaining heroes/stages.
@@ -184,7 +190,9 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
 - Feel is tested by humans in `playground.tscn` (movement) and `duel.tscn` (1v1); both carry a debug overlay — state, velocity, momentum charge, dash charges, perfect-window hits, and in the duel stage lives, stun, grace, and a combat event log.
 - **Headless harnesses** live in `tests/` and are the regression net under the physics code. Neither is GUT: both need a live scene tree, physics ticks, and real collision. Non-zero exit on failure.
   - `movement_harness.tscn` — DESIGN 4 numbers: jump heights, momentum decay, b-hop preservation, dash charges/air lock, wall-jump chain decay and aim tilt, ceilings. Run after touching `src/player/`.
-  - `combat_harness.tscn` — DESIGN 3 rules: what does and does not register as a stomp, life/stun/grace/bounce, the anti-chain grace, round end, and duel resolution. Run after touching stomp, stun, or duel code.
+  - `combat_harness.tscn` — DESIGN 3 rules: what does and does not register as a stomp, life/stun/grace/bounce, the anti-chain grace, elimination into auto-swap, and duel resolution. Run after touching stomp, stun, or duel code.
+  - `match_harness.tscn` — DESIGN 2 rules: rosters, swap validation and cycling, swap preserving position/velocity, stun blocking swap and ult, cooldowns ticking while benched, the one-ult-per-round economy, round win, and the reset between rounds. Run after touching MatchState, GameManager, or the swap path.
+  - Teleporting a body into place inside a harness needs a settle frame. If whatever it was resting on has moved, the next `move_and_slide()` can depenetrate it across the arena with its velocity untouched — `combat_harness.place()` re-asserts the position a frame later for exactly this reason.
   - `Godot --headless --path . res://tests/<harness>.tscn`. A newly added `class_name` needs `Godot --headless --path . --import` first, or the harness cannot see the class.
 - **Generated art** has a loader check: `Godot --headless --path . --script res://tests/verify_frames.gd` confirms every hero's SpriteFrames resource parses and holds every animation the states can ask for. Run it after regenerating characters. The movement harness separately asserts that no state names an animation the sheets lack.
 - Harness inputs go through `InputConfig.action(player_id, base)`. The `aim_*` actions are unbound on KBM specifically so a harness can pin an exact aim; without that, aim falls back to a mouse pointer that headless leaves at the origin.

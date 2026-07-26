@@ -1,24 +1,22 @@
 extends Node2D
-## M2 exit-criteria scene: a playable 1v1 on one dummy hero. Two seats (KBM and
-## pad, per InputConfig), full stomp loop, wall-jump duels, and a readout of the
-## things that are invisible on screen — lives, stun, grace, and the last combat
-## events.
+## The 1v1 arena: two seats, three heroes each, a full round loop.
 ##
-## Round flow here is deliberately minimal: reset when a team wins, nothing else.
-## TODO(M3): GameManager owns registration, hero select, the round loop, and the
-## respawn/auto-swap that a real 3-hero roster needs (DESIGN 3.3).
+## Division of labour — GameManager owns phases and match-level decisions and
+## holds no scene references; MatchState owns the numbers; this scene owns the
+## bodies. Nothing above it knows a Player node exists, which is what keeps the
+## autoloads testable without a tree.
 
 const ARENA: Vector2i = Vector2i(50, 22)
-const DUMMY_HERO: StringName = &"dummy"
 const SPAWNS: Array[Vector2] = [Vector2(120, 220), Vector2(680, 220)]
-## Two visually opposite heroes so the seats are told apart by identity rather
-## than by tinting the suits, which STYLE_GUIDE forbids. Real team read is a rim
-## light in M6; until then, distinct heroes do the job.
-const SEAT_HEROES: Array[String] = [
-	"res://src/heroes/resources/deadeye.tres",
-	"res://src/heroes/resources/nova.tres",
+## Seat rosters. Hero select fills these in from M3's screen; until it exists the
+## arena picks trios that are visually distinct from each other.
+const SEAT_ROSTERS: Array = [
+	[&"deadeye", &"skyla", &"mason"],
+	[&"nova", &"mason", &"skyla"],
 ]
-const RESET_DELAY: float = 2.5
+## Long enough for the confetti pop to read before the next hero arrives
+## (DESIGN 3.3). Presentation pacing, not a feel number.
+const RESPAWN_DELAY: float = 0.6
 const EVENT_LOG_LINES: int = 5
 
 const TERRAIN_COLOR: Color = Color(0.16, 0.18, 0.28)
@@ -29,25 +27,34 @@ const TERRAIN_COLOR: Color = Color(0.16, 0.18, 0.28)
 
 var _blocks: Array[Rect2] = []
 var _events: Array[String] = []
-var _reset_remaining: float = 0.0
+## player_id -> seconds until their next hero arrives.
+var _respawning: Dictionary = {}
 
 func _ready() -> void:
 	_blocks = _arena_blocks()
 	Arena.build(self, _blocks)
-	MatchState.clear_players()
 	for i in players.size():
-		var p := players[i]
-		p.player_id = i
-		p.team_id = i
-		p.active_hero = DUMMY_HERO
-		p.set_hero(load(SEAT_HEROES[i]) as HeroData)
-		MatchState.register_player(i, i, [DUMMY_HERO] as Array[StringName])
-		p.stomp_landed.connect(_on_stomp_landed.bind(i))
-		p.stun_applied.connect(_on_stun_applied.bind(i))
+		players[i].player_id = i
+		players[i].team_id = i
+		players[i].stomp_landed.connect(_on_stomp_landed.bind(i))
+		players[i].stun_applied.connect(_on_stun_applied.bind(i))
 	MatchState.life_lost.connect(_on_life_lost)
 	MatchState.hero_eliminated.connect(_on_hero_eliminated)
+	MatchState.hero_swapped.connect(_on_hero_swapped)
 	MatchState.round_won.connect(_on_round_won)
+	GameManager.round_started.connect(_on_round_started)
+	GameManager.match_won.connect(_on_match_won)
 	banner.hide()
+
+	var rosters := {}
+	var teams := {}
+	for i in players.size():
+		var ids: Array[StringName] = []
+		for h in SEAT_ROSTERS[i]:
+			ids.append(h)
+		rosters[i] = ids
+		teams[i] = i
+	GameManager.start_match(rosters, teams)
 	queue_redraw()
 
 ## Symmetric sealed box (DESIGN 6.1): mirrored spawn ledges to open from, a high
@@ -69,34 +76,54 @@ func _draw() -> void:
 	Arena.draw(self, _blocks, TERRAIN_COLOR)
 
 func _physics_process(delta: float) -> void:
-	if _reset_remaining <= 0.0:
-		return
-	_reset_remaining -= delta
-	if _reset_remaining <= 0.0:
-		_reset_round()
+	for pid in _respawning.keys():
+		_respawning[pid] -= delta
+		if _respawning[pid] <= 0.0:
+			_respawning.erase(pid)
+			_bring_in_next_hero(pid)
 
 func _process(_delta: float) -> void:
 	readout.text = _debug_text()  # overlay only, no gameplay logic here
 
-#region Round flow (M2 placeholder — GameManager takes this over in M3)
-func _on_life_lost(player_id: int, _hero_id: StringName, lives_left: int) -> void:
-	_log("P%d stomped — %d live(s) left" % [player_id + 1, lives_left])
-
-func _on_hero_eliminated(player_id: int, _hero_id: StringName) -> void:
-	players[player_id].play_elimination()
-	_log("P%d's hero popped" % [player_id + 1])
-
-func _on_round_won(team_id: int) -> void:
-	banner.text = "P%d WINS THE ROUND" % (team_id + 1)
-	banner.show()
-	_reset_remaining = RESET_DELAY
-
-func _reset_round() -> void:
-	MatchState.reset_round()
+#region Round flow
+func _on_round_started(index: int) -> void:
+	_respawning.clear()
+	banner.hide()
 	for i in players.size():
 		players[i].respawn_at(SPAWNS[i])
-	banner.hide()
-	_log("round reset")
+		players[i].equip_hero(MatchState.active_hero(i))
+	_log("round %d — fight" % [index + 1])
+
+func _on_life_lost(player_id: int, hero_id: StringName, lives_left: int) -> void:
+	_log("P%d %s stomped — %d left" % [player_id + 1, hero_id, lives_left])
+
+## A hero out of lives pops and the player's next hero comes in at their spawn
+## with brief protection (DESIGN 3.3). If that was the last one, the round is
+## already decided and MatchState.round_won is on its way.
+func _on_hero_eliminated(player_id: int, hero_id: StringName) -> void:
+	players[player_id].play_elimination()
+	_log("P%d's %s is out" % [player_id + 1, hero_id])
+	if not MatchState.is_out(player_id):
+		_respawning[player_id] = RESPAWN_DELAY
+
+func _bring_in_next_hero(player_id: int) -> void:
+	var next := MatchState.next_living_hero(player_id)
+	MatchState.swap_to(player_id, next)
+	players[player_id].respawn_at(SPAWNS[player_id])
+	players[player_id].equip_hero(next)
+
+func _on_hero_swapped(player_id: int, _from: StringName, to_hero: StringName) -> void:
+	_log("P%d -> %s" % [player_id + 1, to_hero])
+
+func _on_round_won(team_id: int) -> void:
+	banner.text = "P%d TAKES THE ROUND  (%d-%d)" % [
+		team_id + 1, MatchState.wins_for(0), MatchState.wins_for(1)]
+	banner.show()
+	GameManager.end_round()
+
+func _on_match_won(team_id: int) -> void:
+	banner.text = "P%d WINS THE MATCH" % [team_id + 1]
+	banner.show()
 
 func _on_stomp_landed(_victim: Player, attacker_index: int) -> void:
 	_log("P%d landed a stomp" % [attacker_index + 1])
@@ -107,7 +134,10 @@ func _on_stun_applied(duration: float, player_index: int) -> void:
 
 #region Debug overlay
 func _debug_text() -> String:
-	var lines: Array[String] = ["P1: mouse+keyboard    P2: controller", ""]
+	var lines: Array[String] = [
+		"P1 mouse+keyboard   P2 controller   (swap: RMB / L2, ability: LMB / L1, ult: E / R2+L2)",
+		"",
+	]
 	for i in players.size():
 		lines.append(_player_line(i))
 	lines.append("")
@@ -116,14 +146,21 @@ func _debug_text() -> String:
 
 func _player_line(index: int) -> String:
 	var p := players[index]
-	var lives: int = MatchState.players[index]["heroes"][DUMMY_HERO] \
-		if MatchState.has_player(index) else 0
 	var flags := ""
 	if p.stun_remaining > 0.0:
 		flags += "  STUN %.2f" % p.stun_remaining
 	if p.grace_remaining > 0.0:
 		flags += "  %s %.2f" % ["SPAWN" if p.spawn_protected else "GRACE", p.grace_remaining]
-	return "P%d  lives %d  %-10s v(%5.0f,%5.0f)%s" % [
+	if _respawning.has(index):
+		flags += "  RESPAWN %.2f" % _respawning[index]
+	var lives := "-"
+	if MatchState.has_player(index):
+		var parts: Array[String] = []
+		for h in MatchState.roster(index):
+			parts.append("%s%d" % ["*" if h == MatchState.active_hero(index) else " ",
+				MatchState.lives_of(index, h)])
+		lives = "".join(parts)
+	return "P%d %s  %-10s v(%5.0f,%5.0f)%s" % [
 		index + 1, lives, p.state_machine.state_name(), p.velocity.x, p.velocity.y, flags]
 
 func _log(line: String) -> void:

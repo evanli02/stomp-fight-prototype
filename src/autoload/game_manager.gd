@@ -1,11 +1,15 @@
 extends Node
 ## GameManager — match lifecycle FSM: LOBBY -> HERO_SELECT -> STAGE_SELECT ->
 ## ROUND_ACTIVE -> ROUND_RESULTS -> (loop | MATCH_RESULTS).
-## Owns the seeded RNG (determinism posture, IMPLEMENTATION.md #9) and the hero roster.
+## Owns the seeded RNG (determinism posture, IMPLEMENTATION.md #9) and the hero
+## roster registry. Holds no scene references: arenas listen to signals from
+## here and from MatchState, never the other way round.
 
 enum Phase { LOBBY, HERO_SELECT, STAGE_SELECT, ROUND_ACTIVE, ROUND_RESULTS, MATCH_RESULTS }
 
 signal phase_changed(phase: Phase)
+signal round_started(round_index: int)
+signal match_won(team_id: int)
 
 ## Registered heroes: id -> HeroData resource path. Extend via SKILL.md "Add a hero".
 const HERO_ROSTER: Dictionary = {
@@ -15,6 +19,10 @@ const HERO_ROSTER: Dictionary = {
 	&"nova": "res://src/heroes/resources/nova.tres",
 }
 
+## How long the results banner holds before the next round. Presentation pacing,
+## not a feel number.
+const RESULTS_TIME: float = 2.5
+
 var rng := RandomNumberGenerator.new()
 var phase: Phase = Phase.LOBBY
 
@@ -22,8 +30,13 @@ var phase: Phase = Phase.LOBBY
 var team_size: int = 1          # 1, 2, or 3
 var best_of: int = 3            # 1, 3, or 5
 
+var round_index: int = 0
+var coinflip_winner_team: int = 0
+var _results_remaining: float = 0.0
+var _hero_cache: Dictionary = {}
+
 func _ready() -> void:
-	rng.seed = hash("overstomp")  # TODO(M3): seed per match, share for future netcode
+	rng.seed = hash("overstomp")  # TODO(M6): seed per match, share for netcode
 	# Every feel number and every harness expectation is written against a 60 Hz
 	# gameplay tick (IMPLEMENTATION.md 9). project.godot states it explicitly,
 	# but the editor prunes settings that match the engine default on save, so
@@ -31,12 +44,78 @@ func _ready() -> void:
 	assert(Engine.physics_ticks_per_second == 60,
 		"Overstomp requires a 60 Hz physics tick, got %d" % Engine.physics_ticks_per_second)
 
-func coinflip(player_a: int, player_b: int) -> int:
-	return player_a if rng.randi() % 2 == 0 else player_b
+## Cooldowns tick only while a round is actually being played, so they do not
+## burn down behind a results banner or a hero-select screen.
+func _physics_process(delta: float) -> void:
+	if phase == Phase.ROUND_ACTIVE:
+		MatchState.tick_cooldowns(delta)
+	elif phase == Phase.ROUND_RESULTS and _results_remaining > 0.0:
+		_results_remaining -= delta
+		if _results_remaining <= 0.0:
+			_advance_after_results()
 
+#region Hero registry
+## HeroData for an id, loaded once. Returns null for an unknown id rather than
+## asserting: debug scenes run bodies with hero ids that are not in the roster.
+func hero_data(hero_id: StringName) -> HeroData:
+	if _hero_cache.has(hero_id):
+		return _hero_cache[hero_id]
+	if not HERO_ROSTER.has(hero_id):
+		return null
+	var data := load(HERO_ROSTER[hero_id]) as HeroData
+	_hero_cache[hero_id] = data
+	return data
+
+func roster_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for id in HERO_ROSTER:
+		out.append(id)
+	return out
+#endregion
+
+#region Match flow
 func set_phase(p: Phase) -> void:
 	phase = p
 	phase_changed.emit(p)
 
-# TODO(M3): round loop orchestration — hero select timer, stage picker resolution
-# via MatchState.stage_picker(), round reset (lives, cooldowns, ultimate restore).
+## Begin a match from an already-picked set of rosters: player_id -> hero ids.
+## Hero select fills this in; until that screen exists, arenas call it directly.
+func start_match(rosters: Dictionary, teams: Dictionary) -> void:
+	MatchState.clear_players()
+	MatchState.round_wins.clear()
+	round_index = 0
+	for pid in rosters:
+		MatchState.register_player(pid, teams[pid], rosters[pid])
+	coinflip_winner_team = coinflip(0, 1)
+	start_round()
+
+func start_round() -> void:
+	MatchState.reset_round()
+	set_phase(Phase.ROUND_ACTIVE)
+	round_started.emit(round_index)
+
+## Called by MatchState.round_won listeners (the arena owns the bodies, so it
+## decides when the round is visually over and hands control back here).
+func end_round() -> void:
+	if phase != Phase.ROUND_ACTIVE:
+		return
+	set_phase(Phase.ROUND_RESULTS)
+	_results_remaining = RESULTS_TIME
+
+func _advance_after_results() -> void:
+	var needed := best_of / 2 + 1
+	for team in MatchState.round_wins:
+		if MatchState.wins_for(team) >= needed:
+			set_phase(Phase.MATCH_RESULTS)
+			match_won.emit(team)
+			return
+	round_index += 1
+	start_round()
+
+func coinflip(player_a: int, player_b: int) -> int:
+	return player_a if rng.randi() % 2 == 0 else player_b
+
+## Which team picks the stage this round (DESIGN 2.2).
+func stage_picker_team() -> int:
+	return MatchState.stage_picker(round_index, coinflip_winner_team)
+#endregion
