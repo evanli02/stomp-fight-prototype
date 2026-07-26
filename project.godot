@@ -1,15 +1,24 @@
 ; Overstomp — Godot 4.4+ project
 ; Input actions are registered in code by the InputConfig autoload
 ; (src/autoload/input_config.gd) so bindings stay documented and rebindable.
+;
+; Settings that match the current engine default are still written out
+; explicitly: the editor prunes them on save, but they are load-bearing rules
+; (60 Hz gameplay tick, CLAUDE.md) that must not silently follow a future
+; default. Re-add them if an editor save drops them again.
 
 config_version=5
+
+[animation]
+
+compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 
 [application]
 
 config/name="Overstomp"
 config/description="1v1/2v2/3v3 stomp-to-kill hero platform fighter."
 run/main_scene="res://src/main.tscn"
-config/features=PackedStringArray("4.4", "GL Compatibility")
+config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
