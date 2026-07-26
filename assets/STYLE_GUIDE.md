@@ -24,6 +24,7 @@ One PNG per animation, frames laid left-to-right in 32px columns. `<hero>_frames
 
 ### Non-negotiables
 - **32×48, feet on row 47.** Identical for every hero — heroes share movement, hitboxes, and silhouette *size* (DESIGN 5.1). Only identity differs.
+- **Everything is drawn facing +x (right).** The engine mirrors it for leftward travel (`flip_h = facing < 0`, pinned by the movement harness). Every forward cue must agree: nose and face features forward, cap and helmet peaks jutting **forward**, capes/scarves/fins trailing **backward**, torso leaning into the direction of travel. A backward-pointing peak makes the whole character read as facing the wrong way even with the eyes drawn correctly — the silhouette wins at gameplay speed, so a head whose mass leans backward will look flipped no matter where the features sit.
 - **The top 12 px is the head/stomp hurtbox, and the accent owns it.** That band is the kill zone (DESIGN 3.1); if a player cannot see where it ends, the core mechanic is unreadable. Crouched and sliding frames drop the whole body into the bottom 24 px, with the accent band in rows 24–30 to match the shrunken head box.
 - Dark suit from the night/teal ramps + one signature neon: Deadeye magenta `#ff2e88`, Skyla cyan `#2de2e6`, Mason amber `#ffb454`, Nova violet `#9d4edd`.
 - **Internal keylines, not just an outline.** Every limb is drawn with its own 1px dark border. A dark suit against a dark stage collapses into one blob otherwise, and the back leg has to stay separable from the front leg while both are in shadow.

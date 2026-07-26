@@ -505,6 +505,23 @@ func _check_animation_contract() -> void:
 	check("every state's animation exists in the sheet", missing.is_empty(),
 		"missing=%s" % [missing])
 
+	# Sheets are drawn facing +x and the sprite mirrors for -x. Getting this
+	# backwards makes every hero run backwards, which is easy to introduce and
+	# invisible to every other check here.
+	await reset_at(Vector2(200, 300))
+	press(&"move_right")
+	await step(4)
+	check("moving right faces right (sheet orientation, unflipped)",
+		_player.facing == 1 and not _player.sprite.flip_h,
+		"facing=%d flip_h=%s" % [_player.facing, _player.sprite.flip_h])
+	release(&"move_right")
+	press(&"move_left")
+	await step(4)
+	check("moving left flips the sprite",
+		_player.facing == -1 and _player.sprite.flip_h,
+		"facing=%d flip_h=%s" % [_player.facing, _player.sprite.flip_h])
+	release(&"move_left")
+
 	await reset_at(Vector2(200, 300))
 	await step(4)
 	check("idle plays the idle animation", _player.sprite.animation == &"idle",

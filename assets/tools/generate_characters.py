@@ -329,6 +329,19 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
     c.rect(cx - 3, cy - 1, cx + 3, cy - 1, mix(skin, "#000000", 0.45))   # brow shadow
     c.rect(cx + 1, cy + 1, cx + 3, cy + 1, h.skin_hi)           # cheek key light
     c.put(cx + 2, cy + 3, mix(skin, "#000000", 0.5))            # mouth
+    # Nose: two pixels of profile poking past the skull. Tiny, but it is the
+    # cheapest unambiguous "this way is forward" cue in pixel art, and the
+    # silhouette is what a player reads at speed — eyes are far too small.
+    c.rect(cx + 4, cy + 1, cx + 5, cy + 2, KEYLINE)
+    c.put(cx + 4, cy + 1, skin)
+    c.put(cx + 4, cy + 2, h.skin_hi)
+    # Back of the skull is hood, helmet, or hair — never skin. A side profile
+    # showing a full oval of face is the single biggest reason a sprite reads as
+    # facing the wrong way: the skin patch is a large shape, and a centred one
+    # points nowhere.
+    back = {"cowl": h.accent, "helmet": h.accent,
+            "hood": shade(h, "dark")}.get(style, mix(h.dark, "#000000", 0.2))
+    c.poly([(cx - 5, cy - 3), (cx - 1, cy - 5), (cx - 1, cy + 4), (cx - 4, cy + 3)], back)
 
     if style == "cowl":         # Deadeye: hood over the skull, brim, visor slit
         c.poly([(cx - 5, cy + 1), (cx - 5, cy - 3), (cx - 2, cy - 6),
@@ -337,17 +350,22 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
                 (cx + 2, cy - 5), (cx + 4, cy - 3), (cx + 4, cy - 1)], h.accent)
         c.poly([(cx - 2, cy - 5), (cx + 2, cy - 5), (cx + 3, cy - 4),
                 (cx - 2, cy - 4)], h.accent_hi)
-        c.rect(cx - 6, cy - 1, cx + 5, cy - 1, KEYLINE)         # brim
-        c.rect(cx - 6, cy - 2, cx + 5, cy - 2, h.accent)
-        c.poly([(cx - 6, cy - 2), (cx - 9, cy + 1), (cx - 6, cy)], h.dark)  # swept tail
+        # Brim juts FORWARD over the eyes — a peak that points backward reads as
+        # a head facing the wrong way no matter where the face is drawn.
+        c.rect(cx - 3, cy - 1, cx + 7, cy - 1, KEYLINE)
+        c.rect(cx - 3, cy - 2, cx + 7, cy - 2, h.accent)
+        c.put(cx + 7, cy - 2, h.accent_hi)
+        c.poly([(cx - 4, cy - 3), (cx - 7, cy), (cx - 4, cy - 1)], h.dark)  # hood tail, behind
         c.rect(cx + 1, cy, cx + 4, cy, h.accent_hi)             # visor slit
         c.put(cx + 4, cy, "#ffffff")
     elif style == "helmet":     # Skyla: aero shell, dorsal fin, goggle lenses
         c.ellipse(cx, cy - 1, 5.4, 4.8, KEYLINE)
         c.ellipse(cx, cy - 1, 4.6, 4.0, h.accent)
         c.ellipse(cx + 1, cy - 2, 3.0, 2.2, h.accent_hi)
-        c.poly([(cx - 3, cy - 5), (cx - 9, cy - 1), (cx - 4, cy - 1)], KEYLINE)
-        c.poly([(cx - 4, cy - 4), (cx - 8, cy - 1), (cx - 4, cy - 1)], h.accent)
+        c.poly([(cx - 3, cy - 5), (cx - 8, cy - 1), (cx - 4, cy - 1)], KEYLINE)
+        c.poly([(cx - 4, cy - 4), (cx - 7, cy - 1), (cx - 4, cy - 1)], h.accent)
+        c.rect(cx + 4, cy - 3, cx + 5, cy - 2, h.accent)        # forward visor peak
+        c.put(cx + 5, cy - 3, h.accent_hi)
         c.rect(cx - 5, cy + 1, cx + 5, cy + 1, KEYLINE)         # goggle band
         c.rect(cx - 4, cy, cx + 4, cy, shade(h, "shadow"))
         c.rect(cx + 1, cy, cx + 3, cy, h.accent_hi)             # lens
@@ -359,9 +377,9 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.poly([(cx - 4, cy - 1), (cx - 3, cy - 4), (cx + 3, cy - 4),
                 (cx + 4, cy - 1)], h.accent)
         c.rect(cx - 3, cy - 4, cx + 2, cy - 4, h.accent_hi)
-        c.rect(cx - 7, cy - 1, cx + 6, cy, KEYLINE)             # brim, front-heavy
-        c.rect(cx - 6, cy - 1, cx + 6, cy - 1, h.accent)
-        c.rect(cx + 2, cy - 1, cx + 6, cy - 1, h.accent_hi)
+        c.rect(cx - 4, cy - 1, cx + 8, cy, KEYLINE)             # brim, front-heavy
+        c.rect(cx - 4, cy - 1, cx + 7, cy - 1, h.accent)
+        c.rect(cx + 2, cy - 1, cx + 7, cy - 1, h.accent_hi)
         c.rect(cx + 3, cy, cx + 5, cy, "#fff3b0")               # brow lamp beam
         c.put(cx + 2, cy + 1, KEYLINE)                          # eyes
         c.put(cx, cy + 1, KEYLINE)
@@ -371,7 +389,8 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
                 (cx + 2, cy - 6), (cx + 5, cy - 3), (cx + 6, cy + 4)], KEYLINE)
         c.poly([(cx - 5, cy + 4), (cx - 4, cy - 3), (cx - 2, cy - 5),
                 (cx + 2, cy - 5), (cx + 4, cy - 3), (cx + 5, cy + 4)], shade(h, "dark"))
-        c.rect(cx - 3, cy, cx + 4, cy + 4, "#0d0716")           # face in shadow
+        c.rect(cx - 3, cy, cx + 3, cy + 4, "#0d0716")           # face in shadow
+        c.rect(cx + 4, cy - 1, cx + 6, cy, h.accent)            # hood peak, forward
         c.ellipse(cx, cy - 2, 4.6, 3.0, h.accent, filled=False)  # halo ring
         c.put(cx - 4, cy - 2, h.accent_hi)
         c.put(cx + 4, cy - 2, h.accent_hi)
