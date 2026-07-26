@@ -45,6 +45,7 @@ var _respawning: Dictionary = {}
 func _ready() -> void:
 	_blocks = _arena_blocks()
 	Arena.build(self, _blocks)
+	_build_terrain()
 	for i in players.size():
 		players[i].player_id = i
 		players[i].team_id = i
@@ -110,6 +111,39 @@ func _arena_blocks() -> Array[Rect2]:
 		Rect2(880.0, 544.0, 96.0, t),    # awning, street level
 	])
 	return blocks
+
+## Rooftop Rumble's terrain, exactly the set DESIGN 6.3 calls for: antennas to
+## grab, awnings to bounce off, and one wind corridor between the buildings.
+##
+## Every element is placed clear of the open street, because the street is the
+## b-hop runway and putting anything on it would take away the one part of the
+## stage that is deliberately empty.
+func _build_terrain() -> void:
+	# Antennas: a pole on each rooftop. The movement reset button, parked exactly
+	# where a player who has just been chased across the map wants one.
+	for x in [160.0, 992.0]:
+		var pole := Pole.new()
+		pole.size = Vector2(8, 120)
+		pole.position = Vector2(x, 372)
+		add_child(pole)
+
+	# Awnings: springs on the low ledges, narrow enough to be aimed at rather
+	# than fallen onto.
+	for x in [224.0, 928.0]:
+		var spring := JumpSpring.new()
+		spring.size = Vector2(64, 16)
+		spring.position = Vector2(x, 536)
+		spring.launch_velocity = Vector2(0, -760)
+		add_child(spring)
+
+	# Wind corridor: an updraft in the shaft between the buildings. It does not
+	# beat gravity on its own — it makes the shaft climbable with wall jumps
+	# rather than climbing it for you.
+	var wind := WindZone.new()
+	wind.size = Vector2(64, 160)
+	wind.position = Vector2(560, 384)
+	wind.force = Vector2(0, -420)
+	add_child(wind)
 
 func _draw() -> void:
 	# Horizon sits on the rooftop line: sky above, dark city below.

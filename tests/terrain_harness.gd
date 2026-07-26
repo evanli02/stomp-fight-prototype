@@ -8,7 +8,13 @@ extends Node
 ## Exits non-zero if any check fails.
 
 const FLOOR_Y: float = 600.0
-const TEST_X: float = 320.0
+## Empty air in the middle of the stage. Rooftop Rumble now has its own terrain
+## in it, and a check that lands on a stage spring is measuring the wrong thing.
+const TEST_X: float = 640.0
+## Open sky above the left half of the stage. The pole check needs room to leap
+## into: at street level every direction runs into stage geometry within a few
+## frames, and a leap that clips a wall measures the wall.
+const POLE_AT: Vector2 = Vector2(320, 250)
 
 var _failures: int = 0
 var _stage: Node2D
@@ -150,7 +156,7 @@ func _check_portal() -> void:
 	var a: Portal = await place_element(Portal.new(),
 		Vector2(TEST_X, FLOOR_Y - 60), Vector2(32, 48))
 	var b: Portal = await place_element(Portal.new(),
-		Vector2(TEST_X + 260, FLOOR_Y - 60), Vector2(32, 48))
+		Vector2(TEST_X + 200, FLOOR_Y - 60), Vector2(32, 48))
 	a.linked_portal = a.get_path_to(b)
 	b.linked_portal = b.get_path_to(a)
 	# Speed has to be sampled on the frame BEFORE the jump: the approach is a
@@ -197,9 +203,8 @@ func _check_explosion() -> void:
 	await step(2)
 
 func _check_pole() -> void:
-	await park(Vector2(TEST_X - 60, FLOOR_Y - 80), Vector2(380, -200))
-	var pole: Pole = await place_element(Pole.new(),
-		Vector2(TEST_X, FLOOR_Y - 80), Vector2(8, 120))
+	await park(POLE_AT - Vector2(60, 0), Vector2(380, -200))
+	var pole: Pole = await place_element(Pole.new(), POLE_AT, Vector2(8, 120))
 	await step(12)
 	check("grabbing a pole enters PoleClimb",
 		_p.state_machine.state_name() == &"PoleClimb",

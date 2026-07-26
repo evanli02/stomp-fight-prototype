@@ -485,11 +485,12 @@ func _check_slide() -> void:
 		state() == "Slide" and _player.dash_charges_left == charges_before,
 		"state=%s charges=%d" % [state(), _player.dash_charges_left])
 
-	# The opening of the slide is free: speed carried in is speed kept.
-	await step(30)
+	# The opening of the slide is free: speed carried in is speed kept. Sampled
+	# inside slide_hold_time (0.3s), not after it.
+	await step(12)
 	check("the slide holds its speed at first",
 		absf(_player.velocity.x) >= entry_speed - 6.0 and state() == "Slide",
-		"%.1f -> %.1f after 0.5s (state=%s)" % [entry_speed, absf(_player.velocity.x), state()])
+		"%.1f -> %.1f after 0.2s (state=%s)" % [entry_speed, absf(_player.velocity.x), state()])
 	check("momentum is held through the opening too",
 		_player.momentum_charge >= entry_charge - 0.02,
 		"%.2f -> %.2f" % [entry_charge, _player.momentum_charge])

@@ -73,7 +73,7 @@ class_name MovementConfig extends Resource
 ## Speed is untouched for this long after the slide starts. Entering a slide at
 ## a capped run should be worth doing — paying friction immediately made it a
 ## way to stop, not a way to travel.
-@export var slide_hold_time: float = 1.0
+@export var slide_hold_time: float = 0.3
 @export var slide_friction: float = 260.0        ## px/s^2 bled after the hold
 @export var slide_momentum_decay: float = 0.8    ## momentum_charge lost per second sliding
 @export var slide_exit_speed: float = 90.0       ## slower than this and the slide is over
