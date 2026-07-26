@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Nova"
 accent_color = Color(0.615686, 0.305882, 0.866667, 1)
-ability_cooldown = 7.2
+ability_cooldown = 6.7
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
 ultimate_scene = ExtResource("4")

@@ -444,6 +444,16 @@ func _check_crouch() -> void:
 		_player.head_shape_crouch.disabled == false and _player.head_shape.disabled,
 		"stand_disabled=%s crouch_disabled=%s"
 		% [_player.head_shape.disabled, _player.head_shape_crouch.disabled])
+	# Still holding down: Crouch decays out of Slide, so a dash allowed here is a
+	# slide-dash by another name.
+	var crouch_charges := _player.dash_charges_left
+	press(&"dash")
+	await step(3)
+	release(&"dash")
+	check("dash is refused while crouching",
+		_player.dash_charges_left == crouch_charges and state() == "Crouch",
+		"state=%s charges=%d" % [state(), _player.dash_charges_left])
+
 	release(&"move_down")
 	await step(3)
 	check("releasing down stands you back up", state() == "Idle" and not _player.crouched,
@@ -454,9 +464,12 @@ func _check_crouch() -> void:
 ## Down out of a run: a slide that bleeds speed, refuses dashes, and can be
 ## cashed in for a long flat jump (DESIGN 4.6).
 func _check_slide() -> void:
-	await reset_at(Vector2(200, 300))
+	# Short run-up, short slide. A slide that holds its speed for a full second
+	# crosses ~450px, and the playground only has ~750px of clear floor before
+	# the pillars at x=768 — a long run-up here ends in a wall, not a measurement.
+	await reset_at(Vector2(80, 300))
 	press(&"move_right")
-	await step(60)
+	await step(20)
 	var entry_speed := absf(_player.velocity.x)
 	var entry_charge := _player.momentum_charge
 	press(&"move_down")
@@ -472,10 +485,21 @@ func _check_slide() -> void:
 		state() == "Slide" and _player.dash_charges_left == charges_before,
 		"state=%s charges=%d" % [state(), _player.dash_charges_left])
 
-	await step(12)
-	check("sliding bleeds speed", absf(_player.velocity.x) < entry_speed - 40.0,
-		"%.1f -> %.1f" % [entry_speed, absf(_player.velocity.x)])
-	check("sliding bleeds momentum", _player.momentum_charge < entry_charge,
+	# The opening of the slide is free: speed carried in is speed kept.
+	await step(30)
+	check("the slide holds its speed at first",
+		absf(_player.velocity.x) >= entry_speed - 6.0 and state() == "Slide",
+		"%.1f -> %.1f after 0.5s (state=%s)" % [entry_speed, absf(_player.velocity.x), state()])
+	check("momentum is held through the opening too",
+		_player.momentum_charge >= entry_charge - 0.02,
+		"%.2f -> %.2f" % [entry_charge, _player.momentum_charge])
+
+	# ...and only then does it start to cost.
+	var held_speed := absf(_player.velocity.x)
+	await step(40)
+	check("sliding bleeds speed after the hold", absf(_player.velocity.x) < held_speed - 40.0,
+		"%.1f -> %.1f" % [held_speed, absf(_player.velocity.x)])
+	check("sliding bleeds momentum after the hold", _player.momentum_charge < entry_charge,
 		"%.2f -> %.2f" % [entry_charge, _player.momentum_charge])
 
 	# The slide jump: little height, a lot of launch.

@@ -4,7 +4,7 @@ class_name MasonKeystone extends Ability
 ## then dropped under normal gravity when it wears off. No life, ever.
 
 @export var place_distance: float = 46.0
-@export var block_lifetime: float = 10.0
+@export var block_lifetime: float = 20.0
 
 func _execute(aim: Vector2) -> void:
 	var block := FreezeBlock.new()

@@ -315,13 +315,16 @@ func _check_abilities() -> void:
 	var jump := _p1.equipped_ability()
 	check("skyla's ultimate overrides the cooldown",
 		jump != null and jump.cooldown_override_remaining > 0.0
-		and is_equal_approx(jump.effective_cooldown(), 1.0),
-		"override=%.2f window=%.2f" % [jump.effective_cooldown() if jump else -1.0,
+		and jump.effective_cooldown() < jump.cooldown,
+		"override=%.2f normal=%.2f window=%.2f" % [
+			jump.effective_cooldown() if jump else -1.0,
+			jump.cooldown if jump else -1.0,
 			jump.cooldown_override_remaining if jump else -1.0])
 	check("firing inside the window costs the reduced cooldown", _p1.try_ability())
 	check("the reduced cooldown is what got written",
-		MatchState.cooldown_remaining(0, &"skyla") <= 1.01,
-		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"skyla"))
+		MatchState.cooldown_remaining(0, &"skyla") < jump.cooldown * 0.5,
+		"remaining=%.2f vs normal %.2f" % [
+			MatchState.cooldown_remaining(0, &"skyla"), jump.cooldown])
 
 	await step(60)
 	check("no ability took a life",

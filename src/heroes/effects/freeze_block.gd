@@ -6,7 +6,9 @@ class_name FreezeBlock extends TerrainElement
 ## No speed buff. The block does one thing: it takes a lane away from the other
 ## team for a moment, which in a game about landing on heads is enough.
 
-const SIZE: Vector2 = Vector2(30, 30)
+## Bigger than the bumper: the ultimate takes a lane away, and a lane needs
+## width. The ability block stays small.
+const SIZE: Vector2 = Vector2(40, 40)
 const RETRIGGER: float = 0.6
 
 var lifetime: float = 10.0

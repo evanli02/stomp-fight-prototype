@@ -70,10 +70,14 @@ class_name MovementConfig extends Resource
 ## Crouching out of a run below this speed is just a crouch; at or above it the
 ## run converts into a slide (DESIGN 4.6).
 @export var slide_min_speed: float = 200.0
-@export var slide_friction: float = 420.0        ## px/s^2 bled while sliding
+## Speed is untouched for this long after the slide starts. Entering a slide at
+## a capped run should be worth doing — paying friction immediately made it a
+## way to stop, not a way to travel.
+@export var slide_hold_time: float = 1.0
+@export var slide_friction: float = 260.0        ## px/s^2 bled after the hold
 @export var slide_momentum_decay: float = 0.8    ## momentum_charge lost per second sliding
 @export var slide_exit_speed: float = 90.0       ## slower than this and the slide is over
 ## The slide jump trades height for distance: a fraction of the minimum hop
 ## upward, and a hard horizontal launch off whatever speed the slide still has.
 @export var slide_jump_up_mult: float = 0.8
-@export var slide_jump_speed_mult: float = 1.5
+@export var slide_jump_speed_mult: float = 1.75

@@ -6,7 +6,9 @@ class_name RadialBurst extends Node2D
 ## just a visual, so a player cannot dodge by being fast, and the result does not
 ## depend on when anyone's frame happened to land.
 
-const FADE: float = 0.28
+## Near-instant: the hit already resolves on spawn, so a slow ring made the
+## ability look laggy when it was not.
+const FADE: float = 0.1
 
 var radius: float = 110.0
 var force: float = 460.0

@@ -110,8 +110,9 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 ### 4.5 Crouch & slide
 - **Crouch** = hold down while grounded. The body is **half height** and the head hurtbox drops with it, so crouching changes where you can be hit, not whether you can be.
 - **Slide** = crouch while running with real speed (`slide_min_speed ≈ 200 px/s`). Speed and momentum bleed away steadily; below `slide_exit_speed` the slide settles into a crouch.
-- **You cannot dash out of a slide.** Dash is the instant-redirect tool, and allowing it would turn the slide into a free way to hold speed instead of a commitment.
-- **You can jump out of a slide**, and it is the point of sliding: little height (~80% of the *minimum* hop) but a hard horizontal launch (~1.5× current speed), briefly above the normal cap. The slide jump is **not** hold-extendable — it is a committed leap, not a better jump.
+- **You cannot dash out of a slide, or out of a crouch.** Dash is the instant-redirect tool, and allowing it would turn the slide into a free way to hold speed instead of a commitment. Crouch is covered too because a slide that has bled off its speed becomes a crouch while the player is still visually sliding.
+- **The opening second of a slide is free**: speed and momentum carried in are kept, and only after that does friction start bleeding them, gently. Entering a slide at a capped run should be a way to *travel*, not a way to stop.
+- **You can jump out of a slide**, and it is the point of sliding: little height (~80% of the *minimum* hop) but a hard horizontal launch (~1.75× current speed), briefly above the normal cap. The slide jump is **not** hold-extendable — it is a committed leap, not a better jump.
 - Slide → jump → land → slide is the intended ground-chain alongside b-hopping, and it trades the ability to change your mind for distance.
 
 ### 4.6 Movement state machine (implementation shape)

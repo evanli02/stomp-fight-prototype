@@ -3,7 +3,7 @@ class_name NovaBurst extends Ability
 ## a lot of it: it breaks a stomp setup apart or throws someone clean off a
 ## rooftop, without ever buying Nova a free stomp of his own.
 
-@export var radius: float = 110.0
+@export var radius: float = 165.0
 @export var force: float = 980.0
 
 func _execute(_aim: Vector2) -> void:

@@ -3,8 +3,8 @@ class_name SkylaDoubleTrouble extends Ability
 ## immediately. Not free — a 1s cooldown still paces it — but close enough to
 ## chain jumps across the whole stage.
 
-@export var duration: float = 7.0
-@export var reduced_cooldown: float = 1.0
+@export var duration: float = 8.0
+@export var reduced_cooldown: float = 0.3
 
 func _execute(_aim: Vector2) -> void:
 	var basic := player.equipped_ability()

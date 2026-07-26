@@ -6,7 +6,7 @@ class_name DeadeyeRapidFire extends Ability
 ## One shot, not a window. It rewards picking the moment instead of spraying.
 
 @export var speed_mult: float = 1.5
-@export var empowered_stun: float = 4.0
+@export var empowered_stun: float = 5.5
 
 func _execute(_aim: Vector2) -> void:
 	var basic := player.equipped_ability()
