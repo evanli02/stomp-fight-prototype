@@ -362,10 +362,14 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.ellipse(cx, cy - 1, 5.4, 4.8, KEYLINE)
         c.ellipse(cx, cy - 1, 4.6, 4.0, h.accent)
         c.ellipse(cx + 1, cy - 2, 3.0, 2.2, h.accent_hi)
-        c.poly([(cx - 3, cy - 5), (cx - 8, cy - 1), (cx - 4, cy - 1)], KEYLINE)
-        c.poly([(cx - 4, cy - 4), (cx - 7, cy - 1), (cx - 4, cy - 1)], h.accent)
-        c.rect(cx + 4, cy - 3, cx + 5, cy - 2, h.accent)        # forward visor peak
-        c.put(cx + 5, cy - 3, h.accent_hi)
+        # Fin kept short. A long one is the biggest shape on the head and reads
+        # as the front of the face, which flipped Skyla's whole silhouette.
+        c.poly([(cx - 3, cy - 5), (cx - 6, cy - 2), (cx - 4, cy - 1)], KEYLINE)
+        c.poly([(cx - 4, cy - 4), (cx - 5, cy - 2), (cx - 4, cy - 1)], h.accent)
+        # Forward visor peak, long enough to out-mass the fin.
+        c.rect(cx + 3, cy - 3, cx + 6, cy - 2, KEYLINE)
+        c.rect(cx + 3, cy - 3, cx + 6, cy - 3, h.accent)
+        c.put(cx + 6, cy - 3, h.accent_hi)
         c.rect(cx - 5, cy + 1, cx + 5, cy + 1, KEYLINE)         # goggle band
         c.rect(cx - 4, cy, cx + 4, cy, shade(h, "shadow"))
         c.rect(cx + 1, cy, cx + 3, cy, h.accent_hi)             # lens

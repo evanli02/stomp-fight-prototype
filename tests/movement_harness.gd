@@ -206,11 +206,13 @@ func _check_dash() -> void:
 	check("ground dash runs at the ground distance",
 		near(_player.velocity.x, _player.movement.dash_distance_ground / _player.movement.dash_duration, 1.0),
 		"vx=%.1f" % _player.velocity.x)
-	check("ground dash is the longest of the three",
-		_player.movement.dash_distance_ground > _player.movement.dash_distance
-		and _player.movement.dash_distance > _player.movement.dash_distance_wall,
-		"ground=%.0f air=%.0f wall=%.0f" % [_player.movement.dash_distance_ground,
-			_player.movement.dash_distance, _player.movement.dash_distance_wall])
+	# The AIR dash is the long one: on the ground you can already run, so the
+	# dash there is a small reposition. Spending it airborne is what pays.
+	check("the air dash out-reaches the ground dash",
+		_player.movement.dash_distance > _player.movement.dash_distance_ground
+		and _player.movement.dash_distance_ground > _player.movement.dash_distance_wall,
+		"air=%.0f ground=%.0f wall=%.0f" % [_player.movement.dash_distance,
+			_player.movement.dash_distance_ground, _player.movement.dash_distance_wall])
 	await step(15)
 	release(&"move_right")
 
@@ -307,6 +309,9 @@ func _check_wall() -> void:
 	# adjacent — grounded contact with a wall is Run, not WallSlide.
 	await _reach_wall(0, &"")
 	check("reaches wall slide", state() == "WallSlide", "state=%s pos=%.1f" % [state(), _player.global_position.x])
+	# _reach_wall returns on the frame the slide is detected, before WallSlide has
+	# had a tick to clamp the fall — the clamp is what is being asserted.
+	await step(1)
 	# Input is neutral by now, so the applicable cap is the neutral slide speed,
 	# well under terminal velocity.
 	check("wall slide is slower than free fall",

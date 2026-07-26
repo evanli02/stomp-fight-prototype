@@ -58,8 +58,13 @@ static func draw_tiled(host: CanvasItem, blocks: Array[Rect2], tex: Texture2D,
 					Rect2(Vector2.ZERO, Vector2(w, h)))
 		host.draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), cap)
 
-## Four-band dusk sky behind everything (STYLE_GUIDE: dusk key, night palette).
-static func draw_sky(host: CanvasItem, size: Vector2, bands: Array[Color]) -> void:
-	var band_h := size.y / bands.size()
+## Dusk sky (STYLE_GUIDE: dusk key, night palette). The gradient belongs ABOVE
+## the horizon; below it is ground, and running the warm end of the ramp all the
+## way to the floor washes the play area in sunset colours it should not have.
+static func draw_sky(host: CanvasItem, size: Vector2, bands: Array[Color],
+		horizon: float) -> void:
+	var band_h := horizon / bands.size()
 	for i in bands.size():
 		host.draw_rect(Rect2(0.0, i * band_h, size.x, band_h + 1.0), bands[i])
+	host.draw_rect(Rect2(0.0, horizon, size.x, size.y - horizon), Color(0.05, 0.03, 0.09))
+	host.draw_rect(Rect2(0.0, horizon, size.x, 1.0), bands[bands.size() - 1])

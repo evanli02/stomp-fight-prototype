@@ -35,9 +35,9 @@ Engine: Godot 4.4+ (GDScript)
 4. Repeat until one team reaches the required round wins.
 
 ### 2.3 The ultimate economy
-- Each player gets **one ultimate activation per round**, shared across their 3 heroes.
-- It may be spent at any time in the round by whichever hero is currently active.
-- Spending it (even to no effect) consumes it. This makes the ult a round-level resource comparable to a "timeout" or "power play."
+- Each player gets **two ultimate activations per round**, shared across their 3 heroes, with a **~10 s cooldown between them**.
+- They may be spent at any time in the round by whichever hero is currently active.
+- Spending one (even to no effect) consumes it. Two-with-a-gap makes the ult a resource you plan around across a round rather than one all-or-nothing moment, while the gap stops both being dumped into the same scramble.
 
 ### 2.4 Hero swap rules
 - Swap is instantaneous and cooldown-free.
@@ -91,8 +91,8 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 - **2 charges**, short shared recharge (`dash_recharge ≈ 2.5 s per charge`).
 - Direction: on a **surface**, dash is constrained parallel to that surface (along ground, along wall while sliding); **airborne**, dash is fully omnidirectional, steered by the **movement input** (left stick / WASD), else facing. The aim vector belongs to abilities and never steers movement — two directions fighting over one action reads as the controls disagreeing with you.
 - The dash is **very short** (~0.12 s) and grants a **brief acceleration boost** after it ends (~0.4 s of raised speed cap) — dashes are momentum tools, not teleports.
-  - **Ground dash ≈ 6 tiles**: the reposition tool, and the reason spacing on the floor is a real decision.
-  - **Air dash ≈ 4.5 tiles** sideways and downward, diagonals included — this is the range tool.
+  - **Air dash ≈ 4.5 tiles** sideways and downward, diagonals included — the longest of the three, and the range tool. Airborne is where you cannot accelerate, so that is where the dash should pay.
+  - **Ground dash ≈ 3.5 tiles**, deliberately *shorter* than the air dash: on the ground you can already run, so a dash is a small reposition rather than the better option.
   - Its **upward** component is cut to roughly a sixth of that reach (~1 tile of climb). Diagonal dashes therefore fly nearly flat: you keep the distance, you do not get the height. An up-dash at parity with the jump beats the jump at its own job and collapses the whole vertical game into "dash up".
   - **Wall dash ≈ 3 tiles** along the wall: climbing stays the expensive way up.
 - **Air restriction:** two charges cannot be used **consecutively in the air**; after an airborne dash you must touch a surface (ground, wall, ceiling, or another player) before dashing again. On a surface, back-to-back dashes are legal.
@@ -144,7 +144,7 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 | # | Hero (working name) | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
 | 1 | **Deadeye** | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (8 s) | **Rapid Fire**: free-fire stun bolts for 5 s | Sharpshooter vigilante |
-| 2 | **Skyla** | Double jump with full **momentum redirect** at activation (7 s) | **Double Trouble**: ability can be used twice in a row for 8 s | Jet-boot speedster |
+| 2 | **Skyla** | Second jump in mid-air — weaker than a real one, **not aimed**, horizontal momentum untouched (7 s) | **Double Trouble**: ability can be used twice in a row for 8 s | Jet-boot speedster |
 | 3 | **Mason** | Place a bounce block: all players ricochet off it (10 s, max 1 alive) | **Keystone**: place a block that knocks back + stuns enemies, buffs allies passing through (+15% speed, 4 s) | Hard-light constructor |
 | 4 | **Nova** | Radial burst: knocks back nearby enemies (no stun) (9 s) | **Supernova**: large radial burst that stuns all enemies ~1 s | Gravity brawler |
 | 5 | **Wisp** | Dropped teleport beacon; re-cast to warp back to it (11 s) | **Phase Shift**: team-wide brief intangibility to stomps (2.5 s) | Phantom courier |

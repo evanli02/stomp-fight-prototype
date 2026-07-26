@@ -17,10 +17,16 @@ signal cooldown_started(player_id: int, hero_id: StringName, duration: float)
 
 const LIVES_PER_HERO: int = 2
 const HEROES_PER_PLAYER: int = 3
+## Ultimates per player per round, and the gap enforced between them
+## (DESIGN 2.3). Two makes the ult a resource you can plan around instead of a
+## single all-or-nothing moment; the gap stops both going off at once.
+const ULTS_PER_ROUND: int = 2
+const ULT_COOLDOWN: float = 10.0
 
 ## player_id -> {
 ##   team: int, heroes: { hero_id: lives_remaining }, order: Array[StringName],
-##   active: StringName, ult_available: bool, cooldowns: { hero_id: seconds }
+##   active: StringName, ults_left: int, ult_cooldown: float,
+##   cooldowns: { hero_id: seconds }
 ## }
 var players: Dictionary = {}
 var round_wins: Dictionary = {}          # team_id -> wins
@@ -50,7 +56,8 @@ func register_player(player_id: int, team_id: int, hero_ids: Array[StringName]) 
 		"heroes": heroes,
 		"order": hero_ids.duplicate(),
 		"active": hero_ids[0],
-		"ult_available": true,
+		"ults_left": ULTS_PER_ROUND,
+		"ult_cooldown": 0.0,
 		"cooldowns": cooldowns,
 	}
 
@@ -128,16 +135,27 @@ func tick_cooldowns(delta: float) -> void:
 		for hero in cds:
 			if cds[hero] > 0.0:
 				cds[hero] = maxf(cds[hero] - delta, 0.0)
+		if players[pid].ult_cooldown > 0.0:
+			players[pid].ult_cooldown = maxf(players[pid].ult_cooldown - delta, 0.0)
 
 func ult_available(player_id: int) -> bool:
-	return players[player_id].ult_available
+	var p: Dictionary = players[player_id]
+	return p.ults_left > 0 and p.ult_cooldown <= 0.0
+
+func ults_left(player_id: int) -> int:
+	return players[player_id].ults_left
+
+func ult_cooldown_remaining(player_id: int) -> float:
+	return players[player_id].ult_cooldown
 
 func try_spend_ultimate(player_id: int) -> bool:
-	## One ultimate per player per round, shared across their 3 heroes (DESIGN 2.3).
-	## Spending it even to no effect consumes it.
-	if not players[player_id].ult_available:
+	## ULTS_PER_ROUND per player per round, shared across their 3 heroes, with
+	## ULT_COOLDOWN between them (DESIGN 2.3). Spending one even to no effect
+	## consumes it.
+	if not ult_available(player_id):
 		return false
-	players[player_id].ult_available = false
+	players[player_id].ults_left -= 1
+	players[player_id].ult_cooldown = ULT_COOLDOWN
 	ultimate_spent.emit(player_id)
 	return true
 #endregion
@@ -191,6 +209,7 @@ func reset_round() -> void:
 		for h in p.heroes:
 			p.heroes[h] = LIVES_PER_HERO
 			p.cooldowns[h] = 0.0
-		p.ult_available = true
+		p.ults_left = ULTS_PER_ROUND
+		p.ult_cooldown = 0.0
 		p.active = p.order[0]
 #endregion

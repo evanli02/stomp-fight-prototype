@@ -173,8 +173,9 @@ func _check_last_life_swaps_in_the_next_hero() -> void:
 
 ## Integration path: P1 clings to P2's flank and kicks off it (DESIGN 3.4).
 func _check_wall_duel_stun() -> void:
+	# Bodies are 22px wide, so adjacent is 23px of centre separation.
 	await place(_p2, Vector2(400, FLOOR_Y))
-	await place(_p1, Vector2(367, FLOOR_Y - 20))
+	await place(_p1, Vector2(377, FLOOR_Y - 20))
 	Input.action_press(InputConfig.action(0, &"move_right"))  # hold into P2
 	var clung := false
 	for i in 40:
@@ -210,7 +211,7 @@ func _check_wall_duel_stun() -> void:
 ## Arbitration path: both inputs land inside duel_window_frames, so both get the
 ## juice and neither is stunned — allies included (DESIGN 3.4).
 func _check_wall_duel_simultaneous() -> void:
-	await place(_p1, Vector2(367, FLOOR_Y - 20))
+	await place(_p1, Vector2(377, FLOOR_Y - 20))
 	await place(_p2, Vector2(400, FLOOR_Y - 20))
 	await step(2)
 	var juice := _p1.movement.duel_juice_mult

@@ -43,6 +43,8 @@ overstomp/
 
 `player.tscn` (CharacterBody2D) — one instance per *player* (not per hero). Hero swaps re-skin and re-equip this body; they never respawn it (preserves position/velocity/stun per DESIGN §2.4).
 
+Body is **22×48**, not 32×48. The sprite canvas is 32 wide but the character is drawn ~18px across inside it, and a 32-wide box left a visible gap between two players who were supposedly touching. Width is shared by the body, head hurtbox, and stompbox — heroes are identical here (CLAUDE.md rule 3).
+
 ```
 Player (CharacterBody2D)            player.gd — public API + physics integration
 ├── Sprite (AnimatedSprite2D)       SpriteFrames swapped per hero by set_hero()
@@ -58,6 +60,8 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │                                   bottom-aligned, swapped via set_deferred
 ├── HeadHurtbox (Area2D)            top 25%; disabled during grace
 │   └── HeadShape / HeadShapeCrouch  the crouched box is the top 25% of the short body
+├── Status (Node2D)                 dash pips + ability cooldown over the head;
+│                                   sibling of Sprite so it does not flip
 ├── StompBox (Area2D)               bottom 20% + 6px past the feet; relative fall speed
 │                                   (bodies stop on contact, so at exactly the
 │                                   design box the two rects meet on a line)

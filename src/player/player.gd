@@ -394,7 +394,10 @@ func _tick_timers(delta: float) -> void:
 	if stun_remaining > 0.0:
 		stun_remaining -= delta
 	if not is_zero_approx(input.move.x) and stun_remaining <= 0.0:
-		facing = signi(input.move.x)
+		# signi() takes an int, so a partly-deflected stick (0.7) truncated to 0
+		# and left facing at 0 — never negative, so the sprite never flipped.
+		# Keyboard is exactly +/-1 and hid it.
+		facing = 1 if input.move.x > 0.0 else -1
 
 	if speed_buff_remaining > 0.0:
 		speed_buff_remaining -= delta

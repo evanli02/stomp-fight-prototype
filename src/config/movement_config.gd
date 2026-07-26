@@ -37,7 +37,10 @@ class_name MovementConfig extends Resource
 @export var dash_recharge: float = 2.5        ## seconds per charge
 @export var dash_duration: float = 0.12
 @export var dash_distance: float = 72.0       ## ~4.5 tiles airborne, in any direction but up
-@export var dash_distance_ground: float = 96.0 ## ~6 tiles: the ground dash is the reposition tool
+## ~3.5 tiles, deliberately SHORTER than the air dash: on the ground you can
+## already run, so the dash is a small reposition. Spending it airborne, where
+## you cannot accelerate, is what should pay.
+@export var dash_distance_ground: float = 56.0
 @export var dash_distance_wall: float = 48.0  ## ~3 tiles along a wall; climbing stays expensive
 ## Airborne dashes keep their full reach sideways and downward but only this
 ## share of it upward — at parity an up-dash beats a jump and nothing else

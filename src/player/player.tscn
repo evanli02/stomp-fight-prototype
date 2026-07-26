@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/states/state_machine.gd" id="2"]
@@ -16,21 +16,22 @@
 [ext_resource type="Resource" path="res://src/config/movement_config.tres" id="12"]
 [ext_resource type="Resource" path="res://src/config/combat_config.tres" id="13"]
 [ext_resource type="Resource" path="res://src/heroes/resources/deadeye.tres" id="14"]
+[ext_resource type="Script" path="res://src/ui/player_status.gd" id="17"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
-size = Vector2(32, 48)
+size = Vector2(22, 48)
 
 [sub_resource type="RectangleShape2D" id="head_shape"]
-size = Vector2(32, 12)
+size = Vector2(22, 12)
 
 [sub_resource type="RectangleShape2D" id="body_shape_crouch"]
-size = Vector2(32, 24)
+size = Vector2(22, 24)
 
 [sub_resource type="RectangleShape2D" id="head_shape_crouch"]
-size = Vector2(32, 6)
+size = Vector2(22, 6)
 
 [sub_resource type="RectangleShape2D" id="feet_shape"]
-size = Vector2(32, 16)
+size = Vector2(22, 16)
 
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 2
@@ -122,3 +123,6 @@ unique_name_in_owner = true
 
 [node name="AimPivot" type="Node2D" parent="."]
 unique_name_in_owner = true
+
+[node name="Status" type="Node2D" parent="."]
+script = ExtResource("17")

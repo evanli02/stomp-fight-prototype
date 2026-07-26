@@ -99,7 +99,8 @@ func _arena_blocks() -> Array[Rect2]:
 	return blocks
 
 func _draw() -> void:
-	Arena.draw_sky(self, Vector2(ARENA) * float(Arena.TILE), SKY)
+	# Horizon sits on the rooftop line: sky above, dark city below.
+	Arena.draw_sky(self, Vector2(ARENA) * float(Arena.TILE), SKY, 272.0)
 	if _ground_tex != null:
 		Arena.draw_tiled(self, _blocks, _ground_tex)
 	else:

@@ -209,16 +209,40 @@ func _check_cooldowns_tick_while_benched() -> void:
 func _check_ultimate_economy() -> void:
 	MatchState.reset_round()
 	check("the ultimate starts available", MatchState.ult_available(0))
-	check("spending the ultimate succeeds", MatchState.try_spend_ultimate(0))
-	check("the ultimate is now gone", not MatchState.ult_available(0))
-	check("a second spend is refused", not MatchState.try_spend_ultimate(0))
-	# One per PLAYER, shared across the trio (DESIGN 2.3) — swapping does not
-	# hand you a fresh one.
+	check("a round starts with ULTS_PER_ROUND banked",
+		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND,
+		"left=%d" % MatchState.ults_left(0))
+	check("spending the first ultimate succeeds", MatchState.try_spend_ultimate(0))
+	check("one ultimate is left", MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
+		"left=%d" % MatchState.ults_left(0))
+	# Banked but not usable: the gap between uses is what stops both going off at
+	# once (DESIGN 2.3).
+	check("the second is blocked by the cooldown", not MatchState.ult_available(0))
+	check("a spend during the cooldown is refused", not MatchState.try_spend_ultimate(0))
+	check("the refused spend cost nothing",
+		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
+		"left=%d" % MatchState.ults_left(0))
+	# Per PLAYER, shared across the trio — swapping does not hand you a fresh one.
 	MatchState.swap_to(0, MatchState.next_living_hero(0))
-	check("swapping heroes does not restore the ultimate", not MatchState.ult_available(0))
-	check("the other player's ultimate is untouched", MatchState.ult_available(1))
+	check("swapping heroes does not restore an ultimate",
+		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1)
+	check("the other player's ultimates are untouched",
+		MatchState.ult_available(1) and MatchState.ults_left(1) == MatchState.ULTS_PER_ROUND)
+
+	var waited: bool = false
+	for i in int(MatchState.ULT_COOLDOWN * 60.0) + 30:
+		await get_tree().physics_frame
+		if MatchState.ult_available(0):
+			waited = true
+			break
+	check("the second ultimate unlocks after the cooldown", waited,
+		"cd=%.2f" % MatchState.ult_cooldown_remaining(0))
+	check("spending the second ultimate succeeds", MatchState.try_spend_ultimate(0))
+	check("both ultimates are now gone", MatchState.ults_left(0) == 0)
+
 	MatchState.reset_round()
-	check("the round reset restores the ultimate", MatchState.ult_available(0))
+	check("the round reset restores both ultimates",
+		MatchState.ult_available(0) and MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND)
 
 ## M4 abilities. The load-bearing check is the last one: whatever a hero does,
 ## it cannot cost a life. Only stomps do that (CLAUDE.md rule 1).
@@ -253,9 +277,11 @@ func _check_abilities() -> void:
 			not MatchState.is_ability_ready(0, hero_id),
 			"remaining=%.2f" % MatchState.cooldown_remaining(0, hero_id))
 		check("%s ability is refused while on cooldown" % hero_id, not _p1.try_ability())
-		check("%s ultimate fires once" % hero_id, _p1.try_ultimate())
-		check("%s ultimate is spent" % hero_id, not MatchState.ult_available(0))
-		check("%s ultimate is refused twice" % hero_id, not _p1.try_ultimate())
+		check("%s ultimate fires" % hero_id, _p1.try_ultimate())
+		check("%s ultimate goes on its between-use cooldown" % hero_id,
+			not MatchState.ult_available(0),
+			"cd=%.2f left=%d" % [MatchState.ult_cooldown_remaining(0), MatchState.ults_left(0)])
+		check("%s ultimate is refused during that gap" % hero_id, not _p1.try_ultimate())
 		await step(4)
 
 	check("abilities actually fired", fired_any)

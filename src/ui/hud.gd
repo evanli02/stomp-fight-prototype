@@ -83,10 +83,24 @@ func _draw_player(font: Font, pid: int, roster: Array, origin: Vector2) -> void:
 			_canvas.draw_rect(Rect2(pos + Vector2(0, CARD_H - 3),
 				Vector2(CARD_W * frac, 3)), accent * Color(1, 1, 1, 0.55))
 
-	# One ultimate per player per round (DESIGN 2.3) — a single lamp, not per hero.
+	# Ultimates are per PLAYER, not per hero (DESIGN 2.3): one lamp each, plus the
+	# gap between uses when one is still cooling down.
 	var ult_pos := origin + Vector2(0, CARD_H + 6)
-	var lit := MatchState.ult_available(pid)
-	_canvas.draw_rect(Rect2(ult_pos, Vector2(14, 14)), COL_ULT if lit else COL_PIP_OFF)
-	_canvas.draw_string(font, ult_pos + Vector2(20, 12),
-		"ULT" if lit else "ult spent", HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
-		COL_ULT if lit else COL_PIP_OFF)
+	var left := MatchState.ults_left(pid)
+	var cd := MatchState.ult_cooldown_remaining(pid)
+	for i in MatchState.ULTS_PER_ROUND:
+		var box := Rect2(ult_pos + Vector2(i * 18, 0), Vector2(14, 14))
+		_canvas.draw_rect(box, COL_ULT if i < left else COL_PIP_OFF)
+		if i < left and cd > 0.0:
+			# Draining fill: the charge is banked but not yet usable.
+			var frac: float = clampf(1.0 - cd / MatchState.ULT_COOLDOWN, 0.0, 1.0)
+			_canvas.draw_rect(box, COL_PIP_OFF)
+			_canvas.draw_rect(Rect2(box.position, Vector2(14 * frac, 14)), COL_ULT)
+	var label := "ULT x%d" % left
+	if cd > 0.0:
+		label = "ULT %.0fs" % cd
+	elif left == 0:
+		label = "no ults left"
+	_canvas.draw_string(font, ult_pos + Vector2(MatchState.ULTS_PER_ROUND * 18 + 6, 12),
+		label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+		COL_ULT if MatchState.ult_available(pid) else COL_PIP_OFF)
