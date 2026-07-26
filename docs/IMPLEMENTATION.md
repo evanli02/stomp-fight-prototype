@@ -131,7 +131,13 @@ Two live TerrainElements ship in `src/heroes/effects/`, both placed by Mason. `B
 
 Both re-scan overlaps every physics tick with a per-player re-trigger gap rather than listening for `body_entered`. A player already inside an area cannot "enter" it again, which is exactly how the first version let people walk through.
 
-Implemented (stub) elements: pole, ice, stun_line, jump_spring, speed_pad, portal, wind_zone, explosion. Extras from DESIGN §6.2 (conveyor, crumble, sticky wall, one-way, rotator, bumper) follow the same contract.
+**The base owns detection.** `TerrainElement` builds its own Area2D from an exported `size` and re-scans overlaps every physics tick, synthesising `on_body_entered` / `on_body_exited` / `physics_effect` from the scan. It does not use Godot's enter/exit signals: a body already inside an area cannot "enter" it again, and half these elements care about bodies sitting still inside them. Elements override behaviour only, plus `tick()` for logic that needs no body (explosion timers).
+
+All eight core elements are implemented (M5): pole, ice, stun_line, jump_spring, speed_pad, portal, wind_zone, explosion. Extras from DESIGN §6.2 (conveyor, crumble, sticky wall, one-way, rotator, bumper) follow the same contract.
+
+Two things terrain authors need to know:
+- **A launch must leave the grounded state.** `Idle` and `Run` set `velocity.y = 0` every frame a body is on the floor, so a spring that only writes velocity is erased before it moves anyone. `JumpSpring` calls `request_state(&"Air")` for exactly this reason.
+- **Ice is one number.** It asserts `Player.apply_surface_slip()` every tick a body is on it; the player decays `surface_slip` on its own, so stepping off restores grip without the element noticing. Slip feeds ground acceleration, friction, the b-hop window, and the speed cap together.
 
 ## 5. Combat event flow (signal map)
 
@@ -178,7 +184,7 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, one-ult-per-round, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select is deferred to M5, when there is more than one stage to pick between. The human pass on the full flow still has to sign off.*
 4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova. *Abilities and ultimates implemented and verified headlessly (2026-07-26). Effects are functional but plain — VFX polish is M6. Human pass outstanding.*
-5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab.
+5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab. *All 8 elements implemented and verified headlessly (2026-07-26), plus the PoleClimb state they needed. Rooftop Rumble exists as `duel.tscn`. **Outstanding: placing elements into stages, and Cryo Lab.***
 6. **M6 — Formats & polish**: 2v2/3v3, stage select flow, Bo3/Bo5, VFX/SFX pass, remaining heroes/stages.
 
 ## 8. How to update this document
@@ -205,6 +211,7 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
 - **Headless harnesses** live in `tests/` and are the regression net under the physics code. Neither is GUT: both need a live scene tree, physics ticks, and real collision. Non-zero exit on failure.
   - `movement_harness.tscn` — DESIGN 4 numbers: jump heights, momentum decay, b-hop preservation, dash charges/air lock, wall-jump chain decay and aim tilt, ceilings. Run after touching `src/player/`.
   - `combat_harness.tscn` — DESIGN 3 rules: what does and does not register as a stomp, life/stun/grace/bounce, the anti-chain grace, elimination into auto-swap, and duel resolution. Run after touching stomp, stun, or duel code.
+  - `terrain_harness.tscn` — DESIGN 6.2: every element in the catalog against what it should do to a player, and against the rule none of them may break — terrain stuns, pushes, launches, and redirects, but never removes a life. Run after touching anything in `src/stage/terrain/`.
   - `match_harness.tscn` — DESIGN 2 and 5 rules: every hero's ability and ultimate firing, going on cooldown, being refused on cooldown, the ult being spendable exactly once, the cooldown waiver, and — the load-bearing one — that **no ability of any hero can cost a life**; hero-select pick rules (no duplicates in one trio, duplicates across players, undo, auto-fill), rosters, swap validation and cycling, swap preserving position/velocity, stun blocking swap and ult, cooldowns ticking while benched, the one-ult-per-round economy, round win, and the reset between rounds. Run after touching MatchState, GameManager, hero select, or the swap path.
   - Teleporting a body into place inside a harness needs a settle frame. If whatever it was resting on has moved, the next `move_and_slide()` can depenetrate it across the arena with its velocity untouched — `combat_harness.place()` re-asserts the position a frame later for exactly this reason.
   - `Godot --headless --path . res://tests/<harness>.tscn`. A newly added `class_name` needs `Godot --headless --path . --import` first, or the harness cannot see the class.

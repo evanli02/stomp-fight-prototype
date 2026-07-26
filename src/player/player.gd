@@ -46,6 +46,10 @@ var spawn_protected: bool = false
 ## Held in place with gravity suspended (Mason's Keystone). Separate from stun:
 ## a stun takes control away but you still fall, a freeze stops you in the air.
 var freeze_remaining: float = 0.0
+## 0 = normal ground, 1 = full ice. Terrain writes this every tick it applies and
+## it decays back on its own, so an element never has to remember to clear it and
+## a player who leaves the ice is never left slippery.
+var surface_slip: float = 0.0
 
 #region Movement bookkeeping — owned here, read by states
 ## Timers and contact facts live on the player rather than in any one state so
@@ -135,6 +139,10 @@ func request_state(state_name: StringName, params: Dictionary = {}) -> void:
 	## Abilities ask for a state (e.g. Skyla's double jump requests Air); they
 	## never reach into state internals.
 	state_machine.change_state(state_name, params)
+
+func apply_surface_slip(amount: float) -> void:
+	## Called by Ice every tick a player stands on it (DESIGN 6.2).
+	surface_slip = clampf(maxf(surface_slip, amount), 0.0, 1.0)
 
 func grant_speed_buff(mult: float, dur: float) -> void:
 	## Raises the run cap for a while (Mason's Keystone). Refresh takes the
@@ -416,6 +424,8 @@ func _tick_timers(delta: float) -> void:
 		if speed_buff_remaining <= 0.0:
 			speed_buff_mult = 1.0
 
+	surface_slip = maxf(surface_slip - delta * 6.0, 0.0)
+
 	time_since_landing += delta
 	time_since_wall_contact += delta
 	coyote_remaining = maxf(coyote_remaining - delta, 0.0)
@@ -434,7 +444,7 @@ func _tick_timers(delta: float) -> void:
 			dash_recharge_remaining = movement.dash_recharge if dash_charges_left < movement.dash_charges else 0.0
 
 	# The b-hop window has passed without a jump: a normal landing costs momentum.
-	if not landing_settled and is_on_floor() and time_since_landing > movement.bhop_window:
+	if not landing_settled and is_on_floor() and time_since_landing > bhop_window():
 		_settle_landing()
 
 func _post_move(was_on_floor: bool) -> void:
@@ -548,11 +558,21 @@ func speed_cap() -> float:
 	var cap := lerpf(movement.run_speed_base, movement.run_speed_cap, momentum_charge)
 	if dash_boost_remaining > 0.0:
 		cap *= movement.dash_boost_cap_mult
-	return cap * speed_buff_mult
+	return cap * speed_buff_mult * lerpf(1.0, 1.08, surface_slip)
 
 ## Getting moving: a standstill reaches run_speed_base in ground_accel_time.
+## Ice cuts the grip you push against, so acceleration falls with it.
 func ground_accel() -> float:
-	return movement.run_speed_base / movement.ground_accel_time
+	return (movement.run_speed_base / movement.ground_accel_time) * lerpf(1.0, 0.35, surface_slip)
+
+## Ground friction with ice applied — near zero on full slip (DESIGN 6.2).
+func ground_friction() -> float:
+	return movement.ground_friction * lerpf(1.0, 0.05, surface_slip)
+
+## The b-hop window is more forgiving on ice, which is what makes ice a place to
+## build speed rather than only a place to lose control.
+func bhop_window() -> float:
+	return movement.bhop_window * lerpf(1.0, 1.6, surface_slip)
 
 ## Changing your mind: a full flip (-base -> +base) still takes
 ## ground_redirect_time, which is deliberately quicker than startup — heavy to

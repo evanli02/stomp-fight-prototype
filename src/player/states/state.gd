@@ -42,7 +42,7 @@ func try_ground_jump() -> bool:
 		return false
 	if player.velocity.y < 0.0:
 		return false  # already rising: never a second jump out of the same one
-	var perfect := player.perfect_window_check(player.time_since_landing, player.movement.bhop_window)
+	var perfect := player.perfect_window_check(player.time_since_landing, player.bhop_window())
 	player.consume_jump_buffer()
 	machine.change_state(&"Air", {"jump": true, "perfect": perfect})
 	return true
