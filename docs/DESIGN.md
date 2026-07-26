@@ -143,16 +143,20 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 
 | # | Hero (working name) | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
-| 1 | **Deadeye** | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (8 s) | **Rapid Fire**: free-fire stun bolts for 5 s | Sharpshooter vigilante |
-| 2 | **Skyla** | Second jump in mid-air — weaker than a real one, **not aimed**, horizontal momentum untouched (7 s) | **Double Trouble**: ability can be used twice in a row for 8 s | Jet-boot speedster |
-| 3 | **Mason** | Place a bounce block: all players ricochet off it (10 s, max 1 alive) | **Keystone**: place a block that knocks back + stuns enemies, buffs allies passing through (+15% speed, 4 s) | Hard-light constructor |
-| 4 | **Nova** | Radial burst: knocks back nearby enemies (no stun) (9 s) | **Supernova**: large radial burst that stuns all enemies ~1 s | Gravity brawler |
+| 1 | **Deadeye** | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (6.4 s) | **Loaded Shot**: refunds the bolt cooldown and makes the *next* bolt 50% faster with a 4 s stun | Sharpshooter vigilante |
+| 2 | **Skyla** | Second jump in mid-air, **stronger** than a normal jump; not aimed, horizontal momentum untouched (5.6 s) | **Double Trouble**: for 7 s her jump cooldown drops to 1 s | Jet-boot speedster |
+| 3 | **Mason** | Place a **solid** bumper block with a lingering hitbox and vector-based reflection — you leave along your incoming angle mirrored, like a Smash bumper. Everyone bounces, Mason included (10 s, max 1 alive, ~4 s life) | **Keystone**: a block his own team walks through; enemies who touch it are **frozen and stunned**, then dropped under normal gravity | Hard-light constructor |
+| 4 | **Nova** | Radial burst: heavy knockback on nearby enemies, no stun (7.2 s) | **Supernova**: one ring leaves his body and expands across the **whole stage**, slowly enough to outrun. Whoever it catches is stunned, stripped of all momentum, and dropped | Gravity brawler |
 | 5 | **Wisp** | Dropped teleport beacon; re-cast to warp back to it (11 s) | **Phase Shift**: team-wide brief intangibility to stomps (2.5 s) | Phantom courier |
 | 6 | **Tether** | Fire a grapple that pulls you to terrain/players (8 s) | **Lockdown**: tether the nearest enemy to a point for 2 s (they can move within a radius) | Chain-slinger |
 | 7 | **Gale** | Wind gust column that pushes players (7 s) | **Tempest**: stage-wide directional wind for 6 s | Storm caller |
 | 8 | **Frostbyte** | Coat a terrain strip in ice (9 s) | **Flash Freeze**: all current terrain becomes ice for 8 s | Cryo hacker |
 
 (Wisp's ult is the only stomp-defensive ult; keep an eye on it in balance.)
+
+**Ability cooldowns are ordered, not uniform**: Skyla 5.6 s < Deadeye 6.4 s < Nova 7.2 s < Mason 10 s. The cheaper an ability is to press, the less it should decide on its own — Skyla's is pure mobility, Mason's places terrain that outlives the press.
+
+Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it moves well below a capped run, so reacting early keeps you ahead of it, but it covers the entire stage, so there is no edge to escape past. Escaping it outright is a hole left for later kit — Wisp's teleport, portal terrain — rather than something movement alone should solve.
 
 ### 5.3 Cooldown rules
 - Cooldowns tick in real time, including while benched (see §2.4).

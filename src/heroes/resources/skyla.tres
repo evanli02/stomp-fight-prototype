@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Skyla"
 accent_color = Color(0.176471, 0.886275, 0.901961, 1)
-ability_cooldown = 7.0
+ability_cooldown = 5.6
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
 ultimate_scene = ExtResource("4")

@@ -8,16 +8,16 @@
 script = ExtResource("1")
 
 [node name="Camera2D" type="Camera2D" parent="."]
-position = Vector2(320, 192)
-zoom = Vector2(1.85, 1.85)
+position = Vector2(576, 320)
+zoom = Vector2(1.1, 1.1)
 
 [node name="Player1" parent="." instance=ExtResource("2")]
 unique_name_in_owner = true
-position = Vector2(128, 248)
+position = Vector2(200, 408)
 
 [node name="Player2" parent="." instance=ExtResource("2")]
 unique_name_in_owner = true
-position = Vector2(512, 248)
+position = Vector2(952, 408)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("3")

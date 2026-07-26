@@ -43,6 +43,9 @@ var fall_speed_memory: float = 0.0
 ## post-stomp grace: this variant ends early on the player's first action
 ## (DESIGN 3.3).
 var spawn_protected: bool = false
+## Held in place with gravity suspended (Mason's Keystone). Separate from stun:
+## a stun takes control away but you still fall, a freeze stops you in the air.
+var freeze_remaining: float = 0.0
 
 #region Movement bookkeeping — owned here, read by states
 ## Timers and contact facts live on the player rather than in any one state so
@@ -114,6 +117,12 @@ func apply_impulse(v: Vector2) -> void:
 func set_velocity_override(v: Vector2) -> void:
 	## Springs, portals, grapples: replaces velocity outright.
 	velocity = v
+
+func apply_freeze(duration: float) -> void:
+	## Stop dead in the air for a moment. Pairs with a stun so that when the
+	## freeze ends the player simply falls — no impulse, just gravity again.
+	freeze_remaining = maxf(freeze_remaining, duration)
+	velocity = Vector2.ZERO
 
 func apply_stun(duration: float) -> void:
 	## Refresh rule: max(remaining, new). Never additive (CLAUDE.md checklist).
@@ -258,6 +267,7 @@ func respawn_at(spawn_position: Vector2) -> void:
 	_reset_wall_chain()
 	fall_speed_memory = 0.0
 	stun_remaining = 0.0
+	freeze_remaining = 0.0
 	set_crouched(false)
 	_clear_duel_claim()
 	state_machine.change_state(&"Air")
@@ -393,6 +403,8 @@ func _tick_timers(delta: float) -> void:
 			set_head_hurtbox_enabled(true)
 	if stun_remaining > 0.0:
 		stun_remaining -= delta
+	if freeze_remaining > 0.0:
+		freeze_remaining -= delta
 	if not is_zero_approx(input.move.x) and stun_remaining <= 0.0:
 		# signi() takes an int, so a partly-deflected stick (0.7) truncated to 0
 		# and left facing at 0 — never negative, so the sprite never flipped.

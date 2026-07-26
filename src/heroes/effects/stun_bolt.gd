@@ -15,6 +15,8 @@ var stun_time: float = 0.8
 var speed: float = 620.0
 var lifetime: float = 1.4
 var accent: Color = Color(1, 0.18, 0.53)
+## Deadeye's ultimate shot: drawn heavier so the loaded bolt is legible.
+var empowered: bool = false
 
 var _direction: Vector2 = Vector2.RIGHT
 
@@ -63,5 +65,10 @@ func _on_body_entered(body: Node2D) -> void:
 	queue_free()
 
 func _draw() -> void:
-	draw_rect(Rect2(-LENGTH * 0.5, -THICKNESS * 0.5, LENGTH, THICKNESS), accent)
-	draw_rect(Rect2(LENGTH * 0.5 - 2.0, -THICKNESS * 0.5, 2.0, THICKNESS), Color.WHITE)
+	var length := LENGTH * (1.6 if empowered else 1.0)
+	var thick := THICKNESS * (1.8 if empowered else 1.0)
+	if empowered:
+		draw_rect(Rect2(-length * 0.5 - 3.0, -thick * 0.5 - 1.0,
+			length + 6.0, thick + 2.0), Color(1, 1, 1, 0.35))
+	draw_rect(Rect2(-length * 0.5, -thick * 0.5, length, thick), accent)
+	draw_rect(Rect2(length * 0.5 - 2.0, -thick * 0.5, 2.0, thick), Color.WHITE)

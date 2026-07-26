@@ -5,8 +5,21 @@ class_name DeadeyeBolt extends Ability
 
 @export var bolt_speed: float = 620.0
 
+## Set by the ultimate: the next bolt only, fired faster and with a longer stun.
+var _empowered_speed_mult: float = 1.0
+var _empowered_stun: float = 0.0
+
+func load_empowered_shot(speed_mult: float, stun: float) -> void:
+	_empowered_speed_mult = speed_mult
+	_empowered_stun = stun
+
 func _execute(aim: Vector2) -> void:
+	var stun := _empowered_stun if _empowered_stun > 0.0 else player.combat.stun_deadeye_bolt
+	var speed := bolt_speed * _empowered_speed_mult
 	var bolt := StunBolt.new()
 	bolt.global_position = player.global_position
-	bolt.launch(player, aim_or_facing(aim), player.combat.stun_deadeye_bolt, bolt_speed)
+	bolt.launch(player, aim_or_facing(aim), stun, speed)
+	bolt.empowered = _empowered_stun > 0.0
 	player.spawn_effect(bolt)
+	_empowered_speed_mult = 1.0
+	_empowered_stun = 0.0

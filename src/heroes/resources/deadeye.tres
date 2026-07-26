@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Deadeye"
 accent_color = Color(1, 0.180392, 0.533333, 1)
-ability_cooldown = 8.0
+ability_cooldown = 6.4
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
 ultimate_scene = ExtResource("4")

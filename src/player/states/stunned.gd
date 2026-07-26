@@ -4,6 +4,11 @@ class_name StunnedState extends PlayerState
 ## disables it (CLAUDE.md checklist). Swapping out is blocked while here (M3).
 
 func physics_update(delta: float) -> void:
+	# Frozen: pinned in the air, gravity suspended. When the freeze runs out the
+	# player just falls — the drop is gravity, not a push (DESIGN 5.2 Keystone).
+	if player.freeze_remaining > 0.0:
+		player.velocity = Vector2.ZERO
+		return
 	if player.is_on_floor():
 		player.velocity.y = 0.0
 	else:

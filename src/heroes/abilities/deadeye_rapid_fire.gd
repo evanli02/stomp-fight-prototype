@@ -1,14 +1,17 @@
 class_name DeadeyeRapidFire extends Ability
-## Deadeye's ultimate — Rapid Fire: free-fire stun bolts for a window
-## (DESIGN 5.2 #1). Implemented as a cooldown waiver on the basic ability rather
-## than as its own firing loop, so there is exactly one place that knows how a
-## bolt is made.
+## Deadeye's ultimate (DESIGN 5.2 #1): refunds the bolt cooldown and loads the
+## NEXT bolt as a heavy one — faster, and a stun long enough to be a guaranteed
+## setup rather than a nudge.
+##
+## One shot, not a window. It rewards picking the moment instead of spraying.
 
-@export var duration: float = 5.0
-## Effectively unlimited within the window; the fire rate is the player's thumb.
-@export var uses: int = 99
+@export var speed_mult: float = 1.5
+@export var empowered_stun: float = 4.0
 
 func _execute(_aim: Vector2) -> void:
 	var basic := player.equipped_ability()
-	if basic != null:
-		basic.grant_waiver(duration, uses)
+	if basic == null:
+		return
+	basic.reset_cooldown()
+	if basic is DeadeyeBolt:
+		(basic as DeadeyeBolt).load_empowered_shot(speed_mult, empowered_stun)

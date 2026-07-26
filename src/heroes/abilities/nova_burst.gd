@@ -1,10 +1,10 @@
 class_name NovaBurst extends Ability
-## Nova — radial burst that knocks nearby enemies back with NO stun
-## (DESIGN 5.2 #4). Pure displacement: it breaks up a stomp setup or shoves
-## someone off a rooftop edge into open air, and never buys a free stomp itself.
+## Nova — radial knockback with NO stun (DESIGN 5.2 #4). Pure displacement, and
+## a lot of it: it breaks a stomp setup apart or throws someone clean off a
+## rooftop, without ever buying Nova a free stomp of his own.
 
 @export var radius: float = 110.0
-@export var force: float = 460.0
+@export var force: float = 980.0
 
 func _execute(_aim: Vector2) -> void:
 	var burst := RadialBurst.new()

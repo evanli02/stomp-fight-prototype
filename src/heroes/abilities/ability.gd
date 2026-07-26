@@ -16,41 +16,42 @@ var player: Player
 var hero_id: StringName
 var cooldown: float = 8.0
 
-## Cooldown waiver granted by an ultimate that modifies the basic ability
-## (Deadeye's Rapid Fire, Skyla's Double Trouble). Both are "the cooldown does
-## not apply for a while", differing only in how many uses they cover, so one
-## mechanism serves both rather than two special cases.
-var waive_remaining: float = 0.0
-var waive_uses: int = 0
+## Temporary replacement cooldown granted by an ultimate (Skyla's). While the
+## window runs, firing costs this instead of the hero's normal cooldown.
+var cooldown_override: float = -1.0
+var cooldown_override_remaining: float = 0.0
 
 func _physics_process(delta: float) -> void:
-	if waive_remaining > 0.0:
-		waive_remaining = maxf(waive_remaining - delta, 0.0)
-		if waive_remaining <= 0.0:
-			waive_uses = 0
+	if cooldown_override_remaining > 0.0:
+		cooldown_override_remaining = maxf(cooldown_override_remaining - delta, 0.0)
+		if cooldown_override_remaining <= 0.0:
+			cooldown_override = -1.0
 
 ## Ultimates call this on their sibling basic ability.
-func grant_waiver(duration: float, uses: int) -> void:
-	waive_remaining = maxf(waive_remaining, duration)
-	waive_uses = maxi(waive_uses, uses)
+func grant_cooldown_override(value: float, duration: float) -> void:
+	cooldown_override = value
+	cooldown_override_remaining = maxf(cooldown_override_remaining, duration)
 
-func waived() -> bool:
-	return waive_remaining > 0.0 and waive_uses > 0
+func effective_cooldown() -> float:
+	return cooldown_override if cooldown_override_remaining > 0.0 else cooldown
+
+## Clear the cooldown outright (Deadeye's ultimate).
+func reset_cooldown() -> void:
+	if MatchState.has_player(player.player_id):
+		MatchState.start_cooldown(player.player_id, hero_id, 0.0)
 
 func try_fire(aim: Vector2) -> bool:
 	if is_ultimate:
-		# One ult per player per round, spent via MatchState (IMPLEMENTATION.md 5).
+		# Spent via MatchState, which owns the per-round budget and the gap
+		# between uses (IMPLEMENTATION.md 5).
 		if not MatchState.try_spend_ultimate(player.player_id):
 			return false
-	elif _on_cooldown() and not waived():
+	elif _on_cooldown():
 		return false
 	_execute(aim)
 	fired.emit()
 	if not is_ultimate:
-		if waived():
-			waive_uses -= 1
-		else:
-			_start_cooldown()
+		_start_cooldown()
 	return true
 
 ## Override in subclasses. `aim` is the live aim vector (DESIGN 7).
@@ -63,9 +64,10 @@ func _on_cooldown() -> bool:
 	return not MatchState.is_ability_ready(player.player_id, hero_id)
 
 func _start_cooldown() -> void:
+	var value := effective_cooldown()
 	if MatchState.has_player(player.player_id):
-		MatchState.start_cooldown(player.player_id, hero_id, cooldown)
-	cooldown_started.emit(cooldown)
+		MatchState.start_cooldown(player.player_id, hero_id, value)
+	cooldown_started.emit(value)
 
 #region Shared helpers
 ## Every player in the round, in player_id order. Sorted rather than taken in

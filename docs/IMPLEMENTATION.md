@@ -127,7 +127,9 @@ func physics_effect(player: Player, delta: float) -> void: pass  # wind, conveyo
 ```
 Elements express themselves exclusively through the Player public API (§3). Stun values and forces are `@export` vars pre-set in each scene, sourced from `combat_config.tres` defaults.
 
-`BounceBlock` (`src/heroes/effects/`) is a live TerrainElement rather than a stub: Mason's ability places one, and it treats everyone the same — ally, enemy, and Mason. Terrain does not take sides.
+Two live TerrainElements ship in `src/heroes/effects/`, both placed by Mason. `BumperBlock` (ability) is a **solid** StaticBody2D wrapped in a slightly larger Area2D: the hitbox has to reach past the solid core, because once the core has stopped a player their velocity is already gone and there is nothing left to reflect. It bounces everyone, Mason included — terrain does not take sides. `FreezeBlock` (ultimate) is pass-through for its owner's team and freezes anyone else.
+
+Both re-scan overlaps every physics tick with a per-player re-trigger gap rather than listening for `body_entered`. A player already inside an area cannot "enter" it again, which is exactly how the first version let people walk through.
 
 Implemented (stub) elements: pole, ice, stun_line, jump_spring, speed_pad, portal, wind_zone, explosion. Extras from DESIGN §6.2 (conveyor, crumble, sticky wall, one-way, rotator, bumper) follow the same contract.
 
@@ -151,7 +153,7 @@ Hero elimination continues into the swap flow (DESIGN 3.3): the arena hears `her
 
 Abilities spawn their effects through `Player.spawn_effect()`, which parents them to the **stage**, never to the player: a bolt or a placed block must not ride the body that made it, and a placed block outlives a hero swap (DESIGN 2.4). Targets come from the `players` group sorted by `player_id`, never from scene order (§9).
 
-Two ultimates (Rapid Fire, Double Trouble) modify their hero's *basic* ability instead of doing anything themselves. Both are "the cooldown does not apply for a while", so `Ability.grant_waiver(duration, uses)` serves both — Rapid Fire takes a large use count, Double Trouble takes one. That keeps exactly one place that knows how a bolt is made.
+Two ultimates modify their hero's *basic* ability instead of doing anything themselves, through two small hooks on `Ability`: `grant_cooldown_override(value, duration)` (Skyla — her cooldown becomes 1 s for a window) and `reset_cooldown()` (Deadeye — refund, plus a one-shot empowerment stored on the bolt). Neither ultimate duplicates how the ability works.
 
 Ultimates: `InputConfig` resolves the input → the equipped ultimate asks `MatchState.try_spend_ultimate(player_id)` → only on `true` does it fire. Abilities read and write cooldowns through `MatchState`, keyed by player **and hero**, because the ability node is freed the moment its hero is swapped out and cannot be the thing remembering. Swap, ability, and ultimate are all refused while stunned (CLAUDE.md checklist).
 

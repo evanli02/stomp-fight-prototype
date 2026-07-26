@@ -13,10 +13,13 @@ extends Node
 ## what the combat rules do once bodies are in contact, and hand-flown approaches
 ## make that setup flaky without testing anything extra.
 
-## Street level in duel.tscn: the floor's top edge is y=368, so a standing body's
+## Street level in duel.tscn: the floor's top edge is y=624, so a standing body's
 ## centre sits 24px above it. The open street is what these checks need — the
 ## rooftops above have their own geometry in the way.
-const FLOOR_Y: float = 344.0
+const FLOOR_Y: float = 600.0
+## A clear column of street: no awning (x 176..272), no mid platform (384..480),
+## nothing overhead to land on instead of the other player.
+const TEST_X: float = 320.0
 
 var _failures: int = 0
 var _stage: Node2D
@@ -108,8 +111,8 @@ func _check_registration() -> void:
 
 ## DESIGN 3.4: you can stand on shoulders. Only falling onto the head box counts.
 func _check_standing_on_head_is_not_a_stomp() -> void:
-	await place(_p2, Vector2(400, FLOOR_Y))
-	await place(_p1, Vector2(400, FLOOR_Y - 48))  # feet resting on P2's head
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 48))  # feet resting on P2's head
 	await step(30)                          # longer than stomp_fall_memory_time
 	check("standing on a head costs no life", lives_of(1) == 2, "lives=%d" % lives_of(1))
 	check("standing on a head applies no stun", is_zero_approx(_p2.stun_remaining))
@@ -122,8 +125,8 @@ func _check_only_stomps_cost_lives() -> void:
 	check("stun and knockback cost no life", lives_of(1) == 2, "lives=%d" % lives_of(1))
 
 func _check_stomp() -> void:
-	await place(_p2, Vector2(400, FLOOR_Y))
-	await place(_p1, Vector2(400, FLOOR_Y - 110))  # ~60px of fall onto the head
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))  # ~60px of fall onto the head
 	var stomps: Array[Player] = []
 	_p1.stomp_landed.connect(func(victim: Player) -> void: stomps.append(victim))
 	await step(30)
@@ -138,8 +141,8 @@ func _check_stomp() -> void:
 
 func _check_grace_blocks_the_chain() -> void:
 	# Same fall again while grace is still running: the chain has to be refused.
-	await place(_p1, Vector2(400, FLOOR_Y - 110))
-	_p2.global_position = Vector2(400, FLOOR_Y)
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
+	_p2.global_position = Vector2(TEST_X, FLOOR_Y)
 	_p2.velocity = Vector2.ZERO
 	check("grace is still running for the second drop", _p2.grace_remaining > 0.0,
 		"grace=%.2f" % _p2.grace_remaining)
@@ -155,8 +158,8 @@ func _check_last_life_swaps_in_the_next_hero() -> void:
 	var grace_ended: bool = await wait_until(func() -> bool: return _p2.grace_remaining <= 0.0)
 	check("grace expires on its own", grace_ended, "grace=%.2f" % _p2.grace_remaining)
 	var doomed := MatchState.active_hero(1)
-	await place(_p2, Vector2(400, FLOOR_Y))
-	await place(_p1, Vector2(400, FLOOR_Y - 110))
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
 	await step(30)
 	check("the second stomp empties the hero",
 		MatchState.lives_of(1, doomed) == 0, "lives=%d" % MatchState.lives_of(1, doomed))
@@ -174,8 +177,8 @@ func _check_last_life_swaps_in_the_next_hero() -> void:
 ## Integration path: P1 clings to P2's flank and kicks off it (DESIGN 3.4).
 func _check_wall_duel_stun() -> void:
 	# Bodies are 22px wide, so adjacent is 23px of centre separation.
-	await place(_p2, Vector2(400, FLOOR_Y))
-	await place(_p1, Vector2(377, FLOOR_Y - 20))
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X - 23, FLOOR_Y - 20))
 	Input.action_press(InputConfig.action(0, &"move_right"))  # hold into P2
 	var clung := false
 	for i in 40:
@@ -211,8 +214,8 @@ func _check_wall_duel_stun() -> void:
 ## Arbitration path: both inputs land inside duel_window_frames, so both get the
 ## juice and neither is stunned — allies included (DESIGN 3.4).
 func _check_wall_duel_simultaneous() -> void:
-	await place(_p1, Vector2(377, FLOOR_Y - 20))
-	await place(_p2, Vector2(400, FLOOR_Y - 20))
+	await place(_p1, Vector2(TEST_X - 23, FLOOR_Y - 20))
+	await place(_p2, Vector2(TEST_X, FLOOR_Y - 20))
 	await step(2)
 	var juice := _p1.movement.duel_juice_mult
 	var first_impulse := Vector2(-360.0, -420.0)

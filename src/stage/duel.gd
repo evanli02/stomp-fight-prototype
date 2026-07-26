@@ -6,10 +6,15 @@ extends Node2D
 ## bodies. Nothing above it knows a Player node exists, which is what keeps the
 ## autoloads testable without a tree.
 
-## Rooftop Rumble, Small size for 1v1 (DESIGN 6.1: ~40x24 tiles, sealed).
-const ARENA: Vector2i = Vector2i(40, 24)
+## Rooftop Rumble. Sized Large (DESIGN 6.1: ~72x40) rather than the Small a 1v1
+## calls for — this is also the movement test bench, and momentum needs runway:
+## a capped run crosses a Small stage in under two seconds, which leaves nothing
+## to actually chain b-hops or wall jumps across.
+const ARENA: Vector2i = Vector2i(72, 40)
 ## Opposite rooftops (DESIGN 6.1: team spawns on opposite sides).
-const SPAWNS: Array[Vector2] = [Vector2(128, 248), Vector2(512, 248)]
+const SPAWNS: Array[Vector2] = [Vector2(200, 408), Vector2(952, 408)]
+## The rooftop line; sky above it, dark city below.
+const HORIZON: float = 432.0
 const SKY: Array[Color] = [
 	Color(0.10, 0.06, 0.19), Color(0.16, 0.11, 0.29),
 	Color(0.23, 0.18, 0.39), Color(0.42, 0.18, 0.36),
@@ -76,10 +81,14 @@ func _spawn_all() -> void:
 		players[i].respawn_at(SPAWNS[i])
 		players[i].equip_hero(MatchState.active_hero(i))
 
-## Rooftop Rumble: two facing rooftops over an open street, a contested high
-## slab between them, and the gap under that slab forming a shaft with two
-## facing walls 96px apart — close enough that two players climbing it meet, so
-## wall-jump duels (DESIGN 3.4) happen on purpose rather than by accident.
+## Rooftop Rumble: two facing rooftops over a long open street, stepping
+## platforms between them, a contested high slab, and a 64px shaft under that
+## slab. The shaft is narrow on purpose — bodies are 22px wide, so 64px is close
+## enough that two players climbing it meet, which is what makes wall-jump duels
+## (DESIGN 3.4) happen deliberately rather than by accident.
+##
+## The street runs the full width with nothing on it: b-hop chains need a runway
+## with no geometry in the arc, and that is most of why the stage is this big.
 ##
 ## Rooftops are slabs with air beneath rather than solid buildings: it keeps the
 ## whole street open, which is what a stomp game needs. There is nowhere to fall
@@ -88,19 +97,23 @@ func _arena_blocks() -> Array[Rect2]:
 	var t := float(Arena.TILE)
 	var blocks := Arena.sealed_box(ARENA)
 	blocks.append_array([
-		Rect2(48.0, 272.0, 160.0, t),    # left rooftop (spawn)
-		Rect2(432.0, 272.0, 160.0, t),   # right rooftop (spawn)
-		Rect2(256.0, 192.0, 128.0, t),   # contested high slab
-		Rect2(256.0, 208.0, t, 96.0),    # shaft wall, left face outward
-		Rect2(368.0, 208.0, t, 96.0),    # shaft wall, right face outward
-		Rect2(160.0, 336.0, 64.0, t),    # awning, street level
-		Rect2(416.0, 336.0, 64.0, t),    # awning, street level
+		Rect2(96.0, 432.0, 208.0, t),    # left rooftop (spawn)
+		Rect2(848.0, 432.0, 208.0, t),   # right rooftop (spawn)
+		Rect2(256.0, 336.0, 128.0, t),   # left upper ledge
+		Rect2(768.0, 336.0, 128.0, t),   # right upper ledge
+		Rect2(496.0, 288.0, 160.0, t),   # contested high slab, spans the shaft
+		Rect2(512.0, 304.0, t, 160.0),   # shaft wall, inner face at x=528
+		Rect2(592.0, 304.0, t, 160.0),   # shaft wall, inner face at x=592
+		Rect2(384.0, 496.0, 96.0, t),    # mid stepping platform
+		Rect2(672.0, 496.0, 96.0, t),    # mid stepping platform
+		Rect2(176.0, 544.0, 96.0, t),    # awning, street level
+		Rect2(880.0, 544.0, 96.0, t),    # awning, street level
 	])
 	return blocks
 
 func _draw() -> void:
 	# Horizon sits on the rooftop line: sky above, dark city below.
-	Arena.draw_sky(self, Vector2(ARENA) * float(Arena.TILE), SKY, 272.0)
+	Arena.draw_sky(self, Vector2(ARENA) * float(Arena.TILE), SKY, HORIZON)
 	if _ground_tex != null:
 		Arena.draw_tiled(self, _blocks, _ground_tex)
 	else:

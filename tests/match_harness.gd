@@ -285,7 +285,8 @@ func _check_abilities() -> void:
 		await step(4)
 
 	check("abilities actually fired", fired_any)
-	# Rapid Fire / Double Trouble both hang off the same waiver mechanism.
+
+	# Deadeye's ultimate refunds the bolt and loads a heavier next shot.
 	MatchState.reset_round()
 	_p1.equip_hero(&"deadeye")
 	await step(2)
@@ -294,10 +295,33 @@ func _check_abilities() -> void:
 		not MatchState.is_ability_ready(0, &"deadeye"))
 	_p1.try_ultimate()
 	await step(1)
-	check("rapid fire waives the cooldown", _p1.equipped_ability().waived(),
-		"remaining=%.2f uses=%d" % [_p1.equipped_ability().waive_remaining,
-			_p1.equipped_ability().waive_uses])
-	check("a waived ability fires while still on cooldown", _p1.try_ability())
+	check("deadeye's ultimate refunds the bolt cooldown",
+		MatchState.is_ability_ready(0, &"deadeye"),
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"deadeye"))
+	var bolt := _p1.equipped_ability() as DeadeyeBolt
+	check("the ultimate loads an empowered shot",
+		bolt != null and bolt._empowered_stun > 0.0,
+		"stun=%.2f" % (bolt._empowered_stun if bolt != null else -1.0))
+	check("the empowered bolt fires", _p1.try_ability())
+	check("the empowerment is spent on one shot only",
+		bolt != null and bolt._empowered_stun == 0.0)
+
+	# Skyla's ultimate replaces her cooldown for a window rather than removing it.
+	MatchState.reset_round()
+	_p1.equip_hero(&"skyla")
+	await step(2)
+	_p1.try_ultimate()
+	await step(1)
+	var jump := _p1.equipped_ability()
+	check("skyla's ultimate overrides the cooldown",
+		jump != null and jump.cooldown_override_remaining > 0.0
+		and is_equal_approx(jump.effective_cooldown(), 1.0),
+		"override=%.2f window=%.2f" % [jump.effective_cooldown() if jump else -1.0,
+			jump.cooldown_override_remaining if jump else -1.0])
+	check("firing inside the window costs the reduced cooldown", _p1.try_ability())
+	check("the reduced cooldown is what got written",
+		MatchState.cooldown_remaining(0, &"skyla") <= 1.01,
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"skyla"))
 
 	await step(60)
 	check("no ability took a life",
