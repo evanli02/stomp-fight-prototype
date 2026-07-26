@@ -31,16 +31,17 @@ func step(frames: int) -> void:
 	for i in frames:
 		await get_tree().physics_frame
 
+## Input actions are namespaced per player slot, so everything here goes through
+## InputConfig.action() rather than naming "move_right" directly.
 func press(action: StringName) -> void:
-	Input.action_press(action)
+	Input.action_press(InputConfig.action(_player.player_id, action))
 
 func release(action: StringName) -> void:
-	Input.action_release(action)
+	Input.action_release(InputConfig.action(_player.player_id, action))
 
 func reset_at(pos: Vector2, settle: int = 20) -> void:
-	for a in [&"move_left", &"move_right", &"move_up", &"move_down", &"jump", &"dash",
-			&"aim_left", &"aim_right", &"aim_up", &"aim_down"]:
-		Input.action_release(a)
+	for a in InputConfig.ACTIONS:
+		release(a)
 	_player.global_position = pos
 	_player.velocity = Vector2.ZERO
 	_player.momentum_charge = 0.0
