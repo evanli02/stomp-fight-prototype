@@ -14,9 +14,9 @@ signal match_won(team_id: int)
 ## Registered heroes: id -> HeroData resource path. Extend via SKILL.md "Add a hero".
 const HERO_ROSTER: Dictionary = {
 	&"deadeye": "res://src/heroes/resources/deadeye.tres",
-	&"skyla": "res://src/heroes/resources/skyla.tres",
+	&"fei": "res://src/heroes/resources/fei.tres",
 	&"mason": "res://src/heroes/resources/mason.tres",
-	&"nova": "res://src/heroes/resources/nova.tres",
+	&"cerebelle": "res://src/heroes/resources/cerebelle.tres",
 }
 
 ## How long the results banner holds before the next round. Presentation pacing,

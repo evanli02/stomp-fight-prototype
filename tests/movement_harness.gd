@@ -586,7 +586,7 @@ func _body_height() -> float:
 	var shape: CollisionShape2D = _player.body_shape_crouch if _player.crouched else _player.body_shape
 	return (shape.shape as RectangleShape2D).size.y
 
-## The overhang (x=400..496, y=184..200) sits just above the apex of a full jump
+## The overhang (x=400..496, y=192..208) sits just above the apex of a full jump
 ## and just inside the reach of an up-dash taken at that apex. Confirm a jump
 ## alone misses it, a dash touches it, and that it reads as a ceiling rather
 ## than a wall (DESIGN 4.3, 4.4).

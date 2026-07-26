@@ -308,12 +308,12 @@ func _check_abilities() -> void:
 
 	# Skyla's ultimate replaces her cooldown for a window rather than removing it.
 	MatchState.reset_round()
-	_p1.equip_hero(&"skyla")
+	_p1.equip_hero(&"fei")
 	await step(2)
 	_p1.try_ultimate()
 	await step(1)
 	var jump := _p1.equipped_ability()
-	check("skyla's ultimate overrides the cooldown",
+	check("fei's ultimate overrides the cooldown",
 		jump != null and jump.cooldown_override_remaining > 0.0
 		and jump.effective_cooldown() < jump.cooldown,
 		"override=%.2f normal=%.2f window=%.2f" % [
@@ -322,9 +322,9 @@ func _check_abilities() -> void:
 			jump.cooldown_override_remaining if jump else -1.0])
 	check("firing inside the window costs the reduced cooldown", _p1.try_ability())
 	check("the reduced cooldown is what got written",
-		MatchState.cooldown_remaining(0, &"skyla") < jump.cooldown * 0.5,
+		MatchState.cooldown_remaining(0, &"fei") < jump.cooldown * 0.5,
 		"remaining=%.2f vs normal %.2f" % [
-			MatchState.cooldown_remaining(0, &"skyla"), jump.cooldown])
+			MatchState.cooldown_remaining(0, &"fei"), jump.cooldown])
 
 	await step(60)
 	check("no ability took a life",

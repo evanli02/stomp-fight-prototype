@@ -7,7 +7,7 @@ extends Node
 ##   Godot --headless --path . res://tests/terrain_harness.tscn
 ## Exits non-zero if any check fails.
 
-const FLOOR_Y: float = 600.0
+const FLOOR_Y: float = 607.0
 ## Empty air in the middle of the stage. Rooftop Rumble now has its own terrain
 ## in it, and a check that lands on a stage spring is measuring the wrong thing.
 const TEST_X: float = 640.0

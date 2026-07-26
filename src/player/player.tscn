@@ -19,19 +19,19 @@
 [ext_resource type="Script" path="res://src/ui/player_status.gd" id="17"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
-size = Vector2(22, 48)
+size = Vector2(22, 34)
 
 [sub_resource type="RectangleShape2D" id="head_shape"]
-size = Vector2(22, 12)
+size = Vector2(22, 10)
 
 [sub_resource type="RectangleShape2D" id="body_shape_crouch"]
-size = Vector2(22, 24)
+size = Vector2(22, 17)
 
 [sub_resource type="RectangleShape2D" id="head_shape_crouch"]
-size = Vector2(22, 6)
+size = Vector2(22, 5)
 
 [sub_resource type="RectangleShape2D" id="feet_shape"]
-size = Vector2(22, 16)
+size = Vector2(22, 14)
 
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 2
@@ -50,13 +50,13 @@ shape = SubResource("body_shape")
 
 [node name="BodyShapeCrouch" type="CollisionShape2D" parent="."]
 unique_name_in_owner = true
-position = Vector2(0, 12)
+position = Vector2(0, 8.5)
 shape = SubResource("body_shape_crouch")
 disabled = true
 
 [node name="HeadHurtbox" type="Area2D" parent="."]
 unique_name_in_owner = true
-position = Vector2(0, -18)
+position = Vector2(0, -12)
 collision_layer = 4
 collision_mask = 0
 monitoring = false
@@ -67,13 +67,13 @@ shape = SubResource("head_shape")
 
 [node name="HeadShapeCrouch" type="CollisionShape2D" parent="HeadHurtbox"]
 unique_name_in_owner = true
-position = Vector2(0, 21)
+position = Vector2(0, 15)
 shape = SubResource("head_shape_crouch")
 disabled = true
 
 [node name="StompBox" type="Area2D" parent="."]
 unique_name_in_owner = true
-position = Vector2(0, 22)
+position = Vector2(0, 14)
 collision_layer = 0
 collision_mask = 4
 

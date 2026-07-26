@@ -1,5 +1,5 @@
 class_name ShockwaveRing extends Node2D
-## Nova's ultimate — Supernova (DESIGN 5.2 #4). One ring leaves Nova's body and
+## Cerebelle's ultimate — Supernova (DESIGN 5.2 #4). One ring leaves her body and
 ## expands until it has covered the whole stage.
 ##
 ## It grows slowly on purpose — slower than a capped run — so an enemy who reacts

@@ -8,7 +8,7 @@
 [resource]
 script = ExtResource("1")
 hero_name = "Mason"
-accent_color = Color(1, 0.705882, 0.329412, 1)
+accent_color = Color(1, 0.823529, 0.247059, 1)
 ability_cooldown = 10.0
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")

@@ -14,9 +14,9 @@ extends Node
 ## make that setup flaky without testing anything extra.
 
 ## Street level in duel.tscn: the floor's top edge is y=624, so a standing body's
-## centre sits 24px above it. The open street is what these checks need — the
+## centre sits 17px above it (bodies are 34 tall). The open street is what these checks need — the
 ## rooftops above have their own geometry in the way.
-const FLOOR_Y: float = 600.0
+const FLOOR_Y: float = 607.0
 ## A clear column of street: no awning (x 176..272), no mid platform (384..480),
 ## nothing overhead to land on instead of the other player.
 const TEST_X: float = 320.0
@@ -112,7 +112,7 @@ func _check_registration() -> void:
 ## DESIGN 3.4: you can stand on shoulders. Only falling onto the head box counts.
 func _check_standing_on_head_is_not_a_stomp() -> void:
 	await place(_p2, Vector2(TEST_X, FLOOR_Y))
-	await place(_p1, Vector2(TEST_X, FLOOR_Y - 48))  # feet resting on P2's head
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 34))  # feet resting on P2's head
 	await step(30)                          # longer than stomp_fall_memory_time
 	check("standing on a head costs no life", lives_of(1) == 2, "lives=%d" % lives_of(1))
 	check("standing on a head applies no stun", is_zero_approx(_p2.stun_remaining))

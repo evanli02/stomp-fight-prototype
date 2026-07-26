@@ -34,7 +34,8 @@ func _ready() -> void:
 ##   - 592px of clear floor for b-hop chains
 ##   - facing pillars at the right for wall-jump chains
 ##   - an overhang a full-hold jump passes under but only a dash can touch
-##     (ceilings reset the air dash, DESIGN 4.4). Its underside sits 11px above
+##     (ceilings reset the air dash, DESIGN 4.4). Retuned for the 34px chibi
+##     body: its underside sits just above
 ##     the apex of a full jump and inside the reach of an up-dash taken at that
 ##     apex — the gap is small because the airborne up-dash is deliberately a
 ##     third of its old strength (DESIGN 4.3).
@@ -45,7 +46,7 @@ func _arena_blocks() -> Array[Rect2]:
 		Rect2(16.0, 256.0, 160.0, t),
 		Rect2(768.0, 112.0, t, 224.0),
 		Rect2(880.0, 112.0, t, 224.0),
-		Rect2(400.0, 184.0, 96.0, t),
+		Rect2(400.0, 192.0, 96.0, t),
 	])
 	return blocks
 

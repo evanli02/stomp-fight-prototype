@@ -11,7 +11,7 @@ extends Node2D
 const PIP: Vector2 = Vector2(6, 4)
 const PIP_GAP: float = 2.0
 const BAR: Vector2 = Vector2(24, 3)
-const HEIGHT_ABOVE_HEAD: float = -36.0
+const HEIGHT_ABOVE_HEAD: float = -26.0
 
 const COL_EMPTY: Color = Color(0.16, 0.14, 0.24, 0.9)
 const COL_CHARGE: Color = Color(0.86, 0.94, 1.0)

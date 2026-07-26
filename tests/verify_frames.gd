@@ -7,7 +7,7 @@ func _init() -> void:
 		&"crouch", &"slide", &"slide_jump", &"wall_slide", &"wall_jump",
 		&"pole_climb", &"stun", &"cast", &"pop"]
 	var failures := 0
-	for key in ["deadeye", "skyla", "mason", "nova"]:
+	for key in ["deadeye", "fei", "mason", "cerebelle"]:
 		var hero: HeroData = load("res://src/heroes/resources/%s.tres" % key)
 		if hero == null or hero.sprite_frames == null:
 			print("FAIL %s has no sprite_frames" % key)
