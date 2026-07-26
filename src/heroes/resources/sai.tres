@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/sai_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/sai_grapple.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/sai_slash.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Sai"
+accent_color = Color(1, 0.431373, 0.780392, 1)
+ability_cooldown = 7.0
+ability_text = "Grapple Hook: hook terrain and swing. Two reversals, then the rope lets go. Jump off to keep the momentum."
+ultimate_text = "Sai Slash: cross a long line instantly through bodies. Everyone hit is slowed with jump/dash/wall jump gutted."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

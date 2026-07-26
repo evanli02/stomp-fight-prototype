@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/terra_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/terra_slam.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/terra_fracture.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Terra"
+accent_color = Color(0.709804, 0.396078, 0.113725, 1)
+ability_cooldown = 9.0
+ability_text = "Slam (air only): hang, then drive straight down. Landing on a head is a STOMP; landing beside one is a shockwave."
+ultimate_text = "Fracture: a slab that drags whoever it catches and detonates on terrain - the caught drop, slowed, no dash or jump."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

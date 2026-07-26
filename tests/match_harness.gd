@@ -262,7 +262,13 @@ func _check_abilities() -> void:
 	for hero_id in GameManager.roster_ids():
 		MatchState.reset_round()
 		# Force the hero onto seat 0 even if it is not in that seat's trio: this
-		# is about the abilities, not about roster legality.
+		# is about the abilities, not about roster legality. Fired AIRBORNE,
+		# because some abilities (Terra's slam) are air-only by design.
+		_p1.global_position = Vector2(400, 260)
+		_p1.velocity = Vector2.ZERO
+		_p1.stun_remaining = 0.0
+		_p1.disrupt_remaining = 0.0
+		_p1.state_machine.change_state(&"Air")
 		_p1.equip_hero(hero_id)
 		await step(2)
 		var ability := _p1.equipped_ability()
@@ -276,12 +282,17 @@ func _check_abilities() -> void:
 		check("%s ability goes on cooldown" % hero_id,
 			not MatchState.is_ability_ready(0, hero_id),
 			"remaining=%.2f" % MatchState.cooldown_remaining(0, hero_id))
-		check("%s ability is refused while on cooldown" % hero_id, not _p1.try_ability())
+		if hero_id != &"slip":
+			# Slip is deliberately multi-stage: her recall rides through the
+			# placement's cooldown, so this refusal does not apply to her.
+			check("%s ability is refused while on cooldown" % hero_id, not _p1.try_ability())
 		check("%s ultimate fires" % hero_id, _p1.try_ultimate())
 		check("%s ultimate goes on its between-use cooldown" % hero_id,
 			not MatchState.ult_available(0),
 			"cd=%.2f left=%d" % [MatchState.ult_cooldown_remaining(0), MatchState.ults_left(0)])
-		check("%s ultimate is refused during that gap" % hero_id, not _p1.try_ultimate())
+		if hero_id != &"slip":
+			# Slip's second placement is a free recast of the SAME activation.
+			check("%s ultimate is refused during that gap" % hero_id, not _p1.try_ultimate())
 		await step(4)
 
 	check("abilities actually fired", fired_any)
@@ -325,6 +336,30 @@ func _check_abilities() -> void:
 		MatchState.cooldown_remaining(0, &"fei") < jump.cooldown * 0.5,
 		"remaining=%.2f vs normal %.2f" % [
 			MatchState.cooldown_remaining(0, &"fei"), jump.cooldown])
+
+	# Slip's rewind: anchor, travel, recall lands back at the anchor.
+	MatchState.reset_round()
+	_p1.equip_hero(&"slip")
+	await step(2)
+	# Anchor and displacement both on the open street: the test moves the body
+	# by teleport, so the gap it creates must not cross terrain — the rewind
+	# honours collision, and a real trail is continuous by construction.
+	_p1.global_position = Vector2(320, 600)
+	_p1.velocity = Vector2.ZERO
+	await step(1)
+	var anchor_at := _p1.global_position
+	check("slip places an anchor", _p1.try_ability())
+	_p1.global_position = Vector2(200, 600)
+	await step(10)
+	check("slip recalls through her own cooldown", _p1.try_ability())
+	var returned: bool = false
+	for i in 90:
+		await get_tree().physics_frame
+		if _p1.global_position.distance_to(anchor_at) < 24.0:
+			returned = true
+			break
+	check("the rewind arrives back at the anchor", returned,
+		"at=%s anchor=%s" % [_p1.global_position, anchor_at])
 
 	await step(60)
 	check("no ability took a life",

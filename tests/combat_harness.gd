@@ -96,6 +96,7 @@ func _run() -> void:
 	await _check_last_life_swaps_in_the_next_hero()
 	await _check_wall_duel_stun()
 	await _check_wall_duel_simultaneous()
+	await _check_slam_is_a_stomp()
 
 func _check_registration() -> void:
 	check("both players are registered", MatchState.has_player(0) and MatchState.has_player(1))
@@ -210,6 +211,48 @@ func _check_wall_duel_stun() -> void:
 		"stun=%.2f" % _p1.stun_remaining)
 	check("a duel costs no life", lives_of(0) == 2 and lives_of(1) == 2,
 		"p1=%d p2=%d" % [lives_of(0), lives_of(1)])
+
+## Terra's slam kill goes through the ORDINARY stomp system — the plummet is
+## just a very fast fall, so head contact resolves via receive_stomp with every
+## stomp rule intact. The shockwave, like all ability effects, never takes a
+## life (CLAUDE.md 1).
+func _check_slam_is_a_stomp() -> void:
+	MatchState.reset_round()
+	MatchState.swap_to(0, &"terra")
+	_p1.equip_hero(&"terra")
+	# Earlier checks auto-swapped p2 through several heroes; the body's idea of
+	# its active hero has to match MatchState or the life comes off the wrong row.
+	_p2.equip_hero(MatchState.active_hero(1))
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 150))
+	var victim_hero := MatchState.active_hero(1)
+	var lives_before := MatchState.lives_of(1, victim_hero)
+	var stomps: Array = []
+	var cb := func(v: Player) -> void: stomps.append(v)
+	_p1.stomp_landed.connect(cb)
+	check("slam fires in the air", _p1.try_ability())
+	var landed: bool = await wait_until(func() -> bool: return not stomps.is_empty(), 120)
+	_p1.stomp_landed.disconnect(cb)
+	check("the slam head hit registers as a stomp", landed, "stomps=%d" % stomps.size())
+	check("the slam costs exactly one life, via the stomp system",
+		MatchState.lives_of(1, victim_hero) == lives_before - 1,
+		"lives=%d" % MatchState.lives_of(1, victim_hero))
+	check("the slam victim gets normal stomp grace", _p2.grace_remaining > 0.0)
+
+	# Shockwave only: slam lands BESIDE the victim — stun and shove, never a life.
+	var grace_over: bool = await wait_until(func() -> bool: return _p2.grace_remaining <= 0.0, 200)
+	check("grace clears before the shockwave case", grace_over)
+	MatchState.start_cooldown(0, &"terra", 0.0)
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	# +45, not further: the stepping platform starts at x=384 and a slam that
+	# lands on it is 120px from the victim — outside the shockwave.
+	await place(_p1, Vector2(TEST_X + 45, FLOOR_Y - 150))
+	var lives_mid := MatchState.lives_of(1, MatchState.active_hero(1))
+	check("slam fires again beside the victim", _p1.try_ability())
+	var shocked: bool = await wait_until(func() -> bool: return _p2.stun_remaining > 0.0, 120)
+	check("the shockwave stuns", shocked, "stun=%.2f" % _p2.stun_remaining)
+	check("the shockwave costs no life",
+		MatchState.lives_of(1, MatchState.active_hero(1)) == lives_mid)
 
 ## Arbitration path: both inputs land inside duel_window_frames, so both get the
 ## juice and neither is stunned — allies included (DESIGN 3.4).

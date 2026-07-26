@@ -19,6 +19,7 @@ const NAV_DEADZONE: float = 0.5
 
 const CARD: Vector2 = Vector2(120, 96)
 const GAP: float = 14.0
+## 8 cards x 120 + 7 gaps = 1058px, inside a 1280 viewport.
 const COL_BG: Color = Color(0.05, 0.03, 0.09, 0.88)
 const COL_CARD: Color = Color(0.10, 0.07, 0.18)
 const COL_FRAME: Color = Color(0.36, 0.36, 0.48)
@@ -123,8 +124,13 @@ func _draw_screen() -> void:
 
 	var row_w := _roster.size() * CARD.x + (_roster.size() - 1) * GAP
 	for seat in SEATS:
-		var origin := Vector2(size.x * 0.5 - row_w * 0.5, 110.0 + seat * (CARD.y + 74.0))
+		var origin := Vector2(size.x * 0.5 - row_w * 0.5, 104.0 + seat * (CARD.y + 106.0))
 		_draw_seat(font, seat, origin)
+
+func _shadowed(font: Font, at: Vector2, msg: String, size: int, col: Color) -> void:
+	_canvas.draw_string(font, at + Vector2(1, 1), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
+		Color(0, 0, 0, 0.85))
+	_canvas.draw_string(font, at, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 func _draw_seat(font: Font, seat: int, origin: Vector2) -> void:
 	var picks: Array = _picks[seat]
@@ -166,6 +172,14 @@ func _draw_seat(font: Font, seat: int, origin: Vector2) -> void:
 		else:
 			_canvas.draw_rect(box, COL_CARD)
 			_canvas.draw_rect(box, COL_FRAME, false, 1.0)
-	_canvas.draw_string(font, origin + Vector2(PICKS_REQUIRED * 42 + 10, CARD.y + 28),
-		"jump/LMB picks   swap/RMB undoes", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, COL_DIM)
+	_shadowed(font, origin + Vector2(PICKS_REQUIRED * 42 + 10, CARD.y + 28),
+		"jump/LMB picks   swap/RMB undoes", 12, COL_DIM)
+	# What the hovered hero actually does — pick screens that hide the kit force
+	# players to memorise a wiki.
+	var hover := GameManager.hero_data(_roster[_cursor[seat]])
+	if hover != null:
+		_shadowed(font, origin + Vector2(0, CARD.y + 46), hover.ability_text, 11,
+			Color(0.85, 0.88, 0.95))
+		_shadowed(font, origin + Vector2(0, CARD.y + 60), hover.ultimate_text, 11,
+			Color(0.75, 0.72, 0.60))
 #endregion

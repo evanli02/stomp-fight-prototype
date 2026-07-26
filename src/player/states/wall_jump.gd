@@ -26,7 +26,7 @@ func enter(_params: Dictionary = {}) -> void:
 	else:
 		player.momentum_charge *= cfg.momentum_keep_on_wall_jump
 
-	player.velocity = impulse
+	player.velocity = impulse * player.impair_mult
 	player.facing = 1 if n.x > 0.0 else -1   # signi() would truncate a float normal to 0
 	# This state lasts one call, so Air carries the wall-jump pose for the rise.
 	machine.change_state(&"Air", {"anim": &"wall_jump"})

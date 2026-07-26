@@ -22,8 +22,8 @@ const SKY: Array[Color] = [
 ## Seat rosters. Hero select fills these in from M3's screen; until it exists the
 ## arena picks trios that are visually distinct from each other.
 const SEAT_ROSTERS: Array = [
-	[&"deadeye", &"fei", &"mason"],
-	[&"cerebelle", &"mason", &"fei"],
+	[&"deadeye", &"fei", &"terra"],
+	[&"cerebelle", &"sai", &"slip"],
 ]
 ## Long enough for the confetti pop to read before the next hero arrives
 ## (DESIGN 3.3). Presentation pacing, not a feel number.

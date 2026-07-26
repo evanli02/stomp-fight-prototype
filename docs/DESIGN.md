@@ -144,16 +144,15 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 
 | # | Hero (working name) | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
-| 1 | **Deadeye** | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (6.4 s) | **Loaded Shot**: refunds the bolt cooldown and makes the *next* bolt 50% faster with a 4 s stun | Sharpshooter vigilante |
-| 2 | **Skyla** | Second jump in mid-air, **stronger** than a normal jump; not aimed, horizontal momentum untouched (5.6 s) | **Double Trouble**: for 7 s her jump cooldown drops to 1 s | Jet-boot speedster |
-| 3 | **Mason** | Place a **solid** bumper block with a lingering hitbox and vector-based reflection — you leave along your incoming angle mirrored, like a Smash bumper. Everyone bounces, Mason included (10 s, max 1 alive, ~4 s life) | **Keystone**: a block his own team walks through; enemies who touch it are **frozen and stunned**, then dropped under normal gravity | Hard-light constructor |
-| 4 | **Nova** | Radial burst: heavy knockback on nearby enemies, no stun (7.2 s) | **Supernova**: one ring leaves his body and expands across the **whole stage**, slowly enough to outrun. Whoever it catches is stunned, stripped of all momentum, and dropped | Gravity brawler |
-| 5 | **Wisp** | Dropped teleport beacon; re-cast to warp back to it (11 s) | **Phase Shift**: team-wide brief intangibility to stomps (2.5 s) | Phantom courier |
-| 6 | **Tether** | Fire a grapple that pulls you to terrain/players (8 s) | **Lockdown**: tether the nearest enemy to a point for 2 s (they can move within a radius) | Chain-slinger |
-| 7 | **Gale** | Wind gust column that pushes players (7 s) | **Tempest**: stage-wide directional wind for 6 s | Storm caller |
-| 8 | **Frostbyte** | Coat a terrain strip in ice (9 s) | **Flash Freeze**: all current terrain becomes ice for 8 s | Cryo hacker |
-
-(Wisp's ult is the only stomp-defensive ult; keep an eye on it in balance.)
+| 1 | **Deadeye** (red) | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (6.4 s) | **Loaded Shot**: refunds the bolt cooldown; the *next* bolt is 50% faster with a 5.5 s stun | Cyberpunk cowboy, augmented eyes |
+| 2 | **Fei** (jade) | Second jump in mid-air, **stronger** than a normal jump; not aimed, momentum untouched (5.6 s) | **Tailwind**: for 8 s her jump cooldown drops to 0.3 s | Jade dancer, sword-saint grace |
+| 3 | **Mason** (gold) | Place a **solid** bumper block with a lingering hitbox and vector-based reflection (10 s, max 1 alive, ~4 s life) | **Keystone**: a gate his own team walks through; enemies who touch it are **frozen and stunned**, then dropped (20 s life) | Engineer-chieftain, fur and tech |
+| 4 | **Cerebelle** (purple) | Radial burst: heavy knockback on nearby enemies, no stun (6.7 s) | **Supernova**: one slow ring crosses the **whole stage**; the caught are stunned, stripped of momentum, and dropped | Gravity valkyrie, crested helm, tattoos |
+| 5 | **Sai** (pink) | **Grapple Hook** (7 s): hook terrain, swing on a fixed-radius pendulum. Two direction reversals, then the rope releases. Jumping off keeps the swing's momentum | **Sai Slash**: instantly cross a long line through bodies (never terrain); everyone hit is slowed with jump/dash/wall jump gutted for ~3.5 s | Stylish grappler |
+| 6 | **Slip** (aqua) | **Slip Back** (8 s): drop an anchor; recast to rewind your exact path to it at very high speed. Anchor expires in 6 s | **Teleport**: place two pads (recast places the second, free). Touch one, exit the other; both go dark 1.5 s after each use. Enemies arrive slowed, allies hasted | Streetpunk tinkerer |
+| 7 | **Terra** (brown) | **Slam** (9 s, air only): hang, then drive straight down. Landing on a head resolves as a **stomp** — the one ability kill, and it is a stomp kill. Landing beside one is a shockwave: shove + brief stun | **Fracture**: a slab that drags whoever it catches, detonates on terrain; the caught drop, slowed, no dash or jump ~2 s | Warrior-builder (name is a placeholder) |
+| 8 | **Kid** (orange) | **Wind Cannon** (8.5 s): a stage-crossing gust along the aim, through walls, shoving everyone in it — allies too | **EMP**: after a 0.6 s telegraph, every enemy is slowed 50% and locked out of dash/ability/ultimate for 3 s | Nerdy gadgeteer |
+(Former concepts Wisp / Tether / Gale / Frostbyte are retired; their best ideas were folded into Slip, Sai, and Kid. Terra's slam is the only ability that can end in a life — and only because a slam onto a head **is** a stomp, resolved by the ordinary stomp system with grace and anti-chain intact.)
 
 **Ability cooldowns are ordered, not uniform**: Skyla 5.6 s < Deadeye 6.4 s < Nova 7.2 s < Mason 10 s. The cheaper an ability is to press, the less it should decide on its own — Skyla's is pure mobility, Mason's places terrain that outlives the press.
 
@@ -225,8 +224,9 @@ Notes:
 
 ## 8. Art Direction
 
-- **Format**: pixel art, 32×48 character frames, 16 px tiles, rendered at integer scales.
-- **Aesthetic target**: "pixel Arcane" — modern-superhero costumes, saturated neon-against-dusk palettes, painterly gradient lighting faked with 2–3 tone ramps per material, heavy rim light, chunky silhouettes, expressive squash-and-stretch on jumps/stomps.
+- **Format**: pixel art, 32×36 character frames (bodies 34 px — 30% shorter than the original spec), 16 px tiles, integer scales.
+- **Aesthetic target**: **comic-book chibi with a punk edge** — Big Hero 6 / My Hero Academia proportions (oversized heads, ~40% of the body) wearing cyberpunk gear. Two-plane cel shading, thick keylines, one loud accent per hero, minimal clutter. Squash-and-stretch stays expressive on jumps and stomps.
+- **Every stomp pops**: an eight-spoke starburst in the attacker's accent colour fires at the victim's head on every stomp — the kill confirm reads from across the stage.
 - **Palette discipline**: shared 32-color master palette (`assets/palettes/`), each hero owns a 6–8 color slice with one signature neon accent (Deadeye = magenta, Skyla = cyan, Mason = amber, Nova = violet).
 - **Silhouette before color.** Heroes must be distinguishable in one frame with the color stripped out: Deadeye is the slim coat and brimmed cowl, Skyla the finned helmet and streaming scarf, Mason the hard hat and slab shoulders, Nova the hooded ring-bearer. Color alone fails for colorblind players and in a screenshot full of neon.
 - **The accent always owns the head band.** The top 12px is the stomp hurtbox, and it is the one piece of information the whole game is built on — every hero marks it, standing or crouched.

@@ -208,6 +208,10 @@ func reset_round() -> void:
 		var p: Dictionary = players[pid]
 		for h in p.heroes:
 			p.heroes[h] = LIVES_PER_HERO
+		# Cooldowns are cleared by THEIR keys, not the roster's: debug scenes can
+		# equip off-roster heroes, and a reset that misses those leaves a ghost
+		# cooldown ticking into the next round.
+		for h in p.cooldowns:
 			p.cooldowns[h] = 0.0
 		p.ults_left = ULTS_PER_ROUND
 		p.ult_cooldown = 0.0

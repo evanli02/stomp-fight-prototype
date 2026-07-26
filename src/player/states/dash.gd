@@ -18,6 +18,8 @@ func enter(_params: Dictionary = {}) -> void:
 		distance = player.movement.dash_distance_ground
 	elif player.is_on_wall():
 		distance = player.movement.dash_distance_wall
+	# Impairment (Sai's slash, Terra's fracture) shortens every dash variant.
+	distance *= maxf(player.impair_mult, 0.05)
 	_velocity = _resolve_direction() * (distance / player.movement.dash_duration)
 	if not on_surface and _velocity.y < 0.0:
 		# Airborne dashes buy height at a heavy discount — a full-strength upward

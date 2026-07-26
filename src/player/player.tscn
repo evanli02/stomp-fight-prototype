@@ -1,4 +1,4 @@
-[gd_scene load_steps=23 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/states/state_machine.gd" id="2"]
@@ -17,6 +17,9 @@
 [ext_resource type="Resource" path="res://src/config/combat_config.tres" id="13"]
 [ext_resource type="Resource" path="res://src/heroes/resources/deadeye.tres" id="14"]
 [ext_resource type="Script" path="res://src/ui/player_status.gd" id="17"]
+[ext_resource type="Script" path="res://src/player/states/swing.gd" id="18"]
+[ext_resource type="Script" path="res://src/player/states/slam.gd" id="19"]
+[ext_resource type="Script" path="res://src/player/states/recall.gd" id="20"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
 size = Vector2(22, 34)
@@ -114,6 +117,15 @@ script = ExtResource("15")
 
 [node name="Slide" type="Node" parent="StateMachine"]
 script = ExtResource("16")
+
+[node name="Swing" type="Node" parent="StateMachine"]
+script = ExtResource("18")
+
+[node name="Slam" type="Node" parent="StateMachine"]
+script = ExtResource("19")
+
+[node name="Recall" type="Node" parent="StateMachine"]
+script = ExtResource("20")
 
 [node name="Stunned" type="Node" parent="StateMachine"]
 script = ExtResource("11")

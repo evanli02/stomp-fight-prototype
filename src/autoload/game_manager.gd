@@ -17,6 +17,10 @@ const HERO_ROSTER: Dictionary = {
 	&"fei": "res://src/heroes/resources/fei.tres",
 	&"mason": "res://src/heroes/resources/mason.tres",
 	&"cerebelle": "res://src/heroes/resources/cerebelle.tres",
+	&"sai": "res://src/heroes/resources/sai.tres",
+	&"slip": "res://src/heroes/resources/slip.tres",
+	&"terra": "res://src/heroes/resources/terra.tres",
+	&"kid": "res://src/heroes/resources/kid.tres",
 }
 
 ## How long the results banner holds before the next round. Presentation pacing,

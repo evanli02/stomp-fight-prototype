@@ -6,8 +6,8 @@ extends CanvasLayer
 ## nodes because the layout is entirely a function of the roster, which is not
 ## known until the round starts.
 
-const CARD_W: float = 74.0
-const CARD_H: float = 34.0
+const CARD_W: float = 84.0
+const CARD_H: float = 38.0
 const CARD_GAP: float = 6.0
 const MARGIN: Vector2 = Vector2(18, 14)
 
@@ -19,6 +19,13 @@ const COL_DEAD: Color = Color(0.5, 0.5, 0.5, 0.35)
 const COL_ULT: Color = Color(1, 0.82, 0.25)
 
 var _canvas: Control
+
+## Every string on the HUD gets a hard 1px drop shadow: cheap, and it keeps text
+## readable over any stage colour — the accessibility floor for a moving game.
+func _text(font: Font, at: Vector2, msg: String, size: int, col: Color) -> void:
+	_canvas.draw_string(font, at + Vector2(1, 1), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
+		Color(0, 0, 0, 0.85))
+	_canvas.draw_string(font, at, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
 func _ready() -> void:
 	_canvas = Control.new()
@@ -67,8 +74,7 @@ func _draw_player(font: Font, pid: int, roster: Array, origin: Vector2) -> void:
 			false, 2.0 if hero_id == active else 1.0)
 
 		var name_text: String = data.hero_name if data != null else String(hero_id)
-		_canvas.draw_string(font, pos + Vector2(6, 17), name_text,
-			HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+		_text(font, pos + Vector2(6, 18), name_text, 12,
 			Color.WHITE if lives > 0 else COL_DEAD)
 
 		for pip in MatchState.LIVES_PER_HERO:
@@ -76,12 +82,14 @@ func _draw_player(font: Font, pid: int, roster: Array, origin: Vector2) -> void:
 			var p := Rect2(pos + Vector2(6 + pip * 10, 22), Vector2(7, 7))
 			_canvas.draw_rect(p, accent if filled else COL_PIP_OFF)
 
-		# Cooldown drains right-to-left along the bottom edge of the card.
+		# Cooldown: a draining bar AND the number of seconds. The number is the
+		# accessible half — bars alone are unreadable at a glance mid-fight.
 		var cd := MatchState.cooldown_remaining(pid, hero_id)
 		if cd > 0.0 and data != null and data.ability_cooldown > 0.0:
 			var frac: float = clampf(cd / data.ability_cooldown, 0.0, 1.0)
 			_canvas.draw_rect(Rect2(pos + Vector2(0, CARD_H - 3),
 				Vector2(CARD_W * frac, 3)), accent * Color(1, 1, 1, 0.55))
+			_text(font, pos + Vector2(CARD_W - 24, 18), "%.0f" % ceilf(cd), 11, accent)
 
 	# Ultimates are per PLAYER, not per hero (DESIGN 2.3): one lamp each, plus the
 	# gap between uses when one is still cooling down.
@@ -101,6 +109,5 @@ func _draw_player(font: Font, pid: int, roster: Array, origin: Vector2) -> void:
 		label = "ULT %.0fs" % cd
 	elif left == 0:
 		label = "no ults left"
-	_canvas.draw_string(font, ult_pos + Vector2(MatchState.ULTS_PER_ROUND * 18 + 6, 12),
-		label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11,
+	_text(font, ult_pos + Vector2(MatchState.ULTS_PER_ROUND * 18 + 6, 12), label, 12,
 		COL_ULT if MatchState.ult_available(pid) else COL_PIP_OFF)

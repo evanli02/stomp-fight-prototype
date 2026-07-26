@@ -1,7 +1,7 @@
 [gd_resource type="Resource" script_class="HeroData" format=3 uid="uid://boglyitvye3g5"]
 
 [ext_resource type="Script" uid="uid://dqqhybhi5115r" path="res://src/heroes/hero_data.gd" id="1"]
-[ext_resource type="SpriteFrames" uid="uid://b0wtsxktvlvgm" path="res://src/heroes/resources/frames/deadeye_frames.tres" id="2"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/deadeye_frames.tres" id="2"]
 [ext_resource type="PackedScene" path="res://src/heroes/abilities/deadeye_bolt.tscn" id="3"]
 [ext_resource type="PackedScene" path="res://src/heroes/abilities/deadeye_rapid_fire.tscn" id="4"]
 
@@ -9,6 +9,8 @@
 script = ExtResource("1")
 hero_name = "Deadeye"
 accent_color = Color(0.901961, 0.223529, 0.27451, 1)
+ability_text = "Stun Bolt: aimed shot that stuns the first enemy hit. A stunned player is a stompable player."
+ultimate_text = "Loaded Shot: refunds the bolt and loads the next one - 50 percent faster with a long stun."
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
 ultimate_scene = ExtResource("4")

@@ -41,18 +41,27 @@ func reset_cooldown() -> void:
 		MatchState.start_cooldown(player.player_id, hero_id, 0.0)
 
 func try_fire(aim: Vector2) -> bool:
+	if not _can_fire():
+		return false  # refused before anything is spent (e.g. Slam on the ground)
 	if is_ultimate:
 		# Spent via MatchState, which owns the per-round budget and the gap
 		# between uses (IMPLEMENTATION.md 5).
-		if not MatchState.try_spend_ultimate(player.player_id):
+		# A free recast (Slip placing her second teleporter) is part of the SAME
+		# activation and spends nothing.
+		if not _is_free_recast() and not MatchState.try_spend_ultimate(player.player_id):
 			return false
 	elif _on_cooldown():
 		return false
 	_execute(aim)
 	fired.emit()
-	if not is_ultimate:
+	if not is_ultimate and _cooldown_after_fire():
 		_start_cooldown()
 	return true
+
+## Overridable gates for multi-stage abilities.
+func _can_fire() -> bool: return true
+func _cooldown_after_fire() -> bool: return true
+func _is_free_recast() -> bool: return false
 
 ## Override in subclasses. `aim` is the live aim vector (DESIGN 7).
 func _execute(_aim: Vector2) -> void:

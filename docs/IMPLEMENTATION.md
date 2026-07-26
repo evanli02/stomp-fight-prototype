@@ -43,7 +43,7 @@ overstomp/
 
 `player.tscn` (CharacterBody2D) — one instance per *player* (not per hero). Hero swaps re-skin and re-equip this body; they never respawn it (preserves position/velocity/stun per DESIGN §2.4).
 
-Body is **22×48**, not 32×48. The sprite canvas is 32 wide but the character is drawn ~18px across inside it, and a 32-wide box left a visible gap between two players who were supposedly touching. Width is shared by the body, head hurtbox, and stompbox — heroes are identical here (CLAUDE.md rule 3).
+Body is **22×34** (frames are 32×36). The sprite canvas is 32 wide but the character is drawn ~18px across inside it, and a 32-wide box left a visible gap between two players who were supposedly touching. Width is shared by the body, head hurtbox, and stompbox — heroes are identical here (CLAUDE.md rule 3).
 
 ```
 Player (CharacterBody2D)            player.gd — public API + physics integration
@@ -54,6 +54,9 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │   ├── Air (jump, fall, variable height, coyote, buffer, b-hop check)
 │   ├── Dash                        charges, surface-parallel vs omni, air-consecutive lock
 │   ├── WallSlide / WallJump        consecutive decay, aim tilt, perfect window
+│   ├── Swing                       Sai's pendulum; 2 reversals then forced release
+│   ├── Slam                        Terra: hover, plummet; head hits resolve as stomps
+│   ├── Recall                      Slip: retrace the recorded trail at high speed
 │   ├── PoleClimb
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd
 ├── BodyShape / BodyShapeCrouch     one enabled at a time; crouch is half height,
@@ -83,6 +86,10 @@ equip_hero(hero_id: StringName)           # skin + ability components for that h
 try_swap() / try_ability() / try_ultimate()   # all three refuse while stunned
 play_elimination()                        # one-shot confetti pop, holds the sprite until it ends
 set_crouched(on: bool)                    # half-height body + matching head box
+apply_slow(mult, dur)                     # speed-cap multiplier; strongest wins
+apply_impairment(mult, dur)               # scales jump/dash/wall-jump; 0 disables
+apply_disrupt(dur)                        # EMP: no dash, no ability, no ultimate
+apply_freeze(dur)                         # pinned mid-air, gravity suspended
 start_spawn_protection()                  # head hurtbox off until timeout OR first action
 respawn_at(pos: Vector2)                  # body + movement bookkeeping only; lives are MatchState's
 ```
@@ -183,7 +190,7 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, one-ult-per-round, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select is deferred to M5, when there is more than one stage to pick between. The human pass on the full flow still has to sign off.*
-4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova. *Abilities and ultimates implemented and verified headlessly (2026-07-26). Effects are functional but plain — VFX polish is M6. Human pass outstanding.*
+4. **M4 — Heroes**: full roster of EIGHT implemented and verified headlessly (2026-07-26): Deadeye, Fei, Mason, Cerebelle, Sai, Slip, Terra, Kid. Two ultimates use free-recast (`Ability._is_free_recast`), one ability is multi-stage (`_cooldown_after_fire`), one is air-gated (`_can_fire`). Terra's slam kill routes through the ordinary stomp system — no exception to rule 1 exists anywhere. Human pass outstanding.
 5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab. *All 8 elements implemented and verified headlessly (2026-07-26), plus the PoleClimb state they needed. Rooftop Rumble (`duel.tscn`) is built and dressed with the terrain DESIGN 6.3 calls for — antennas, awning springs, one wind corridor. **Outstanding: Cryo Lab, and a stage-select screen once there are two stages to pick between.***
 6. **M6 — Formats & polish**: 2v2/3v3, stage select flow, Bo3/Bo5, VFX/SFX pass, remaining heroes/stages.
 

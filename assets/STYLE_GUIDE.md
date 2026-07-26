@@ -1,6 +1,6 @@
 # Overstomp Art Style Guide
 
-Target: **"pixel Arcane"** — modern-superhero pixel art that borrows Arcane's (Riot/Fortiche) dusk-key lighting, saturated neon-against-shadow palettes, painterly value ramps, and strong rim light — expressed at pixel fidelity.
+Target: **comic-book chibi with a punk edge** — Big Hero 6 / My Hero Academia proportions (short bodies, oversized heads ~40% of the frame) wearing cyberpunk gear. Two-plane cel shading instead of painterly ramps, thick keylines inside the silhouette, one loud accent per hero, minimal clutter. The dusk-neon palette survives from the old direction; the rendering style does not.
 
 Everything here is generated, and regenerating is the intended way to iterate. Both scripts are **stdlib-only Python** (no Pillow) on the shared canvas in `tools/pixel.py`, so a clean checkout can rebuild every asset:
 
@@ -13,9 +13,9 @@ Godot --headless --path . --import             # so Godot picks up new PNGs
 Hand-editing a generated PNG works, but the next run overwrites it — port the change back into the generator, or take the file out of the generator's output list first.
 
 ## Global rules
-- 16 px tile grid; characters 32×48 logical px; integer scaling only; **Filter = Nearest** on every import.
+- 16 px tile grid; characters 32×36 logical px (34 px body); integer scaling only; **Filter = Nearest** on every import.
 - Master palette: `palettes/master_palette_32.png` / `.gpl` (loadable in Aseprite/GIMP/Libresprite). Stay inside it; propose additions via PR note.
-- Fake the painterly look with 2–3 tone ramps per material + a 1px rim light on the key-light side (we default key light = up-right, dusk warm).
+- Two-plane cel shading per material + a 1px rim light on the key-light side (key light = up-right, dusk warm). No painterly ramps — this is a comic, not a painting.
 - Readability beats detail: silhouettes and accent colors must be parseable at gameplay zoom during fast movement.
 
 ## Characters (`characters/<hero>/<animation>.png`)
@@ -23,10 +23,10 @@ Hand-editing a generated PNG works, but the next run overwrites it — port the 
 One PNG per animation, frames laid left-to-right in 32px columns. `<hero>_frames.tres` in `src/heroes/resources/frames/` is generated beside them and is what `AnimatedSprite2D` actually loads.
 
 ### Non-negotiables
-- **32×48, feet on row 47.** Identical for every hero — heroes share movement, hitboxes, and silhouette *size* (DESIGN 5.1). Only identity differs.
+- **32×36, feet on row 35, body 34 px tall.** Identical for every hero — heroes share movement, hitboxes, and silhouette *size* (DESIGN 5.1). Only identity differs. The head is ~15 px wide and owns the sprite.
 - **Everything is drawn facing +x (right).** The engine mirrors it for leftward travel (`flip_h = facing < 0`, pinned by the movement harness). Every forward cue must agree: nose and face features forward, cap and helmet peaks jutting **forward**, capes/scarves/fins trailing **backward**, torso leaning into the direction of travel. A backward-pointing peak makes the whole character read as facing the wrong way even with the eyes drawn correctly — the silhouette wins at gameplay speed, so a head whose mass leans backward will look flipped no matter where the features sit.
-- **The top 12 px is the head/stomp hurtbox, and the accent owns it.** That band is the kill zone (DESIGN 3.1); if a player cannot see where it ends, the core mechanic is unreadable. Crouched and sliding frames drop the whole body into the bottom 24 px, with the accent band in rows 24–30 to match the shrunken head box.
-- Dark suit from the night/teal ramps + one signature neon: Deadeye magenta `#ff2e88`, Skyla cyan `#2de2e6`, Mason amber `#ffb454`, Nova violet `#9d4edd`.
+- **The top ~10 px is the head/stomp hurtbox, and the accent owns it.** That band is the kill zone (DESIGN 3.1); if a player cannot see where it ends, the core mechanic is unreadable. Crouched and sliding frames drop the body into the bottom half, accent band riding down with it.
+- Dark suit + one signature accent: Deadeye red `#e63946`, Fei jade `#3ddc84`, Mason gold `#ffd23f`, Cerebelle violet `#9d4edd`, Sai pink `#ff6ec7`, Slip aqua `#2de2e6`, Terra brown `#b5651d`, Kid orange `#ff8b2e`.
 - **Internal keylines, not just an outline.** Every limb is drawn with its own 1px dark border. A dark suit against a dark stage collapses into one blob otherwise, and the back leg has to stay separable from the front leg while both are in shadow.
 - Suit midtones are tinted ~20% toward the hero's accent. The night palette is too narrow for an untinted ramp to hold up at gameplay zoom.
 - Rim light on the up-right key side, fading toward the midtone further down the body — a uniform bright edge reads as an outline, not as light.
@@ -57,12 +57,16 @@ Adding an animation means adding it to `ANIMATIONS` in the generator **and** to 
 ### Hero identities
 Each is a different silhouette and one unmistakable prop, so heroes are told apart at gameplay zoom during fast movement — not by hue alone, which fails for colorblind players and in a screenshot full of neon.
 
-| Hero | Build | Head | Prop / tell |
+| Hero | Colour | Head | Tell |
 |---|---|---|---|
-| **Deadeye** | slimmest, coat tails flare when moving | brimmed cowl, horizontal visor slit | bolt pistol, chest bandolier |
-| **Skyla** | narrow shoulders, streamlined | finned aero helmet, goggle lenses | streaming scarf, vented jet boots |
-| **Mason** | widest, blockiest | hard hat with a front-heavy brim, brow lamp | slab pauldrons, oversized gauntlets |
-| **Nova** | broad and low | deep hood, violet halo ring, face in shadow | gravity orb, ring motif everywhere |
+| **Deadeye** | red | cowboy brim, glowing augmented eye | long split coat, bolt pistol |
+| **Fei** | jade | hair bun with a jade pin, band | streaming ribbon scarf |
+| **Mason** | gold | fur crown with gold trims | heavy shoulders, huge gauntlets |
+| **Cerebelle** | purple | crested magneto-style helm | sleeveless, tattooed arms, war cape |
+| **Sai** | pink | sleek visor, swept hair | short scarf, hook at the hip |
+| **Slip** | aqua | tall spiked hair, goggles | backpack gadget |
+| **Terra** | brown | hard hat, front-heavy brim | widest build, gauntlets |
+| **Kid** | orange | big round glasses, messy fringe | satchel, chest screen |
 
 ### Team read (deferred)
 Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), never by recoloring the suit. That needs a shader pass and lands in M6. Until then the duel stage gives its two seats visually opposite heroes instead of tinting them, because tinting a whole sprite is exactly what this rule forbids.
@@ -76,4 +80,4 @@ Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), 
 - Stun/hazard telegraphy always uses the gold→white ramp; danger imminent = red `#e63946`.
 
 ## VFX language
-- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. Ultimate: 1-frame full-screen chromatic pulse in the hero accent. Perfect b-hop/wall-jump: tiny white spark at contact (teach the timing visually).
+- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact.

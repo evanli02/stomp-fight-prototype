@@ -46,6 +46,14 @@ var spawn_protected: bool = false
 ## Held in place with gravity suspended (Mason's Keystone). Separate from stun:
 ## a stun takes control away but you still fall, a freeze stops you in the air.
 var freeze_remaining: float = 0.0
+## Debuffs (Sai's slash, Terra's fracture, Kid's EMP). Slow drags the speed cap;
+## impair scales jump/dash/wall-jump impulses; disrupt kills dash and abilities
+## outright. All refresh by strongest-effect-longest-timer, never stack.
+var slow_mult: float = 1.0
+var slow_remaining: float = 0.0
+var impair_mult: float = 1.0
+var impair_remaining: float = 0.0
+var disrupt_remaining: float = 0.0
 ## 0 = normal ground, 1 = full ice. Terrain writes this every tick it applies and
 ## it decays back on its own, so an element never has to remember to clear it and
 ## a player who leaves the ice is never left slippery.
@@ -121,6 +129,20 @@ func apply_impulse(v: Vector2) -> void:
 func set_velocity_override(v: Vector2) -> void:
 	## Springs, portals, grapples: replaces velocity outright.
 	velocity = v
+
+func apply_slow(mult: float, dur: float) -> void:
+	## Speed-cap multiplier < 1. Takes the strongest slow and the longest timer.
+	slow_mult = minf(slow_mult, clampf(mult, 0.1, 1.0))
+	slow_remaining = maxf(slow_remaining, dur)
+
+func apply_impairment(mult: float, dur: float) -> void:
+	## Scales jump, dash, and wall-jump strength. 0 disables them entirely.
+	impair_mult = minf(impair_mult, clampf(mult, 0.0, 1.0))
+	impair_remaining = maxf(impair_remaining, dur)
+
+func apply_disrupt(dur: float) -> void:
+	## EMP: no dash, no ability, no ultimate until it expires.
+	disrupt_remaining = maxf(disrupt_remaining, dur)
 
 func apply_freeze(duration: float) -> void:
 	## Stop dead in the air for a moment. Pairs with a stun so that when the
@@ -227,16 +249,28 @@ func try_swap() -> bool:
 	return true
 
 func try_ability() -> bool:
-	if stun_remaining > 0.0 or _equipped_ability == null:
+	if stun_remaining > 0.0 or disrupt_remaining > 0.0 or _equipped_ability == null:
 		return false
-	return _equipped_ability.try_fire(input.aim)
+	var ok := _equipped_ability.try_fire(input.aim)
+	if ok:
+		play_cast()
+	return ok
 
 func try_ultimate() -> bool:
 	## Also blocked while stunned (CLAUDE.md checklist). The spend happens inside
 	## Ability.try_fire via MatchState, so a blocked ult is never consumed.
-	if stun_remaining > 0.0 or _equipped_ultimate == null:
+	if stun_remaining > 0.0 or disrupt_remaining > 0.0 or _equipped_ultimate == null:
 		return false
-	return _equipped_ultimate.try_fire(input.aim)
+	var ok := _equipped_ultimate.try_fire(input.aim)
+	if ok:
+		play_cast()
+	return ok
+
+func play_cast() -> void:
+	## Short cast flourish on any successful ability or ultimate.
+	if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"cast"):
+		_oneshot = &"cast"
+		sprite.play(&"cast")
 
 func play_elimination() -> void:
 	## The confetti pop for a hero's last life (DESIGN 3.3). One-shot: it holds
@@ -276,6 +310,11 @@ func respawn_at(spawn_position: Vector2) -> void:
 	fall_speed_memory = 0.0
 	stun_remaining = 0.0
 	freeze_remaining = 0.0
+	slow_mult = 1.0
+	slow_remaining = 0.0
+	impair_mult = 1.0
+	impair_remaining = 0.0
+	disrupt_remaining = 0.0
 	set_crouched(false)
 	_clear_duel_claim()
 	state_machine.change_state(&"Air")
@@ -340,6 +379,12 @@ func on_stomp_landed(victim: Player) -> void:
 		velocity.y = combat.stomp_attacker_bounce
 	else:
 		request_state(&"Air", {"jump": true, "impulse_y": combat.stomp_attacker_bounce})
+	# The kill-confirm flash, in the attacker's colour (STYLE_GUIDE VFX).
+	var burst := StompBurst.new()
+	burst.global_position = victim.global_position
+	if hero != null:
+		burst.accent = hero.accent_color
+	spawn_effect(burst)
 	stomp_landed.emit(victim)
 #endregion
 
@@ -413,6 +458,16 @@ func _tick_timers(delta: float) -> void:
 		stun_remaining -= delta
 	if freeze_remaining > 0.0:
 		freeze_remaining -= delta
+	if slow_remaining > 0.0:
+		slow_remaining -= delta
+		if slow_remaining <= 0.0:
+			slow_mult = 1.0
+	if impair_remaining > 0.0:
+		impair_remaining -= delta
+		if impair_remaining <= 0.0:
+			impair_mult = 1.0
+	if disrupt_remaining > 0.0:
+		disrupt_remaining -= delta
 	if not is_zero_approx(input.move.x) and stun_remaining <= 0.0:
 		# signi() takes an int, so a partly-deflected stick (0.7) truncated to 0
 		# and left facing at 0 — never negative, so the sprite never flipped.
@@ -558,7 +613,7 @@ func speed_cap() -> float:
 	var cap := lerpf(movement.run_speed_base, movement.run_speed_cap, momentum_charge)
 	if dash_boost_remaining > 0.0:
 		cap *= movement.dash_boost_cap_mult
-	return cap * speed_buff_mult * lerpf(1.0, 1.08, surface_slip)
+	return cap * speed_buff_mult * slow_mult * lerpf(1.0, 1.08, surface_slip)
 
 ## Getting moving: a standstill reaches run_speed_base in ground_accel_time.
 ## Ice cuts the grip you push against, so acceleration falls with it.
@@ -591,7 +646,7 @@ func wants_crouch() -> bool:
 	return input.move.y > CROUCH_INPUT_THRESHOLD
 
 func can_dash() -> bool:
-	return dash_charges_left > 0 and not air_dash_locked
+	return dash_charges_left > 0 and not air_dash_locked 		and impair_mult > 0.05 and disrupt_remaining <= 0.0
 
 func consume_dash_charge() -> void:
 	dash_charges_left -= 1

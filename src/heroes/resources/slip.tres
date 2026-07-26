@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/slip_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/slip_back.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/slip_teleport.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Slip"
+accent_color = Color(0.176471, 0.886275, 0.901961, 1)
+ability_cooldown = 8.0
+ability_text = "Slip Back: drop an anchor, recast to rewind your exact path back to it at high speed."
+ultimate_text = "Teleport: place two pads. Touch one, exit the other. Enemies arrive slowed, allies sped up."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")
