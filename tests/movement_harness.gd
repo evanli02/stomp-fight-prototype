@@ -80,6 +80,7 @@ func _run() -> void:
 	await _check_bhop()
 	await _check_dash()
 	await _check_wall()
+	await _check_overhang()
 
 func _check_land() -> void:
 	await step(60)
@@ -271,8 +272,9 @@ func _wall_jump_vy(chain: int, aim_action: StringName) -> float:
 	release(aim_action)
 	return vy
 
-	# The overhang (x=400..496, y=160..176) is above jump height: dash up into it
-	# and confirm it reads as a ceiling, not a wall (DESIGN 4.4).
+## The overhang (x=400..496, y=160..176) is above jump height: dash up into it
+## and confirm it reads as a ceiling, not a wall (DESIGN 4.4).
+func _check_overhang() -> void:
 	await reset_at(Vector2(440, 300))
 	press(&"jump")
 	await step(8)
