@@ -4,7 +4,7 @@ extends Node2D
 ## (IMPLEMENTATION.md 10). Geometry is built in code so the shapes stay quick to
 ## tweak while tuning feel.
 
-const TILE: int = 16
+const TILE: int = Arena.TILE
 ## Wider than a real "Small" stage (DESIGN 6.1) on purpose: a b-hop chain needs a
 ## runway long enough to build and carry a capped run, which a 40-tile stage
 ## cannot give while also holding the wall-jump alcove.
@@ -36,34 +36,21 @@ func _ready() -> void:
 ##   - an overhang too high to jump into but reachable by dash (ceilings reset
 ##     the air dash, DESIGN 4.4)
 func _arena_blocks() -> Array[Rect2]:
-	var w := float(ARENA.x * TILE)
-	var h := float(ARENA.y * TILE)
 	var t := float(TILE)
-	return [
-		Rect2(0.0, h - t, w, t),
-		Rect2(0.0, 0.0, w, t),
-		Rect2(0.0, 0.0, t, h),
-		Rect2(w - t, 0.0, t, h),
+	var blocks := Arena.sealed_box(ARENA)
+	blocks.append_array([
 		Rect2(16.0, 256.0, 160.0, t),
 		Rect2(768.0, 112.0, t, 224.0),
 		Rect2(880.0, 112.0, t, 224.0),
 		Rect2(400.0, 160.0, 96.0, t),
-	]
+	])
+	return blocks
 
 func _build_arena() -> void:
-	for r in _blocks:
-		var rect := RectangleShape2D.new()
-		rect.size = r.size
-		var shape := CollisionShape2D.new()
-		shape.shape = rect
-		var body := StaticBody2D.new()
-		body.position = r.position + r.size * 0.5
-		body.add_child(shape)
-		add_child(body)
+	Arena.build(self, _blocks)
 
 func _draw() -> void:
-	for r in _blocks:
-		draw_rect(r, TERRAIN_COLOR)
+	Arena.draw(self, _blocks, TERRAIN_COLOR)
 
 func _process(delta: float) -> void:
 	# Overlay only — no gameplay logic outside the physics tick (CLAUDE.md).
