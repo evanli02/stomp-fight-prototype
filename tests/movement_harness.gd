@@ -83,6 +83,7 @@ func _run() -> void:
 	await _check_overhang()
 	await _check_crouch()
 	await _check_slide()
+	await _check_animation_contract()
 
 func _check_land() -> void:
 	await step(60)
@@ -485,6 +486,52 @@ func _check_slide() -> void:
 	var apex: float = await measure_apex(90)
 	check("slide jump stays low", apex < 20.0, "apex=%.1fpx" % apex)
 	release(&"move_right")
+	await step(20)
+
+## Every state names an animation and every hero has to have it. A missing name
+## is silent at runtime — the sprite just keeps showing the previous pose — so it
+## is worth an explicit check.
+func _check_animation_contract() -> void:
+	var frames: SpriteFrames = _player.sprite.sprite_frames
+	check("the player has sprite frames", frames != null)
+	if frames == null:
+		return
+	var missing: Array[String] = []
+	for state in _player.state_machine.get_children():
+		if state is PlayerState:
+			var anim: StringName = (state as PlayerState).animation()
+			if not frames.has_animation(anim):
+				missing.append("%s->%s" % [state.name, anim])
+	check("every state's animation exists in the sheet", missing.is_empty(),
+		"missing=%s" % [missing])
+
+	await reset_at(Vector2(200, 300))
+	await step(4)
+	check("idle plays the idle animation", _player.sprite.animation == &"idle",
+		"anim=%s" % _player.sprite.animation)
+	press(&"move_right")
+	await step(12)
+	check("running plays the run animation", _player.sprite.animation == &"run",
+		"anim=%s" % _player.sprite.animation)
+	press(&"move_down")
+	await step(3)
+	check("sliding plays the slide animation", _player.sprite.animation == &"slide",
+		"anim=%s state=%s" % [_player.sprite.animation, state()])
+	release(&"move_down")
+	release(&"move_right")
+	await step(10)
+	press(&"jump")
+	await step(4)
+	release(&"jump")
+	check("rising plays the rise animation", _player.sprite.animation == &"rise",
+		"anim=%s vy=%.1f" % [_player.sprite.animation, _player.velocity.y])
+	while _player.velocity.y < 0.0:
+		await get_tree().physics_frame
+	await step(2)
+	check("falling plays the fall animation", _player.sprite.animation == &"fall",
+		"anim=%s vy=%.1f" % [_player.sprite.animation, _player.velocity.y])
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
 	await step(20)
 
 ## Height of whichever body shape is currently enabled.

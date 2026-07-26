@@ -10,6 +10,11 @@ func exit() -> void: pass
 func physics_update(_delta: float) -> void: pass
 func handle_input(_event: InputEvent) -> void: pass
 
+## Which animation to show while this state runs. The state machine already owns
+## what the body is doing, so it owns how the body looks doing it; player.gd only
+## plays what it is handed. Names must exist in every hero's SpriteFrames.
+func animation() -> StringName: return &"idle"
+
 #region Shared transition guards
 ## Dash is available from every non-stunned state; returns true if it fired so
 ## callers can bail out of the rest of their update.

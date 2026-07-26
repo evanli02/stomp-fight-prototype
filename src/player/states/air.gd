@@ -4,10 +4,14 @@ class_name AirState extends PlayerState
 
 var _hold_time: float = 0.0
 var _holding: bool = false
+## What launched us, if it has its own pose (wall jump, slide jump). Shown while
+## still rising, then handed back to the plain rise/fall pair.
+var _launch_anim: StringName = &""
 
 func enter(params: Dictionary = {}) -> void:
 	_hold_time = 0.0
 	_holding = false
+	_launch_anim = params.get("anim", &"")
 	if params.get("jump", false):
 		# Stomp bounces come in through the same door as jumps so they inherit
 		# hold-extension for free (DESIGN 3.2); the slide jump opts out of it.
@@ -46,6 +50,11 @@ func physics_update(delta: float) -> void:
 	# wall jump, while contact still reads true, would re-capture the jump.
 	if player.is_on_wall() and player.wall_is_jumpable(n) and player.velocity.x * n.x <= 0.0:
 		machine.change_state(&"WallSlide")
+
+func animation() -> StringName:
+	if player.velocity.y >= 0.0:
+		return &"fall"
+	return _launch_anim if _launch_anim != &"" else &"rise"
 
 func _air_control(delta: float) -> void:
 	var dir := player.input.move.x

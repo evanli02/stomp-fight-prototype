@@ -23,8 +23,9 @@ overstomp/
 │   ├── heroes/                # HeroData resources + abilities/ components
 │   ├── stage/                 # Stage scenes + terrain/ element scenes
 │   └── ui/                    # HUD, hero select, stage select, lobby
-├── assets/                    # Pixel art (characters/, abilities/, stages/, palettes/)
-│   └── STYLE_GUIDE.md
+├── assets/                    # Pixel art (characters/<hero>/, abilities/, stages/, palettes/)
+│   ├── STYLE_GUIDE.md
+│   └── tools/                 # pixel.py canvas + the two generators (stdlib only)
 └── tests/                     # GUT unit tests for pure-logic systems
 ```
 
@@ -44,7 +45,7 @@ overstomp/
 
 ```
 Player (CharacterBody2D)            player.gd — public API + physics integration
-├── Sprite/AnimatedSprite2D         swapped per hero skin
+├── Sprite (AnimatedSprite2D)       SpriteFrames swapped per hero by set_hero()
 ├── StateMachine (Node)             state_machine.gd
 │   ├── Idle / Run / Skid
 │   ├── Crouch / Slide              half-height body; slide bleeds speed, jumps flat
@@ -73,11 +74,20 @@ apply_stun(duration: float)               # refresh rule: max(remaining, new)
 request_state(state_name: StringName)     # e.g. Skyla double-jump requests Air with params
 grant_speed_buff(mult: float, dur: float)
 set_head_hurtbox_enabled(on: bool)        # grace / Wisp ult only
+set_hero(data: HeroData)                  # re-skin in place; never respawns, never touches movement
+play_elimination()                        # one-shot confetti pop, holds the sprite until it ends
 set_crouched(on: bool)                    # half-height body + matching head box
 start_spawn_protection()                  # head hurtbox off until timeout OR first action
 respawn_at(pos: Vector2)                  # body + movement bookkeeping only; lives are MatchState's
 ```
 Abilities and terrain never touch state internals or velocity fields directly.
+
+### Animation
+Each `PlayerState` returns an animation name from `animation()`; `StateMachine.current_animation()` forwards the running state's answer and `player.gd` plays it in `_process`. The state machine already owns what the body is doing, so it owns how the body looks doing it — no state-name-to-animation lookup table anywhere.
+
+Two cases resolve on the player instead, both because they outlive the state that caused them: the landing squash (`land`, first `LAND_ANIM_TIME` after a landing, while the state is already Idle/Run) and one-shots like `pop`, which hold the sprite until they finish. `Air` shows a launch pose (`wall_jump` / `slide_jump`) passed in as a param while rising, then falls back to `rise`/`fall`.
+
+Art and its SpriteFrames are generated together (`assets/tools/generate_characters.py`) so sheets and frame counts cannot drift apart. See `assets/STYLE_GUIDE.md`.
 
 ### Tick ownership
 `Player._physics_process` drives the frame: sample `InputFrame` → tick timers →
@@ -176,4 +186,5 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
   - `movement_harness.tscn` — DESIGN 4 numbers: jump heights, momentum decay, b-hop preservation, dash charges/air lock, wall-jump chain decay and aim tilt, ceilings. Run after touching `src/player/`.
   - `combat_harness.tscn` — DESIGN 3 rules: what does and does not register as a stomp, life/stun/grace/bounce, the anti-chain grace, round end, and duel resolution. Run after touching stomp, stun, or duel code.
   - `Godot --headless --path . res://tests/<harness>.tscn`. A newly added `class_name` needs `Godot --headless --path . --import` first, or the harness cannot see the class.
+- **Generated art** has a loader check: `Godot --headless --path . --script res://tests/verify_frames.gd` confirms every hero's SpriteFrames resource parses and holds every animation the states can ask for. Run it after regenerating characters. The movement harness separately asserts that no state names an animation the sheets lack.
 - Harness inputs go through `InputConfig.action(player_id, base)`. The `aim_*` actions are unbound on KBM specifically so a harness can pin an exact aim; without that, aim falls back to a mouse pointer that headless leaves at the origin.

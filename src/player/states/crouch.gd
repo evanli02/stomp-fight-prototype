@@ -25,3 +25,5 @@ func physics_update(delta: float) -> void:
 	player.velocity.x = move_toward(player.velocity.x, 0.0, player.movement.ground_friction * delta)
 	if not player.wants_crouch():
 		machine.change_state(&"Idle" if is_zero_approx(player.input.move.x) else &"Run")
+
+func animation() -> StringName: return &"crouch"

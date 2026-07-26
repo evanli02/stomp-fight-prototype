@@ -45,3 +45,5 @@ func _resolve_direction() -> Vector2:
 	if move.length() > 0.1:
 		return move.normalized()
 	return Vector2(float(player.facing), 0.0)
+
+func animation() -> StringName: return &"dash"

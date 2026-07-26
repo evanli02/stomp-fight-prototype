@@ -45,4 +45,7 @@ func _slide_jump() -> void:
 		"jump": true,
 		"impulse_y": cfg.jump_impulse_min * cfg.slide_jump_up_mult,
 		"extendable": false,
+		"anim": &"slide_jump",
 	})
+
+func animation() -> StringName: return &"slide"

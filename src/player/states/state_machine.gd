@@ -34,3 +34,7 @@ func tick(delta: float) -> void:
 ## Name of the running state, for the playground debug overlay.
 func state_name() -> StringName:
 	return current.name if current else &"<none>"
+
+## Animation the running state wants shown (see PlayerState.animation).
+func current_animation() -> StringName:
+	return current.animation() if current else &"idle"

@@ -13,3 +13,5 @@ func physics_update(delta: float) -> void:
 	# velocity.x is deliberately untouched: being stunned never costs momentum.
 	if player.stun_remaining <= 0.0:
 		machine.change_state(&"Idle" if player.is_on_floor() else &"Air")
+
+func animation() -> StringName: return &"stun"

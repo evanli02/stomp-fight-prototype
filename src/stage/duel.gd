@@ -11,7 +11,13 @@ extends Node2D
 const ARENA: Vector2i = Vector2i(50, 22)
 const DUMMY_HERO: StringName = &"dummy"
 const SPAWNS: Array[Vector2] = [Vector2(120, 220), Vector2(680, 220)]
-const TEAM_TINT: Array[Color] = [Color(0.55, 0.85, 1.0), Color(1.0, 0.65, 0.4)]
+## Two visually opposite heroes so the seats are told apart by identity rather
+## than by tinting the suits, which STYLE_GUIDE forbids. Real team read is a rim
+## light in M6; until then, distinct heroes do the job.
+const SEAT_HEROES: Array[String] = [
+	"res://src/heroes/resources/deadeye.tres",
+	"res://src/heroes/resources/nova.tres",
+]
 const RESET_DELAY: float = 2.5
 const EVENT_LOG_LINES: int = 5
 
@@ -34,11 +40,12 @@ func _ready() -> void:
 		p.player_id = i
 		p.team_id = i
 		p.active_hero = DUMMY_HERO
-		p.sprite.modulate = TEAM_TINT[i]
+		p.set_hero(load(SEAT_HEROES[i]) as HeroData)
 		MatchState.register_player(i, i, [DUMMY_HERO] as Array[StringName])
 		p.stomp_landed.connect(_on_stomp_landed.bind(i))
 		p.stun_applied.connect(_on_stun_applied.bind(i))
 	MatchState.life_lost.connect(_on_life_lost)
+	MatchState.hero_eliminated.connect(_on_hero_eliminated)
 	MatchState.round_won.connect(_on_round_won)
 	banner.hide()
 	queue_redraw()
@@ -74,6 +81,10 @@ func _process(_delta: float) -> void:
 #region Round flow (M2 placeholder — GameManager takes this over in M3)
 func _on_life_lost(player_id: int, _hero_id: StringName, lives_left: int) -> void:
 	_log("P%d stomped — %d live(s) left" % [player_id + 1, lives_left])
+
+func _on_hero_eliminated(player_id: int, _hero_id: StringName) -> void:
+	players[player_id].play_elimination()
+	_log("P%d's hero popped" % [player_id + 1])
 
 func _on_round_won(team_id: int) -> void:
 	banner.text = "P%d WINS THE ROUND" % (team_id + 1)

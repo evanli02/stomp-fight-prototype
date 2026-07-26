@@ -28,7 +28,8 @@ func enter(_params: Dictionary = {}) -> void:
 
 	player.velocity = impulse
 	player.facing = signi(n.x)
-	machine.change_state(&"Air")
+	# This state lasts one call, so Air carries the wall-jump pose for the rise.
+	machine.change_state(&"Air", {"anim": &"wall_jump"})
 
 ## Tilt the impulse toward the movement input, clamped to the cone so a steered
 ## wall jump can never point back into the wall (DESIGN 4.4). Holding into the
@@ -40,3 +41,5 @@ func _apply_steer_tilt(impulse: Vector2) -> Vector2:
 	var cone := deg_to_rad(player.movement.walljump_steer_cone_deg)
 	var tilt := clampf(angle_difference(impulse.angle(), steer.angle()), -cone, cone)
 	return impulse.rotated(tilt)
+
+func animation() -> StringName: return &"wall_jump"

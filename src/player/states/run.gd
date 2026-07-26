@@ -29,3 +29,5 @@ func physics_update(delta: float) -> void:
 	var reversing := not is_zero_approx(player.velocity.x) and signf(dir) != signf(player.velocity.x)
 	var accel := player.ground_redirect_accel() if reversing else player.ground_accel()
 	player.velocity.x = move_toward(player.velocity.x, target, accel * delta)
+
+func animation() -> StringName: return &"run"

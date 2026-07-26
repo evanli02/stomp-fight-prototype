@@ -32,3 +32,5 @@ func physics_update(delta: float) -> void:
 		slide_speed = player.movement.wall_slide_speed_hold  # holding into the wall
 	player.velocity.y = minf(player.velocity.y + player.movement.gravity * delta, slide_speed)
 	player.velocity.x = -player.wall_normal.x * WALL_STICK_SPEED
+
+func animation() -> StringName: return &"wall_slide"

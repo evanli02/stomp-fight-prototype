@@ -16,3 +16,5 @@ func physics_update(delta: float) -> void:
 	player.velocity.x = move_toward(player.velocity.x, 0.0, player.movement.ground_friction * delta)
 	if not is_zero_approx(player.input.move.x):
 		machine.change_state(&"Run")
+
+func animation() -> StringName: return &"idle"

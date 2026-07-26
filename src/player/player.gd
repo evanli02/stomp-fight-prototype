@@ -17,6 +17,9 @@ signal perfect_window_hit(kind: StringName)
 @export var team_id: int = 0
 @export var movement: MovementConfig
 @export var combat: CombatConfig
+## Cosmetic identity only — sprite frames and accent. Movement and hitboxes are
+## identical for every hero and never come from here (CLAUDE.md rule 3).
+@export var hero: HeroData
 
 var momentum_charge: float = 0.0        ## 0..1, scales run cap (DESIGN 4.1)
 var dash_charges_left: int = 2
@@ -25,6 +28,8 @@ var stun_remaining: float = 0.0
 var grace_remaining: float = 0.0
 var active_hero: StringName = &""
 var crouched: bool = false
+## Animation that must finish before the state machine drives the sprite again.
+var _oneshot: StringName = &""
 ## Downward speed carried into the current contact, kept alive for
 ## stomp_fall_memory_time. move_and_slide() zeroes velocity.y the frame a body
 ## lands, which is a frame before the areas report their overlap, so the fall
@@ -71,12 +76,15 @@ var _duel_impulse: Vector2 = Vector2.ZERO
 ## stay out of the config resources.
 const BLINK_PERIOD: float = 0.16
 const BLINK_ALPHA: float = 0.35
+## How long the landing squash reads for. Presentation, not a feel number — the
+## state machine is already back in Idle or Run by then.
+const LAND_ANIM_TIME: float = 0.12
 
 ## Stick deflection that counts as "down" (DESIGN 4.6). A deadzone, not a feel
 ## number: below it a diagonal run would drop into a crouch.
 const CROUCH_INPUT_THRESHOLD: float = 0.5
 
-@onready var sprite: Sprite2D = %Sprite
+@onready var sprite: AnimatedSprite2D = %Sprite
 @onready var state_machine: StateMachine = %StateMachine
 @onready var head_hurtbox: Area2D = %HeadHurtbox
 @onready var stomp_box: Area2D = %StompBox
@@ -85,13 +93,11 @@ const CROUCH_INPUT_THRESHOLD: float = 0.5
 @onready var body_shape_crouch: CollisionShape2D = %BodyShapeCrouch
 @onready var head_shape: CollisionShape2D = %HeadShape
 @onready var head_shape_crouch: CollisionShape2D = %HeadShapeCrouch
-## Read off the scene rather than restated here, so the shapes stay the one
-## source of truth for how tall the body is standing and crouched.
-@onready var _stand_half_height: float = (body_shape.shape as RectangleShape2D).size.y * 0.5
-@onready var _crouch_half_height: float = (body_shape_crouch.shape as RectangleShape2D).size.y * 0.5
 
 func _ready() -> void:
 	dash_charges_left = movement.dash_charges
+	if hero != null:
+		set_hero(hero)
 	state_machine.setup(self)
 
 #region Public API — the ONLY surface abilities/terrain may use
@@ -129,6 +135,21 @@ func start_spawn_protection() -> void:
 	spawn_protected = true
 	set_head_hurtbox_enabled(false)
 
+func set_hero(data: HeroData) -> void:
+	## Re-skin in place: frames swap, the body does not. Hero swaps must never
+	## respawn the player (DESIGN 2.4), and never touch movement (CLAUDE.md 3).
+	hero = data
+	if data != null and data.sprite_frames != null:
+		sprite.sprite_frames = data.sprite_frames
+		sprite.play(&"idle")
+
+func play_elimination() -> void:
+	## The confetti pop for a hero's last life (DESIGN 3.3). One-shot: it holds
+	## the sprite until it finishes, then the state machine takes over again.
+	if sprite.sprite_frames != null and sprite.sprite_frames.has_animation(&"pop"):
+		_oneshot = &"pop"
+		sprite.play(&"pop")
+
 func set_crouched(on: bool) -> void:
 	## Half-height body and a head hurtbox that moves down with it (DESIGN 4.6).
 	## Owned here rather than in Crouch/Slide because both states share it and
@@ -144,10 +165,9 @@ func set_crouched(on: bool) -> void:
 	body_shape_crouch.set_deferred(&"disabled", not on)
 	head_shape.set_deferred(&"disabled", on)
 	head_shape_crouch.set_deferred(&"disabled", not on)
-	# Placeholder art: squash the standing sprite and drop it onto the new
-	# bottom edge. Replaced by real crouch frames in M6.
-	sprite.scale.y = _crouch_half_height / _stand_half_height if on else 1.0
-	sprite.position.y = _stand_half_height - _crouch_half_height if on else 0.0
+	# The sprite is not squashed here: the crouch and slide frames are drawn into
+	# the bottom 24px of the same 32x48 canvas, so the art already matches the
+	# short collision box.
 
 func respawn_at(spawn_position: Vector2) -> void:
 	## Put the body back at a spawn point with movement bookkeeping cleared. Does
@@ -229,11 +249,28 @@ func on_stomp_landed(victim: Player) -> void:
 
 func _process(_delta: float) -> void:
 	# Presentation only. The values it reads are all set on the physics step, and
-	# the sprite's RGB is left alone so a team tint survives the blink.
+	# the sprite's RGB is left alone so a tint survives the blink.
 	var blink_off := grace_remaining > 0.0 \
 		and fmod(grace_remaining, BLINK_PERIOD) < BLINK_PERIOD * 0.5
 	sprite.modulate.a = BLINK_ALPHA if blink_off else 1.0
 	sprite.flip_h = facing < 0
+	_update_animation()
+
+## The running state decides the pose — it is the thing that knows what the body
+## is doing. Only two exceptions are resolved here, both because they outlive the
+## state that caused them: the landing squash, and a one-shot like the pop.
+func _update_animation() -> void:
+	if sprite.sprite_frames == null:
+		return
+	if _oneshot != &"":
+		if sprite.is_playing():
+			return
+		_oneshot = &""
+	var anim := state_machine.current_animation()
+	if anim in [&"idle", &"run"] and not landing_settled and time_since_landing < LAND_ANIM_TIME:
+		anim = &"land"
+	if sprite.sprite_frames.has_animation(anim) and sprite.animation != anim:
+		sprite.play(anim)
 
 func _physics_process(delta: float) -> void:
 	input = InputConfig.poll(player_id, self)

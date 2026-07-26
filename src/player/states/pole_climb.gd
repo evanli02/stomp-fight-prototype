@@ -7,3 +7,5 @@ func enter(_params: Dictionary = {}) -> void:
 
 func physics_update(_delta: float) -> void:
 	pass
+
+func animation() -> StringName: return &"pole_climb"
