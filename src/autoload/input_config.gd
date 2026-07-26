@@ -99,7 +99,8 @@ func _pad_events(base: StringName) -> Array:
 #region Polling
 ## Sample one player's intent for this physics tick. All gameplay reads inputs
 ## through here, never through Input directly (IMPLEMENTATION.md 9).
-func poll(player_id: int, body: Node2D) -> InputFrame:
+## `body` is only needed for mouse aim; menus pass null and get a zero aim.
+func poll(player_id: int, body: Node2D = null) -> InputFrame:
 	var now := Engine.get_physics_frames()
 	var cached: Dictionary = _poll_cache.get(player_id, {})
 	if cached.get("frame", -1) == now:
@@ -109,7 +110,8 @@ func poll(player_id: int, body: Node2D) -> InputFrame:
 	frame.move = Input.get_vector(
 		action(player_id, &"move_left"), action(player_id, &"move_right"),
 		action(player_id, &"move_up"), action(player_id, &"move_down"))
-	frame.aim = aim_vector(player_id, body.global_position, body.get_viewport())
+	frame.aim = (aim_vector(player_id, body.global_position, body.get_viewport())
+		if body != null else Vector2.ZERO)
 	frame.jump_pressed = Input.is_action_just_pressed(action(player_id, &"jump"))
 	frame.jump_held = Input.is_action_pressed(action(player_id, &"jump"))
 	frame.ability_pressed = Input.is_action_just_pressed(action(player_id, &"ability"))

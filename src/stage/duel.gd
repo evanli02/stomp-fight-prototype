@@ -46,16 +46,28 @@ func _ready() -> void:
 	GameManager.match_won.connect(_on_match_won)
 	banner.hide()
 
-	var rosters := {}
-	var teams := {}
-	for i in players.size():
-		var ids: Array[StringName] = []
-		for h in SEAT_ROSTERS[i]:
-			ids.append(h)
-		rosters[i] = ids
-		teams[i] = i
-	GameManager.start_match(rosters, teams)
+	# Standalone (F6 straight into this scene, or a harness loading it) there is
+	# no match yet, so start one from the fallback rosters. Arriving from hero
+	# select there already is one, and re-starting it would throw the picks away.
+	if MatchState.players.is_empty():
+		var rosters := {}
+		var teams := {}
+		for i in players.size():
+			var ids: Array[StringName] = []
+			for h in SEAT_ROSTERS[i]:
+				ids.append(h)
+			rosters[i] = ids
+			teams[i] = i
+		GameManager.start_match(rosters, teams)
+	else:
+		# round_started already fired before this scene existed.
+		_spawn_all()
 	queue_redraw()
+
+func _spawn_all() -> void:
+	for i in players.size():
+		players[i].respawn_at(SPAWNS[i])
+		players[i].equip_hero(MatchState.active_hero(i))
 
 ## Symmetric sealed box (DESIGN 6.1): mirrored spawn ledges to open from, a high
 ## centre platform worth contesting, and a pillar shaft where two players meet
@@ -89,9 +101,7 @@ func _process(_delta: float) -> void:
 func _on_round_started(index: int) -> void:
 	_respawning.clear()
 	banner.hide()
-	for i in players.size():
-		players[i].respawn_at(SPAWNS[i])
-		players[i].equip_hero(MatchState.active_hero(i))
+	_spawn_all()
 	_log("round %d — fight" % [index + 1])
 
 func _on_life_lost(player_id: int, hero_id: StringName, lives_left: int) -> void:

@@ -78,8 +78,15 @@ func set_phase(p: Phase) -> void:
 	phase = p
 	phase_changed.emit(p)
 
+func begin_hero_select() -> void:
+	## Rosters are not known yet, so nothing is registered until picks land.
+	MatchState.clear_players()
+	MatchState.round_wins.clear()
+	round_index = 0
+	set_phase(Phase.HERO_SELECT)
+
 ## Begin a match from an already-picked set of rosters: player_id -> hero ids.
-## Hero select fills this in; until that screen exists, arenas call it directly.
+## Hero select supplies these; arenas run standalone by calling this themselves.
 func start_match(rosters: Dictionary, teams: Dictionary) -> void:
 	MatchState.clear_players()
 	MatchState.round_wins.clear()

@@ -42,6 +42,7 @@ func kill_hero(pid: int, hero: StringName) -> void:
 #endregion
 
 func _run() -> void:
+	await _check_hero_select()
 	await _check_rosters()
 	await _check_swap()
 	await _check_swap_equips_the_body()
@@ -49,6 +50,67 @@ func _run() -> void:
 	await _check_cooldowns_tick_while_benched()
 	await _check_ultimate_economy()
 	await _check_round_win_and_reset()
+
+## Hero select's rules, driven directly rather than through synthetic button
+## presses — the screen is a thin shell over these and the rules are the part
+## that can silently go wrong (DESIGN 2.2).
+func _check_hero_select() -> void:
+	var screen: CanvasLayer = load("res://src/ui/hero_select.tscn").instantiate()
+	add_child(screen)
+	await get_tree().physics_frame
+	var roster: Array = GameManager.roster_ids()
+
+	screen._pick(0, roster[0])
+	screen._pick(0, roster[0])
+	check("a hero cannot be picked twice by the same player",
+		screen._picks[0].size() == 1, "picks=%s" % [screen._picks[0]])
+
+	screen._pick(1, roster[0])
+	check("two players may both take the same hero",
+		screen._picks[1].size() == 1 and screen._picks[1][0] == roster[0],
+		"p2 picks=%s" % [screen._picks[1]])
+
+	screen._undo(0)
+	check("undo removes the last pick", screen._picks[0].is_empty(),
+		"picks=%s" % [screen._picks[0]])
+
+	for i in roster.size():
+		screen._pick(0, roster[i])
+	check("a player cannot pick more than three",
+		screen._picks[0].size() == MatchState.HEROES_PER_PLAYER,
+		"picks=%s" % [screen._picks[0]])
+	check("the screen is not ready until every seat has three",
+		not screen._all_seats_ready())
+
+	# A seat with no controller attached never picks; the timer covers it.
+	var confirmed: Array = []
+	screen.picks_confirmed.connect(func(r: Dictionary, t: Dictionary) -> void:
+		confirmed.append({"rosters": r, "teams": t}))
+	screen._remaining = 0.0
+	var fired: bool = false
+	for i in 30:
+		await get_tree().physics_frame
+		if not confirmed.is_empty():
+			fired = true
+			break
+	check("the timer auto-fills an idle seat and confirms", fired,
+		"picks=%s" % [screen._picks[1]])
+	if fired:
+		var rosters: Dictionary = confirmed[0]["rosters"]
+		check("every confirmed seat has exactly three heroes",
+			rosters[0].size() == 3 and rosters[1].size() == 3,
+			"p1=%s p2=%s" % [rosters[0], rosters[1]])
+		check("auto-filled picks have no duplicates",
+			rosters[1].size() == _unique(rosters[1]).size(), "p2=%s" % [rosters[1]])
+	screen.queue_free()
+	await get_tree().physics_frame
+
+func _unique(a: Array) -> Array:
+	var seen := []
+	for v in a:
+		if not seen.has(v):
+			seen.append(v)
+	return seen
 
 func _check_rosters() -> void:
 	check("the match starts in ROUND_ACTIVE",
