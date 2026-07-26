@@ -1,12 +1,10 @@
-; Overstomp — Godot 4.4+ project
-; Input actions are registered in code by the InputConfig autoload
-; (src/autoload/input_config.gd) so bindings stay documented and rebindable.
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
 ;
-; Settings that match the current engine default are still written out
-; explicitly below: an open editor prunes them every time it saves project
-; settings, so expect to re-add them. The load-bearing one is the 60 Hz gameplay
-; tick (CLAUDE.md), which GameManager._ready() also asserts at runtime — that
-; assert, not this file, is what actually protects it.
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
 
 config_version=5
 
@@ -33,11 +31,6 @@ InputConfig="*res://src/autoload/input_config.gd"
 window/size/viewport_width=1280
 window/size/viewport_height=720
 window/stretch/mode="viewport"
-window/stretch/aspect="keep"
-
-[physics]
-
-common/physics_ticks_per_second=60
 
 [rendering]
 

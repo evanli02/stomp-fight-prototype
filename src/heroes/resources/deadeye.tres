@@ -1,9 +1,11 @@
-[gd_resource type="Resource" script_class="HeroData" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="HeroData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/deadeye_frames.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
 hero_name = "Deadeye"
-accent_color = Color("ff2e88")
+accent_color = Color(1, 0.180392, 0.533333, 1)
 ability_cooldown = 8.0
+sprite_frames = ExtResource("2")

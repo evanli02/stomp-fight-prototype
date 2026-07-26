@@ -15,7 +15,7 @@ A 1v1 / 2v2 / 3v3 **stomp-to-kill hero platform fighter** for Godot 4.4+. Pick 3
 | `CLAUDE.md` | Binding rules for AI agents working in this repo |
 | `SKILL.md` | Agent workflows (add hero / terrain / tune / update docs) |
 | `src/` | GDScript skeleton: autoloads, player + movement state machine, abilities, terrain contract |
-| `assets/` | Placeholder pixel art + `STYLE_GUIDE.md` + regeneration script |
+| `assets/` | Pixel art + `STYLE_GUIDE.md` + the stdlib-only generators in `tools/` |
 | `tests/` | GUT test stubs defining required logic coverage |
 
 ## Quick start

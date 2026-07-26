@@ -223,9 +223,12 @@ Notes:
 - **Format**: pixel art, 32×48 character frames, 16 px tiles, rendered at integer scales.
 - **Aesthetic target**: "pixel Arcane" — modern-superhero costumes, saturated neon-against-dusk palettes, painterly gradient lighting faked with 2–3 tone ramps per material, heavy rim light, chunky silhouettes, expressive squash-and-stretch on jumps/stomps.
 - **Palette discipline**: shared 32-color master palette (`assets/palettes/`), each hero owns a 6–8 color slice with one signature neon accent (Deadeye = magenta, Skyla = cyan, Mason = amber, Nova = violet).
+- **Silhouette before color.** Heroes must be distinguishable in one frame with the color stripped out: Deadeye is the slim coat and brimmed cowl, Skyla the finned helmet and streaming scarf, Mason the hard hat and slab shoulders, Nova the hooded ring-bearer. Color alone fails for colorblind players and in a screenshot full of neon.
+- **The accent always owns the head band.** The top 12px is the stomp hurtbox, and it is the one piece of information the whole game is built on — every hero marks it, standing or crouched.
 - Teams are distinguished by **outline/rim-light color** (blue vs. red rim), not by recoloring the hero.
+- **Every movement state gets its own pose.** A player reads intent off silhouettes at speed: a slide has to be unmistakably not a crouch, a wall jump not a rise. The full set is tabulated in `assets/STYLE_GUIDE.md`.
 - VFX are bold and readable first: stun = yellow stars + desaturation; grace = blinking alpha; ult = full-screen chromatic pulse.
-- See `assets/STYLE_GUIDE.md` for per-asset specs and the placeholder set to iterate on.
+- See `assets/STYLE_GUIDE.md` for per-asset specs, the animation table, and how to regenerate.
 
 ## 9. Audio Direction (light, for completeness)
 - Synthwave-meets-orchestral hybrid (Arcane's genre-blend instinct at chiptune fidelity).

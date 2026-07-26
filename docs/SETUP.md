@@ -30,8 +30,9 @@ The project uses GDScript only, so the standard build is correct.
 - Run tests: the GUT panel appears at the bottom of the editor; point it at `res://tests/`.
 
 ### Pixel art tooling (assets iteration)
-- **Aseprite** (~$20, the standard): https://www.aseprite.org — best animation timeline for sprite work. Free if you compile it yourself.
-- **Libresprite** (free fork) or **Piskel** (free, browser) work fine for the placeholder stage.
+- **Nothing to install for the generated art.** `assets/tools/` is stdlib-only Python (3.9+), so `python assets/tools/generate_characters.py` and `generate_placeholders.py` work on a clean checkout. Run `Godot --headless --path . --import` afterwards so Godot picks up new PNGs, and `--script res://tests/verify_frames.gd` to confirm the hero SpriteFrames still load.
+- **Aseprite** (~$20, the standard): https://www.aseprite.org — best animation timeline for sprite work. Free if you compile it yourself. Use it for hand-authored frames that replace generated ones; note that re-running a generator overwrites its own outputs.
+- **Libresprite** (free fork) or **Piskel** (free, browser) work fine too.
 - Import settings for this project: PNGs import with **Filter = Nearest** (already set project-wide via default texture filter). Never resave assets with interpolation.
 
 ### Editor niceties
