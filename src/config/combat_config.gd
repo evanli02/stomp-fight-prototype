@@ -6,7 +6,16 @@ class_name CombatConfig extends Resource
 @export var stomp_grace_time: float = 1.2       ## head hurtbox disabled
 @export var stomp_victim_bounce: float = 260.0  ## impulse magnitude, direction from contact
 @export var stomp_attacker_bounce: float = -420.0 ## upward, hold-extendable like a jump
-@export var stomp_min_relative_fall_speed: float = 40.0
+## Below roughly 100 there is no daylight between falling onto a head and
+## settling onto one: a body released at zero height is already doing 47 after
+## two physics frames, which would make standing on shoulders (DESIGN 3.4)
+## impossible without stomping.
+@export var stomp_min_relative_fall_speed: float = 120.0
+## How long a fall's downward speed stays eligible to register as a stomp after
+## a collision has already zeroed it. Bodies stop on contact one frame before
+## the feet/head areas report their overlap, so without this the speed that
+## earned the stomp is gone by the time the check runs (DESIGN 3.1).
+@export var stomp_fall_memory_time: float = 0.12
 
 @export_group("Stun table (DESIGN 5.4)")
 @export var stun_duel_loss: float = 0.3
