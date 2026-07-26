@@ -3,9 +3,10 @@
 ; (src/autoload/input_config.gd) so bindings stay documented and rebindable.
 ;
 ; Settings that match the current engine default are still written out
-; explicitly: the editor prunes them on save, but they are load-bearing rules
-; (60 Hz gameplay tick, CLAUDE.md) that must not silently follow a future
-; default. Re-add them if an editor save drops them again.
+; explicitly below: the editor prunes them whenever it saves project settings,
+; so re-add them if they vanish. The load-bearing one is the 60 Hz gameplay
+; tick, which GameManager._ready() also asserts at runtime — that assert, not
+; this file, is what actually protects it.
 
 config_version=5
 
