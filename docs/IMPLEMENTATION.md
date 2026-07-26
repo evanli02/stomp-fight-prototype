@@ -91,7 +91,8 @@ state; it is called from `Player._ready()` so the player's `@onready` refs are l
 - `perfect_window_check(time_since_contact, window)` — one implementation backing b-hop **and** perfect wall jump.
 - `momentum` model: `velocity.x` plus a `momentum_charge: float` (0..1) that scales the run-speed cap; built on ground time, preserved by perfect windows, decayed by normal landings/skids.
 - `speed_cap()` — `run_speed_base..run_speed_cap` by momentum, times the dash boost while it lasts.
-- `ground_accel()` / `air_accel()` — derived from `ground_redirect_time` so accel and redirect stay one knob.
+- `ground_accel()` (startup, from `ground_accel_time`) vs `ground_redirect_accel()` (flips and skid braking, from `ground_redirect_time`). `Run` picks between them by whether the input opposes current velocity. `air_accel()` scales the *redirect* rate, so making startup heavier did not quietly weaken air control.
+- `begin_wall_jump()` — claims the wall jump and returns the chain index for that wall face (collider id + side). A different face resets to zero; landing clears the owner entirely.
 - `can_dash()` / `consume_dash_charge()` — charge count plus the airborne-consecutive lock.
 - `has_buffered_jump()` / `consume_jump_buffer()`, `wall_is_jumpable(normal)`, `build_momentum(delta)`.
 - Contact bookkeeping the states read: `time_since_landing`, `time_since_wall_contact`, `wall_normal`, `wall_player` (the other player being used as a wall, if any), `wall_jump_chain`, `coyote_remaining`, `landing_settled`.

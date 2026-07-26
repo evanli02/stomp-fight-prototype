@@ -43,7 +43,13 @@ var facing: int = 1
 var time_since_landing: float = INF
 var time_since_wall_contact: float = INF
 var wall_normal: Vector2 = Vector2.ZERO
-var wall_jump_chain: int = 0            ## consecutive wall jumps without touching ground
+var wall_jump_chain: int = 0            ## consecutive wall jumps off the SAME wall face
+## Which wall the current chain belongs to. A face is a collider plus a side, so
+## the two walls of a shaft are distinct even when one TileMap owns both.
+var chain_wall_collider: int = 0
+var chain_wall_side: int = 0
+## The wall currently under contact, in the same terms.
+var wall_collider_id: int = 0
 var coyote_remaining: float = 0.0
 var jump_buffer_remaining: float = 0.0
 ## The other player currently being used as a wall, if any (DESIGN 3.4).
@@ -151,7 +157,7 @@ func respawn_at(spawn_position: Vector2) -> void:
 	momentum_charge = 0.0
 	dash_charges_left = movement.dash_charges
 	air_dash_locked = false
-	wall_jump_chain = 0
+	_reset_wall_chain()
 	fall_speed_memory = 0.0
 	stun_remaining = 0.0
 	set_crouched(false)
@@ -289,7 +295,7 @@ func _post_move(was_on_floor: bool) -> void:
 			_on_landed()
 		coyote_remaining = movement.coyote_time
 		air_dash_locked = false
-		wall_jump_chain = 0
+		_reset_wall_chain()
 
 	var on_jumpable_wall := is_on_wall() and wall_is_jumpable(get_wall_normal())
 	if on_jumpable_wall:
@@ -297,24 +303,33 @@ func _post_move(was_on_floor: bool) -> void:
 		if not _was_on_wall:
 			time_since_wall_contact = 0.0  # opens the perfect wall-jump window
 		air_dash_locked = false
-	wall_player = _wall_collider_player() if on_jumpable_wall else null
+	if on_jumpable_wall:
+		_scan_wall_contact()
+	else:
+		wall_collider_id = 0
+		wall_player = null
 	_was_on_wall = on_jumpable_wall
 
 	# Ceilings are never wall-jumpable but do reset the air dash (DESIGN 4.4).
 	if is_on_ceiling():
 		air_dash_locked = false
 
-## Which player, if any, is the wall we are currently on. Ignores floors and
-## ceilings by reusing the same normal test the wall states use.
-func _wall_collider_player() -> Player:
+## What we are currently using as a wall: the collider's id, and the player if it
+## happens to be one. Floors and ceilings are ignored by reusing the same normal
+## test the wall states use.
+func _scan_wall_contact() -> void:
+	wall_collider_id = 0
+	wall_player = null
 	for i in get_slide_collision_count():
 		var collision := get_slide_collision(i)
 		if not wall_is_jumpable(collision.get_normal()):
 			continue
-		var other := collision.get_collider() as Player
-		if other != null:
-			return other
-	return null
+		var collider := collision.get_collider()
+		if collider == null:
+			continue
+		wall_collider_id = (collider as Object).get_instance_id()
+		wall_player = collider as Player
+		return
 
 func _on_landed() -> void:
 	time_since_landing = 0.0
@@ -387,13 +402,21 @@ func speed_cap() -> float:
 		cap *= movement.dash_boost_cap_mult
 	return cap
 
-## Derived so acceleration and redirect stay one knob: a full flip (-base -> +base)
-## takes ground_redirect_time (DESIGN 4.1).
+## Getting moving: a standstill reaches run_speed_base in ground_accel_time.
 func ground_accel() -> float:
+	return movement.run_speed_base / movement.ground_accel_time
+
+## Changing your mind: a full flip (-base -> +base) still takes
+## ground_redirect_time, which is deliberately quicker than startup — heavy to
+## get going, light to turn around (DESIGN 4.1).
+func ground_redirect_accel() -> float:
 	return 2.0 * movement.run_speed_base / movement.ground_redirect_time
 
+## Off the redirect rate rather than startup: air control is about nudging an
+## arc you already committed to, and it should not have gotten weaker when
+## starting a run got heavier.
 func air_accel() -> float:
-	return ground_accel() * movement.air_control_ratio
+	return ground_redirect_accel() * movement.air_control_ratio
 
 ## Down held past the deadzone — the entry condition for crouch and slide.
 func wants_crouch() -> bool:
@@ -406,6 +429,25 @@ func consume_dash_charge() -> void:
 	dash_charges_left -= 1
 	if dash_recharge_remaining <= 0.0:
 		dash_recharge_remaining = movement.dash_recharge
+
+## Claim the wall jump about to happen and return how many have already come off
+## this same face. The chain — and its collapsing upward impulse — belongs to one
+## wall: crossing a shaft to the opposite face starts over at full strength,
+## while hopping up a single wall decays (DESIGN 4.4).
+func begin_wall_jump() -> int:
+	var side := signi(int(signf(wall_normal.x)))
+	if wall_collider_id != chain_wall_collider or side != chain_wall_side:
+		wall_jump_chain = 0
+		chain_wall_collider = wall_collider_id
+		chain_wall_side = side
+	var index := wall_jump_chain
+	wall_jump_chain += 1
+	return index
+
+func _reset_wall_chain() -> void:
+	wall_jump_chain = 0
+	chain_wall_collider = 0
+	chain_wall_side = 0
 
 ## Surfaces flatter than wall_normal_min_x are ceilings/slopes, never wall-jumpable.
 func wall_is_jumpable(n: Vector2) -> bool:

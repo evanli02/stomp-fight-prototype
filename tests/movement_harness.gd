@@ -89,6 +89,26 @@ func _check_land() -> void:
 	check("spawn falls and lands", _player.is_on_floor() and state() == "Idle", "state=%s" % state())
 
 func _check_run_to_cap() -> void:
+	# Startup is the slow part now: base speed takes ground_accel_time, and a
+	# third of the way in you should still be well short of it (DESIGN 4.1).
+	await reset_at(Vector2(200, 300))
+	press(&"move_right")
+	var frames_to_base := 0
+	for i in 30:
+		await get_tree().physics_frame
+		frames_to_base += 1
+		if absf(_player.velocity.x) >= _player.movement.run_speed_base * 0.99:
+			break
+	var expected_frames := _player.movement.ground_accel_time * 60.0
+	check("reaching base speed takes about ground_accel_time",
+		absf(frames_to_base - expected_frames) <= 2.5,
+		"%d frames, expected ~%.1f" % [frames_to_base, expected_frames])
+	check("startup is slower than the redirect rate",
+		_player.ground_accel() < _player.ground_redirect_accel(),
+		"startup=%.0f redirect=%.0f" % [_player.ground_accel(), _player.ground_redirect_accel()])
+	release(&"move_right")
+	await step(20)
+
 	await reset_at(Vector2(200, 300))
 	press(&"move_right")
 	await step(88)  # ~1.47s of runway before the far wall
@@ -185,9 +205,11 @@ func _check_dash() -> void:
 	check("ground dash runs at the ground distance",
 		near(_player.velocity.x, _player.movement.dash_distance_ground / _player.movement.dash_duration, 1.0),
 		"vx=%.1f" % _player.velocity.x)
-	check("ground dash covers about twice the air dash",
-		near(_player.movement.dash_distance_ground, _player.movement.dash_distance * 2.0, 8.0),
-		"ground=%.0f air=%.0f" % [_player.movement.dash_distance_ground, _player.movement.dash_distance])
+	check("ground dash is the longest of the three",
+		_player.movement.dash_distance_ground > _player.movement.dash_distance
+		and _player.movement.dash_distance > _player.movement.dash_distance_wall,
+		"ground=%.0f air=%.0f wall=%.0f" % [_player.movement.dash_distance_ground,
+			_player.movement.dash_distance, _player.movement.dash_distance_wall])
 	await step(15)
 	release(&"move_right")
 
@@ -207,6 +229,47 @@ func _check_dash() -> void:
 	check("upward air dash is cut to air_dash_up_mult",
 		near(up_speed, -flat_speed * _player.movement.air_dash_up_mult, 12.0),
 		"vy=%.1f expected=%.1f" % [up_speed, -flat_speed * _player.movement.air_dash_up_mult])
+	check("the upward air dash climbs about a sixth of a tile per frame",
+		absf(up_speed) < 150.0, "vy=%.1f" % up_speed)
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
+	await step(10)
+
+	# Sideways and diagonal air dashes keep the full, now longer, reach.
+	await reset_at(Vector2(300, 300))
+	press(&"jump")
+	await step(6)
+	release(&"jump")
+	press(&"move_right")
+	press(&"dash")
+	await step(3)
+	var flat_air := _player.velocity.x
+	release(&"dash")
+	check("sideways air dash runs at the full air distance",
+		near(flat_air, flat_speed, 1.0), "vx=%.1f expected=%.1f" % [flat_air, flat_speed])
+	release(&"move_right")
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
+	await step(10)
+
+	# Up-diagonal: the horizontal half is untouched, only the climb is cut.
+	await reset_at(Vector2(300, 300))
+	press(&"jump")
+	await step(6)
+	release(&"jump")
+	press(&"move_right")
+	press(&"move_up")
+	press(&"dash")
+	await step(3)
+	var diag := _player.velocity
+	release(&"dash")
+	release(&"move_up")
+	release(&"move_right")
+	check("up-diagonal air dash keeps its horizontal reach",
+		near(diag.x, flat_speed * sqrt(0.5), 12.0),
+		"vx=%.1f expected=%.1f" % [diag.x, flat_speed * sqrt(0.5)])
+	check("up-diagonal air dash still pays the upward tax",
+		absf(diag.y) < absf(diag.x) * 0.5, "v=(%.1f, %.1f)" % [diag.x, diag.y])
 	while not _player.is_on_floor():
 		await get_tree().physics_frame
 	await step(10)
@@ -243,9 +306,12 @@ func _check_wall() -> void:
 	# adjacent — grounded contact with a wall is Run, not WallSlide.
 	await _reach_wall(0, &"")
 	check("reaches wall slide", state() == "WallSlide", "state=%s pos=%.1f" % [state(), _player.global_position.x])
+	# Input is neutral by now, so the applicable cap is the neutral slide speed,
+	# well under terminal velocity.
 	check("wall slide is slower than free fall",
-		_player.velocity.y <= _player.movement.wall_slide_speed_hold + 20.0,
-		"vy=%.1f" % _player.velocity.y)
+		_player.velocity.y <= _player.movement.wall_slide_speed_neutral + 20.0
+		and _player.velocity.y < _player.movement.fall_speed_max * 0.5,
+		"vy=%.1f neutral cap=%.1f" % [_player.velocity.y, _player.movement.wall_slide_speed_neutral])
 
 	# Neutral movement input: the plain untilted impulse, and the baseline the
 	# steered jumps below are compared against.
@@ -272,16 +338,68 @@ func _check_wall() -> void:
 	check("holding away from the wall flattens the jump", steered_away > first_up + 40.0,
 		"neutral vy=%.1f away-held vy=%.1f" % [first_up, steered_away])
 
+	await _check_chain_is_per_wall(first_up)
+
+## The chain belongs to one wall face (DESIGN 4.4). Crossing the shaft between
+## the two pillars pays full impulse again; hopping the same face decays. Both
+## halves are flown for real — the pillars are 96px apart, which one wall jump
+## clears comfortably.
+func _check_chain_is_per_wall(full_up: float) -> void:
+	var reached: bool = await _reach_wall(0, &"")
+	check("shaft setup reaches the first wall", reached, "state=%s" % state())
+	if not reached:
+		return
+	var first_wall := _player.wall_collider_id
+	press(&"jump")
+	await step(3)
+	release(&"jump")
+
+	var crossed := false
+	for i in 60:
+		await get_tree().physics_frame
+		if state() == "WallSlide" and _player.wall_collider_id != first_wall:
+			crossed = true
+			break
+	check("a wall jump crosses to the opposite wall", crossed,
+		"state=%s x=%.1f" % [state(), _player.global_position.x])
+	if not crossed:
+		return
+
+	# The chain count is already 1 from the first jump and restarts at 1, so it
+	# cannot signal that the second jump fired. Ownership of the chain moving to
+	# the new wall can.
+	var second_wall := _player.wall_collider_id
+	press(&"jump")
+	var vy := 0.0
+	var jumped := false
+	for i in 10:
+		await get_tree().physics_frame
+		if _player.chain_wall_collider == second_wall:
+			vy = _player.velocity.y
+			jumped = true
+			break
+	release(&"jump")
+	check("the jump off the opposite wall fires", jumped, "state=%s" % state())
+	check("a different wall restarts the chain at full impulse", near(vy, full_up, 20.0),
+		"vy=%.1f first-wall vy=%.1f" % [vy, full_up])
+	check("the restarted chain counts from one", _player.wall_jump_chain == 1,
+		"chain=%d" % _player.wall_jump_chain)
+
 ## Fall onto pillar B's left face, holding until the slide actually registers.
 ## steer_action is pressed before the jump and left held; pass &"" for neutral.
+##
+## The chain is forced by also claiming the wall face it belongs to — the chain
+## is per-face now, so a count without an owner would just be discarded.
 func _reach_wall(chain: int, steer_action: StringName) -> bool:
 	await reset_at(Vector2(861, 180), 2)
-	_player.wall_jump_chain = chain
 	press(&"move_right")
 	for i in 30:
 		await get_tree().physics_frame
 		if state() == "WallSlide":
 			release(&"move_right")
+			_player.wall_jump_chain = chain
+			_player.chain_wall_collider = _player.wall_collider_id
+			_player.chain_wall_side = signi(int(signf(_player.wall_normal.x)))
 			if steer_action != &"":
 				press(steer_action)
 			return true

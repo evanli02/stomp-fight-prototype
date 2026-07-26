@@ -23,6 +23,7 @@ func physics_update(delta: float) -> void:
 		return
 	_remaining -= delta
 	player.velocity.y = 0.0
-	player.velocity.x = move_toward(player.velocity.x, 0.0, player.ground_accel() * delta)
+	# A skid is a redirect, so it brakes at the redirect rate, not the startup one.
+	player.velocity.x = move_toward(player.velocity.x, 0.0, player.ground_redirect_accel() * delta)
 	if _remaining <= 0.0 or is_zero_approx(player.velocity.x):
 		machine.change_state(&"Idle" if is_zero_approx(player.input.move.x) else &"Run")

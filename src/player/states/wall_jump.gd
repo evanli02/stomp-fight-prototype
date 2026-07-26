@@ -7,7 +7,9 @@ class_name WallJumpState extends PlayerState
 func enter(_params: Dictionary = {}) -> void:
 	var cfg := player.movement
 	var n := player.wall_normal
-	var up_mult := 1.0 if player.wall_jump_chain == 0 else cfg.walljump_later_up_mult
+	# Chain index for THIS wall face — a different wall pays full price again.
+	var chain := player.begin_wall_jump()
+	var up_mult := 1.0 if chain == 0 else cfg.walljump_later_up_mult
 	var impulse := Vector2(n.x * cfg.walljump_impulse.x, cfg.walljump_impulse.y * up_mult)
 	impulse = _apply_steer_tilt(impulse)
 
@@ -25,7 +27,6 @@ func enter(_params: Dictionary = {}) -> void:
 		player.momentum_charge *= cfg.momentum_keep_on_wall_jump
 
 	player.velocity = impulse
-	player.wall_jump_chain += 1
 	player.facing = signi(n.x)
 	machine.change_state(&"Air")
 

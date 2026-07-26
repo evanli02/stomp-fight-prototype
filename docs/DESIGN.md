@@ -77,12 +77,13 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 
 ### 4.1 Ground movement & momentum
 - Running builds momentum up to a cap after **~1–2 s** of sustained movement (`accel_time_to_cap ≈ 1.5 s`, `run_speed_base ≈ 260 px/s`, `run_speed_cap ≈ 420 px/s`).
-- **Direction change on ground is fast** (high friction-assisted redirect, ~0.1 s to flip at base speed), but redirect from capped momentum costs a short skid.
+- **Starting is heavier than turning.** Reaching base speed from a standstill takes `ground_accel_time ≈ 0.083 s`, while a **direction change stays fast** (~0.1 s to flip at base speed). Committing to a direction costs something; changing your mind does not. Redirect from capped momentum still costs a short skid.
 - **In the air**, control authority is low: air acceleration nudges trajectory (`air_control ≈ 12–18%` of ground accel) — commit to your arcs.
 - Momentum redirect midair is **gradual**, never instant (dash is the instant-redirect tool).
 
 ### 4.2 Jumping
-- **Variable-height jump**: holding jump extends rise (min hop ≈ 1.25 tiles, full hold ≈ 4.5 tiles). The tap and the hold are far apart on purpose — the tap is a shuffle, and height is something you ask for.
+- **Variable-height jump**: holding jump extends rise (min hop ≈ 1.25 tiles, full hold ≈ 4.5 tiles, `jump_hold_time_max ≈ 0.28 s`). The tap and the hold are far apart on purpose — the tap is a shuffle, and height is something you ask for, and hold for.
+- **Gravity is heavy** (`gravity ≈ 1800`). Arcs are tall but not slow; hanging at the apex reads as floating and is the enemy of a game about landing on heads. The hold force is set just short of cancelling gravity so the rise always decelerates.
 - Coyote time (~0.1 s) and jump buffering (~0.12 s) — non-negotiable feel features.
 - **B-hopping**: landing and jumping within a **perfect-timing window** (`bhop_window ≈ 0.08 s`) preserves 100% of horizontal momentum (normal landing applies ground friction immediately). Chained b-hops let you carry (not exceed) capped run speed indefinitely.
 
@@ -91,14 +92,17 @@ All numbers are starting tunables; every value lives in `movement_config.tres` f
 - Direction: on a **surface**, dash is constrained parallel to that surface (along ground, along wall while sliding); **airborne**, dash is fully omnidirectional, steered by the **movement input** (left stick / WASD), else facing. The aim vector belongs to abilities and never steers movement — two directions fighting over one action reads as the controls disagreeing with you.
 - The dash is **very short** (~0.12 s) and grants a **brief acceleration boost** after it ends (~0.4 s of raised speed cap) — dashes are momentum tools, not teleports.
   - **Ground dash ≈ 6 tiles**: the reposition tool, and the reason spacing on the floor is a real decision.
-  - **Air dash ≈ 3 tiles**, and its **upward** component is cut to about a third. An up-dash at parity with the jump beats the jump at its own job and collapses the whole vertical game into "dash up".
+  - **Air dash ≈ 4.5 tiles** sideways and downward, diagonals included — this is the range tool.
+  - Its **upward** component is cut to roughly a sixth of that reach (~1 tile of climb). Diagonal dashes therefore fly nearly flat: you keep the distance, you do not get the height. An up-dash at parity with the jump beats the jump at its own job and collapses the whole vertical game into "dash up".
+  - **Wall dash ≈ 3 tiles** along the wall: climbing stays the expensive way up.
 - **Air restriction:** two charges cannot be used **consecutively in the air**; after an airborne dash you must touch a surface (ground, wall, ceiling, or another player) before dashing again. On a surface, back-to-back dashes are legal.
 
 ### 4.4 Walls
 - **Wall slide**: holding into a wall slides at reduced fall speed; neutral input slides faster; down input drops.
 - **Wall jump**:
   - First wall jump has full up-and-away impulse.
-  - **Consecutive wall jumps** (without touching ground) keep horizontal push but have **little-to-no upward** component — wall-jump chains move you *across*, not *up*.
+  - **Consecutive wall jumps off the same wall face** keep horizontal push but have **little-to-no upward** component — hopping one wall moves you *across*, not *up*.
+  - **The chain belongs to a wall face, not to your airtime.** Crossing to a different wall — the opposite side of a shaft, a different pillar — starts a fresh chain at full impulse. Bouncing between two walls is meant to climb; ratcheting up a single wall is not. A face is a collider plus a side, so both walls of a one-tilemap shaft count as different.
   - **Steered wall jumps**: the **movement input** tilts the wall-jump direction within a cone (~35°) away from the wall. Holding into the wall steepens the jump; holding away flattens it into distance. Neutral gives the plain up-and-away impulse.
   - **Perfect wall jump**: jumping within `walljump_perfect_window` (~0.08 s) of wall contact preserves momentum, mirroring b-hop rules — this is the wall analog of b-hopping.
 - **Ceilings can never be wall-jumped.** (They can be dash-touched to reset the air-dash restriction.)

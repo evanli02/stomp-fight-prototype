@@ -24,4 +24,8 @@ func physics_update(delta: float) -> void:
 	player.velocity.y = 0.0
 	player.build_momentum(delta)
 	var target := signf(dir) * player.speed_cap()
-	player.velocity.x = move_toward(player.velocity.x, target, player.ground_accel() * delta)
+	# Turning around below the skid threshold uses the quicker redirect rate;
+	# building speed in the direction you already face uses the slower startup.
+	var reversing := not is_zero_approx(player.velocity.x) and signf(dir) != signf(player.velocity.x)
+	var accel := player.ground_redirect_accel() if reversing else player.ground_accel()
+	player.velocity.x = move_toward(player.velocity.x, target, accel * delta)

@@ -13,8 +13,11 @@ func enter(_params: Dictionary = {}) -> void:
 	# No two consecutive dashes airborne; any surface touch clears the lock.
 	if not on_surface:
 		player.air_dash_locked = true
-	var distance := player.movement.dash_distance_ground if player.is_on_floor() \
-		else player.movement.dash_distance
+	var distance := player.movement.dash_distance
+	if player.is_on_floor():
+		distance = player.movement.dash_distance_ground
+	elif player.is_on_wall():
+		distance = player.movement.dash_distance_wall
 	_velocity = _resolve_direction() * (distance / player.movement.dash_duration)
 	if not on_surface and _velocity.y < 0.0:
 		# Airborne dashes buy height at a heavy discount — a full-strength upward
