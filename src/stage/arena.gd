@@ -37,3 +37,29 @@ static func build(host: Node2D, blocks: Array[Rect2]) -> void:
 static func draw(host: CanvasItem, blocks: Array[Rect2], color: Color) -> void:
 	for r in blocks:
 		host.draw_rect(r, color)
+
+## Tile a 16px texture across each block, with a lit cap row along the top edge
+## so a surface reads as standable at a glance. Cheaper than a TileMap and keeps
+## the geometry a plain list of rectangles, which is what the harnesses assert
+## against — real stages move to TileMaps in M5.
+static func draw_tiled(host: CanvasItem, blocks: Array[Rect2], tex: Texture2D,
+		cap: Color = Color(0.63, 0.24, 0.47)) -> void:
+	var t := float(TILE)
+	for r in blocks:
+		var cols := int(ceil(r.size.x / t))
+		var rows := int(ceil(r.size.y / t))
+		for row in rows:
+			for col in cols:
+				var at := Vector2(r.position.x + col * t, r.position.y + row * t)
+				# Clip the last row/column so an odd-sized block does not bleed.
+				var w := minf(t, r.position.x + r.size.x - at.x)
+				var h := minf(t, r.position.y + r.size.y - at.y)
+				host.draw_texture_rect_region(tex, Rect2(at, Vector2(w, h)),
+					Rect2(Vector2.ZERO, Vector2(w, h)))
+		host.draw_rect(Rect2(r.position, Vector2(r.size.x, 2)), cap)
+
+## Four-band dusk sky behind everything (STYLE_GUIDE: dusk key, night palette).
+static func draw_sky(host: CanvasItem, size: Vector2, bands: Array[Color]) -> void:
+	var band_h := size.y / bands.size()
+	for i in bands.size():
+		host.draw_rect(Rect2(0.0, i * band_h, size.x, band_h + 1.0), bands[i])

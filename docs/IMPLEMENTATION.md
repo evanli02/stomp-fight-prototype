@@ -20,7 +20,7 @@ overstomp/
 │   ├── autoload/              # GameManager, MatchState, InputConfig (singletons)
 │   ├── config/                # movement_config.tres, combat_config.tres (created M1)
 │   ├── player/                # player.tscn/.gd + states/ (movement state machine)
-│   ├── heroes/                # HeroData resources + abilities/ components
+│   ├── heroes/                # HeroData resources + abilities/ + effects/
 │   ├── stage/                 # Stage scenes + terrain/ element scenes
 │   └── ui/                    # HUD, hero select, stage select, lobby
 ├── assets/                    # Pixel art (characters/<hero>/, abilities/, stages/, palettes/)
@@ -123,6 +123,8 @@ func physics_effect(player: Player, delta: float) -> void: pass  # wind, conveyo
 ```
 Elements express themselves exclusively through the Player public API (§3). Stun values and forces are `@export` vars pre-set in each scene, sourced from `combat_config.tres` defaults.
 
+`BounceBlock` (`src/heroes/effects/`) is a live TerrainElement rather than a stub: Mason's ability places one, and it treats everyone the same — ally, enemy, and Mason. Terrain does not take sides.
+
 Implemented (stub) elements: pole, ice, stun_line, jump_spring, speed_pad, portal, wind_zone, explosion. Extras from DESIGN §6.2 (conveyor, crumble, sticky wall, one-way, rotator, bumper) follow the same contract.
 
 ## 5. Combat event flow (signal map)
@@ -142,6 +144,10 @@ StompBox overlap + fall-speed check (attacker's player.gd, post-move, in player_
 A stomp landed while the attacker is stunned applies the bounce but does not return control. `lose_life` on an already-empty hero is a no-op.
 
 Hero elimination continues into the swap flow (DESIGN 3.3): the arena hears `hero_eliminated`, plays the confetti pop, waits `RESPAWN_DELAY`, then brings in `MatchState.next_living_hero()` at that seat's spawn with protection. If the trio is empty instead, `round_won` is already on its way.
+
+Abilities spawn their effects through `Player.spawn_effect()`, which parents them to the **stage**, never to the player: a bolt or a placed block must not ride the body that made it, and a placed block outlives a hero swap (DESIGN 2.4). Targets come from the `players` group sorted by `player_id`, never from scene order (§9).
+
+Two ultimates (Rapid Fire, Double Trouble) modify their hero's *basic* ability instead of doing anything themselves. Both are "the cooldown does not apply for a while", so `Ability.grant_waiver(duration, uses)` serves both — Rapid Fire takes a large use count, Double Trouble takes one. That keeps exactly one place that knows how a bolt is made.
 
 Ultimates: `InputConfig` resolves the input → the equipped ultimate asks `MatchState.try_spend_ultimate(player_id)` → only on `true` does it fire. Abilities read and write cooldowns through `MatchState`, keyed by player **and hero**, because the ability node is freed the moment its hero is swapped out and cannot be the thing remembering. Swap, ability, and ultimate are all refused while stunned (CLAUDE.md checklist).
 
@@ -165,7 +171,7 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, one-ult-per-round, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select is deferred to M5, when there is more than one stage to pick between. The human pass on the full flow still has to sign off.*
-4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova.
+4. **M4 — Vertical-slice heroes**: Deadeye, Skyla, Mason, Nova. *Abilities and ultimates implemented and verified headlessly (2026-07-26). Effects are functional but plain — VFX polish is M6. Human pass outstanding.*
 5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab.
 6. **M6 — Formats & polish**: 2v2/3v3, stage select flow, Bo3/Bo5, VFX/SFX pass, remaining heroes/stages.
 
@@ -193,7 +199,7 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
 - **Headless harnesses** live in `tests/` and are the regression net under the physics code. Neither is GUT: both need a live scene tree, physics ticks, and real collision. Non-zero exit on failure.
   - `movement_harness.tscn` — DESIGN 4 numbers: jump heights, momentum decay, b-hop preservation, dash charges/air lock, wall-jump chain decay and aim tilt, ceilings. Run after touching `src/player/`.
   - `combat_harness.tscn` — DESIGN 3 rules: what does and does not register as a stomp, life/stun/grace/bounce, the anti-chain grace, elimination into auto-swap, and duel resolution. Run after touching stomp, stun, or duel code.
-  - `match_harness.tscn` — DESIGN 2 rules: hero-select pick rules (no duplicates in one trio, duplicates across players, undo, auto-fill), rosters, swap validation and cycling, swap preserving position/velocity, stun blocking swap and ult, cooldowns ticking while benched, the one-ult-per-round economy, round win, and the reset between rounds. Run after touching MatchState, GameManager, hero select, or the swap path.
+  - `match_harness.tscn` — DESIGN 2 and 5 rules: every hero's ability and ultimate firing, going on cooldown, being refused on cooldown, the ult being spendable exactly once, the cooldown waiver, and — the load-bearing one — that **no ability of any hero can cost a life**; hero-select pick rules (no duplicates in one trio, duplicates across players, undo, auto-fill), rosters, swap validation and cycling, swap preserving position/velocity, stun blocking swap and ult, cooldowns ticking while benched, the one-ult-per-round economy, round win, and the reset between rounds. Run after touching MatchState, GameManager, hero select, or the swap path.
   - Teleporting a body into place inside a harness needs a settle frame. If whatever it was resting on has moved, the next `move_and_slide()` can depenetrate it across the arena with its velocity untouched — `combat_harness.place()` re-asserts the position a frame later for exactly this reason.
   - `Godot --headless --path . res://tests/<harness>.tscn`. A newly added `class_name` needs `Godot --headless --path . --import` first, or the harness cannot see the class.
 - **Generated art** has a loader check: `Godot --headless --path . --script res://tests/verify_frames.gd` confirms every hero's SpriteFrames resource parses and holds every animation the states can ask for. Run it after regenerating characters. The movement harness separately asserts that no state names an animation the sheets lack.

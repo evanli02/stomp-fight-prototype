@@ -32,6 +32,8 @@ var crouched: bool = false
 var _oneshot: StringName = &""
 var _equipped_ability: Ability = null
 var _equipped_ultimate: Ability = null
+var speed_buff_mult: float = 1.0
+var speed_buff_remaining: float = 0.0
 ## Downward speed carried into the current contact, kept alive for
 ## stomp_fall_memory_time. move_and_slide() zeroes velocity.y the frame a body
 ## lands, which is a frame before the areas report their overlap, so the fall
@@ -97,6 +99,9 @@ const CROUCH_INPUT_THRESHOLD: float = 0.5
 @onready var head_shape_crouch: CollisionShape2D = %HeadShapeCrouch
 
 func _ready() -> void:
+	# Abilities find their targets through this group rather than by walking the
+	# scene, so a stage can arrange its bodies however it likes.
+	add_to_group(&"players")
 	dash_charges_left = movement.dash_charges
 	if hero != null:
 		set_hero(hero)
@@ -123,7 +128,25 @@ func request_state(state_name: StringName, params: Dictionary = {}) -> void:
 	state_machine.change_state(state_name, params)
 
 func grant_speed_buff(mult: float, dur: float) -> void:
-	pass # TODO(M4)
+	## Raises the run cap for a while (Mason's Keystone). Refresh takes the
+	## stronger multiplier and the longer timer rather than stacking, so buff
+	## juggling can never outrun the cap by a lot.
+	speed_buff_mult = maxf(speed_buff_mult, mult)
+	speed_buff_remaining = maxf(speed_buff_remaining, dur)
+
+## Where abilities put the things they create. Effects are parented to the stage,
+## never to the player — a bolt or a placed block must not ride the body that
+## made it, and it has to outlive a hero swap (DESIGN 2.4).
+func spawn_effect(node: Node) -> void:
+	var host := get_parent()
+	if host == null:
+		node.queue_free()
+		return
+	host.add_child(node)
+
+func equipped_ability() -> Ability:
+	## The basic (non-ultimate) ability, for ultimates that modify it.
+	return _equipped_ability
 
 func set_head_hurtbox_enabled(on: bool) -> void:
 	## Grace period and Wisp ult ONLY. Body collision stays on — players remain
@@ -373,6 +396,11 @@ func _tick_timers(delta: float) -> void:
 	if not is_zero_approx(input.move.x) and stun_remaining <= 0.0:
 		facing = signi(input.move.x)
 
+	if speed_buff_remaining > 0.0:
+		speed_buff_remaining -= delta
+		if speed_buff_remaining <= 0.0:
+			speed_buff_mult = 1.0
+
 	time_since_landing += delta
 	time_since_wall_contact += delta
 	coyote_remaining = maxf(coyote_remaining - delta, 0.0)
@@ -505,7 +533,7 @@ func speed_cap() -> float:
 	var cap := lerpf(movement.run_speed_base, movement.run_speed_cap, momentum_charge)
 	if dash_boost_remaining > 0.0:
 		cap *= movement.dash_boost_cap_mult
-	return cap
+	return cap * speed_buff_mult
 
 ## Getting moving: a standstill reaches run_speed_base in ground_accel_time.
 func ground_accel() -> float:

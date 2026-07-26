@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="HeroData" load_steps=3 format=3]
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
 [ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/deadeye_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/deadeye_bolt.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/deadeye_rapid_fire.tscn" id="4"]
 
 [resource]
 script = ExtResource("1")
@@ -9,3 +11,5 @@ hero_name = "Deadeye"
 accent_color = Color(1, 0.180392, 0.533333, 1)
 ability_cooldown = 8.0
 sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

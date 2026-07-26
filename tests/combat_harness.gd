@@ -13,8 +13,10 @@ extends Node
 ## what the combat rules do once bodies are in contact, and hand-flown approaches
 ## make that setup flaky without testing anything extra.
 
-## Floor top in duel.tscn is y=336, so a standing body's centre sits here.
-const FLOOR_Y: float = 312.0
+## Street level in duel.tscn: the floor's top edge is y=368, so a standing body's
+## centre sits 24px above it. The open street is what these checks need — the
+## rooftops above have their own geometry in the way.
+const FLOOR_Y: float = 344.0
 
 var _failures: int = 0
 var _stage: Node2D

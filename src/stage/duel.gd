@@ -6,8 +6,14 @@ extends Node2D
 ## bodies. Nothing above it knows a Player node exists, which is what keeps the
 ## autoloads testable without a tree.
 
-const ARENA: Vector2i = Vector2i(50, 22)
-const SPAWNS: Array[Vector2] = [Vector2(120, 220), Vector2(680, 220)]
+## Rooftop Rumble, Small size for 1v1 (DESIGN 6.1: ~40x24 tiles, sealed).
+const ARENA: Vector2i = Vector2i(40, 24)
+## Opposite rooftops (DESIGN 6.1: team spawns on opposite sides).
+const SPAWNS: Array[Vector2] = [Vector2(128, 248), Vector2(512, 248)]
+const SKY: Array[Color] = [
+	Color(0.10, 0.06, 0.19), Color(0.16, 0.11, 0.29),
+	Color(0.23, 0.18, 0.39), Color(0.42, 0.18, 0.36),
+]
 ## Seat rosters. Hero select fills these in from M3's screen; until it exists the
 ## arena picks trios that are visually distinct from each other.
 const SEAT_ROSTERS: Array = [
@@ -25,6 +31,7 @@ const TERRAIN_COLOR: Color = Color(0.16, 0.18, 0.28)
 @onready var readout: Label = %Readout
 @onready var banner: Label = %Banner
 
+var _ground_tex: Texture2D = load("res://assets/stages/tile_ground.png")
 var _blocks: Array[Rect2] = []
 var _events: Array[String] = []
 ## player_id -> seconds until their next hero arrives.
@@ -69,23 +76,34 @@ func _spawn_all() -> void:
 		players[i].respawn_at(SPAWNS[i])
 		players[i].equip_hero(MatchState.active_hero(i))
 
-## Symmetric sealed box (DESIGN 6.1): mirrored spawn ledges to open from, a high
-## centre platform worth contesting, and a pillar shaft where two players meet
-## in the air often enough to make wall-jump duels happen on purpose.
+## Rooftop Rumble: two facing rooftops over an open street, a contested high
+## slab between them, and the gap under that slab forming a shaft with two
+## facing walls 96px apart — close enough that two players climbing it meet, so
+## wall-jump duels (DESIGN 3.4) happen on purpose rather than by accident.
+##
+## Rooftops are slabs with air beneath rather than solid buildings: it keeps the
+## whole street open, which is what a stomp game needs. There is nowhere to fall
+## to — the box is sealed (DESIGN 6.1).
 func _arena_blocks() -> Array[Rect2]:
 	var t := float(Arena.TILE)
 	var blocks := Arena.sealed_box(ARENA)
 	blocks.append_array([
-		Rect2(96.0, 256.0, 128.0, t),
-		Rect2(576.0, 256.0, 128.0, t),
-		Rect2(352.0, 160.0, 96.0, t),
-		Rect2(288.0, 208.0, t, 128.0),
-		Rect2(496.0, 208.0, t, 128.0),
+		Rect2(48.0, 272.0, 160.0, t),    # left rooftop (spawn)
+		Rect2(432.0, 272.0, 160.0, t),   # right rooftop (spawn)
+		Rect2(256.0, 192.0, 128.0, t),   # contested high slab
+		Rect2(256.0, 208.0, t, 96.0),    # shaft wall, left face outward
+		Rect2(368.0, 208.0, t, 96.0),    # shaft wall, right face outward
+		Rect2(160.0, 336.0, 64.0, t),    # awning, street level
+		Rect2(416.0, 336.0, 64.0, t),    # awning, street level
 	])
 	return blocks
 
 func _draw() -> void:
-	Arena.draw(self, _blocks, TERRAIN_COLOR)
+	Arena.draw_sky(self, Vector2(ARENA) * float(Arena.TILE), SKY)
+	if _ground_tex != null:
+		Arena.draw_tiled(self, _blocks, _ground_tex)
+	else:
+		Arena.draw(self, _blocks, TERRAIN_COLOR)
 
 func _physics_process(delta: float) -> void:
 	for pid in _respawning.keys():

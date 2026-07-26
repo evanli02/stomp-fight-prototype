@@ -49,6 +49,7 @@ func _run() -> void:
 	await _check_stun_blocks_swap_and_ult()
 	await _check_cooldowns_tick_while_benched()
 	await _check_ultimate_economy()
+	await _check_abilities()
 	await _check_round_win_and_reset()
 
 ## Hero select's rules, driven directly rather than through synthetic button
@@ -218,6 +219,67 @@ func _check_ultimate_economy() -> void:
 	check("the other player's ultimate is untouched", MatchState.ult_available(1))
 	MatchState.reset_round()
 	check("the round reset restores the ultimate", MatchState.ult_available(0))
+
+## M4 abilities. The load-bearing check is the last one: whatever a hero does,
+## it cannot cost a life. Only stomps do that (CLAUDE.md rule 1).
+func _check_abilities() -> void:
+	MatchState.reset_round()
+	var lives_before := [
+		MatchState.lives_of(0, MatchState.active_hero(0)),
+		MatchState.lives_of(1, MatchState.active_hero(1)),
+	]
+	_p1.global_position = Vector2(300, 300)
+	_p2.global_position = Vector2(360, 300)
+	_p1.stun_remaining = 0.0
+	_p2.stun_remaining = 0.0
+	await step(2)
+
+	var fired_any := false
+	for hero_id in GameManager.roster_ids():
+		MatchState.reset_round()
+		# Force the hero onto seat 0 even if it is not in that seat's trio: this
+		# is about the abilities, not about roster legality.
+		_p1.equip_hero(hero_id)
+		await step(2)
+		var ability := _p1.equipped_ability()
+		check("%s equips an ability component" % hero_id, ability != null)
+		if ability == null:
+			continue
+		check("%s ability is not flagged as an ultimate" % hero_id, not ability.is_ultimate)
+		var ok: bool = _p1.try_ability()
+		fired_any = fired_any or ok
+		check("%s ability fires" % hero_id, ok)
+		check("%s ability goes on cooldown" % hero_id,
+			not MatchState.is_ability_ready(0, hero_id),
+			"remaining=%.2f" % MatchState.cooldown_remaining(0, hero_id))
+		check("%s ability is refused while on cooldown" % hero_id, not _p1.try_ability())
+		check("%s ultimate fires once" % hero_id, _p1.try_ultimate())
+		check("%s ultimate is spent" % hero_id, not MatchState.ult_available(0))
+		check("%s ultimate is refused twice" % hero_id, not _p1.try_ultimate())
+		await step(4)
+
+	check("abilities actually fired", fired_any)
+	# Rapid Fire / Double Trouble both hang off the same waiver mechanism.
+	MatchState.reset_round()
+	_p1.equip_hero(&"deadeye")
+	await step(2)
+	_p1.try_ability()
+	check("deadeye is on cooldown before the ult",
+		not MatchState.is_ability_ready(0, &"deadeye"))
+	_p1.try_ultimate()
+	await step(1)
+	check("rapid fire waives the cooldown", _p1.equipped_ability().waived(),
+		"remaining=%.2f uses=%d" % [_p1.equipped_ability().waive_remaining,
+			_p1.equipped_ability().waive_uses])
+	check("a waived ability fires while still on cooldown", _p1.try_ability())
+
+	await step(60)
+	check("no ability took a life",
+		MatchState.lives_of(0, MatchState.active_hero(0)) == lives_before[0]
+		and MatchState.lives_of(1, MatchState.active_hero(1)) == lives_before[1],
+		"p1=%d p2=%d" % [MatchState.lives_of(0, MatchState.active_hero(0)),
+			MatchState.lives_of(1, MatchState.active_hero(1))])
+	MatchState.reset_round()
 
 func _check_round_win_and_reset() -> void:
 	MatchState.reset_round()
