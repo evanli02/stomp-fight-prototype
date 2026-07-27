@@ -26,24 +26,32 @@ if (-not (Test-Path $Godot)) {
 
 # Export templates are a separate ~1GB download and are NOT in the repo. Without
 # them the export silently produces nothing useful, so check first.
+# Checked for the WINDOWS x86_64 release template specifically: the templates
+# folder existing proves nothing, since a partial download leaves it there with
+# the other platforms in it and the export then fails on the one file it needs.
 $templates = Join-Path $env:APPDATA "Godot\export_templates"
-$haveTemplates = (Test-Path $templates) -and ((Get-ChildItem $templates -ErrorAction SilentlyContinue).Count -gt 0)
+$needed = Join-Path $templates "4.7.1.stable\windows_release_x86_64.exe"
+$haveTemplates = Test-Path $needed
 if (-not $haveTemplates) {
-    Write-Host "No export templates installed." -ForegroundColor Red
-    Write-Host "Open Godot -> Editor -> Manage Export Templates -> Download and Install,"
-    Write-Host "or drop the 4.7.1.stable template folder into: $templates"
+    Write-Host "Windows export template missing:" -ForegroundColor Red
+    Write-Host "  $needed"
+    Write-Host "Open Godot -> Editor -> Manage Export Templates -> Download and Install."
     exit 1
 }
 
 if (-not $SkipTests) {
     Write-Host "Running harnesses..." -ForegroundColor Cyan
     foreach ($h in @("movement", "combat", "match", "terrain")) {
-        $output = & $Godot --headless --path . "tests/${h}_harness.tscn" 2>&1 | Out-String
+        # No `2>&1` on a native exe: Windows PowerShell 5.1 wraps each stderr line
+        # in an ErrorRecord and sets $? to false even on exit code 0, which with
+        # ErrorActionPreference=Stop aborts the build over nothing. The harnesses
+        # print their verdict on stdout, which is all this needs.
+        $output = (& $Godot --headless --path . "tests/${h}_harness.tscn") | Out-String
         $passes = ([regex]::Matches($output, "(?m)^PASS")).Count
         $bad = ([regex]::Matches($output, "(?m)^FAIL|SCRIPT ERROR")).Count
         if ($bad -gt 0) {
             Write-Host "  $h : $passes pass, $bad FAILED" -ForegroundColor Red
-            $output -split "`n" | Where-Object { $_ -match "^FAIL|SCRIPT ERROR" } | ForEach-Object { Write-Host "    $_" }
+            $output -split "`n" | Where-Object { $_ -match "^FAIL|SCRIPT ERROR" } | ForEach-Object { Write-Host ("    " + $_.Trim()) }
             Write-Host "Not building. Fix the failures or pass -SkipTests." -ForegroundColor Red
             exit 1
         }
@@ -56,7 +64,13 @@ if (-not $SkipTests) {
 Write-Host "Importing resources..." -ForegroundColor Cyan
 & $Godot --headless --path . --import | Out-Null
 
+# Godot reports export problems on stdout and still exits 0 in some cases, so the
+# check that matters is whether a file appeared - see below.
+
 New-Item -ItemType Directory -Force (Split-Path $Out) | Out-Null
+# Remove any previous build first: without this a failed export leaves the old
+# exe in place and the size check below happily reports success.
+if (Test-Path $Out) { Remove-Item $Out -Force }
 $mode = if ($Debug) { "--export-debug" } else { "--export-release" }
 Write-Host "Exporting ($mode) to $Out ..." -ForegroundColor Cyan
 & $Godot --headless --path . $mode "Windows Desktop" $Out
@@ -67,4 +81,4 @@ if (-not (Test-Path $Out)) {
 }
 $size = [math]::Round((Get-Item $Out).Length / 1MB, 1)
 Write-Host "Built $Out ($size MB)" -ForegroundColor Green
-Write-Host "Next: docs/PLAYTEST.md — add it to Steam as a non-Steam game, then Remote Play Together."
+Write-Host "Next: docs/PLAYTEST.md - add it to Steam as a non-Steam game, then Remote Play Together."

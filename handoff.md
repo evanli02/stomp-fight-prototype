@@ -232,6 +232,13 @@ approach in the game — with diagonals explicitly untouched.
   grep the output for `SCRIPT ERROR` as well as `FAIL`.
 - **`String(x)` is a constructor, not a cast** — it rejects a value that is already a String.
   Use `str(x)`. This one showed up as exactly the silent-pass above.
+- **Keep `.ps1` files pure ASCII.** Windows PowerShell 5.1 reads a script as the system ANSI
+  codepage unless the file has a BOM, so one UTF-8 em-dash in a comment becomes mojibake and
+  the parser dies on an unterminated string several lines later. `tools/build_windows.ps1` is
+  ASCII-only for this reason.
+- **Never `2>&1` a native exe in PowerShell 5.1.** It wraps each stderr line in an ErrorRecord
+  and sets `$?` false even on exit code 0 — with `ErrorActionPreference = "Stop"` that aborts
+  the script over nothing.
 - **`tests/test_match_state.gd` is a dead GUT stub.** GUT is not installed and is not used. It
   logs one harmless parse error on load. Ignore it, or delete it if it keeps causing confusion.
 

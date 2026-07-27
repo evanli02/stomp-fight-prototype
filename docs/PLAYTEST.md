@@ -47,7 +47,11 @@ harnesses cost fifteen seconds. `-SkipTests` overrides that; `-Debug` builds a
 debug export instead (slower, but it prints errors to a console window, which is
 what you want the first time something goes wrong on someone else's input).
 
-Output is `build/Overstomp.exe`, self-contained — the `.pck` is embedded, so it
+If PowerShell refuses to run it at all, it is the execution policy, not the
+script — the `-ExecutionPolicy Bypass` above is what handles that, so run it
+exactly as written rather than double-clicking the file.
+
+Output is `build/Overstomp.exe` (~105 MB), self-contained — the `.pck` is embedded, so it
 is the only file you need. `build/` is gitignored.
 
 ### 3. Add it to Steam
