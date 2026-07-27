@@ -12,7 +12,7 @@ Engine: Godot 4.4+ (GDScript)
 1. **The stomp is sacred.** Only a head-stomp removes a life. Abilities and ultimates create openings; they never kill directly.
 2. **Movement is the skill ceiling.** Momentum, b-hops, wall-jump chains, and dash management separate good players from great ones.
 3. **Heroes are utility, not stats.** All heroes share identical movement, hitboxes, and hurtboxes. A hero is exactly one ability + one ultimate.
-4. **Rounds are drafts.** Picking 3 heroes per round, swapping freely mid-round, and spending one shared ultimate per round is the strategic layer.
+4. **Rounds are drafts.** Picking 3 heroes per round, swapping freely mid-round, and spending two shared ultimates per round is the strategic layer.
 
 ---
 
@@ -137,7 +137,7 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 
 ### 5.1 Design constraints
 - Identical: movement stats, hitboxes, hurtboxes, stompboxes, silhouette size (32×48 logical px).
-- Distinct: **1 ability** (cooldown-based, ~6–12 s) + **1 ultimate** (once per round per player).
+- Distinct: **1 ability** (cooldown-based, ~6–12 s) + **1 ultimate** (the player gets two activations per round, shared across their 3 heroes — see §2.3).
 - Abilities provide **positioning utility**: self-buffs, mobility, terrain creation/modification, crowd control (stuns/knockback), zoning. They must never directly remove a life.
 - Aimable abilities use the shared aim vector (cursor / right stick).
 

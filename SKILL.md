@@ -19,7 +19,7 @@ Do not implement from memory of similar games; this game deviates from genre def
 ## Core invariants (echoed here because violations are the #1 failure mode)
 
 - Lives are removed by stomps **only**. No damage system exists.
-- Heroes differ **only** in ability + ultimate. One ultimate per player per round.
+- Heroes differ **only** in ability + ultimate (+ cosmetics). **Two** ultimates per player per round, ~10 s apart.
 - All feel numbers live in `.tres` configs, never in scripts.
 - Movement logic lives in the state machine under `src/player/states/`.
 - Stages are sealed; players can't die to the environment.
@@ -31,7 +31,7 @@ Do not implement from memory of similar games; this game deviates from genre def
 2. Create `src/heroes/resources/<hero>.tres` (HeroData: name, colors, ability scene, ult scene, cooldown).
 3. Implement ability + ultimate as `Ability` subclasses in `src/heroes/abilities/` using only the player's public API and scene-spawned effects.
 4. Add a `Hero(...)` entry to `assets/tools/generate_characters.py` — colors, build, head style, prop — then re-run it, `--import`, and `verify_frames.gd`. That produces all 16 animations and the SpriteFrames resource; point the hero's `.tres` at it. Register the hero in `GameManager.HERO_ROSTER`.
-5. Test in `playground.tscn`: verify the ability cannot remove a life under any circumstance and cooldown ticks while benched.
+5. Add the hero to the `_check_abilities` sweep expectations if it needs a special gate (`_can_fire` / `_cooldown_after_fire` / `_is_free_recast`), then run `match_harness` — it already fires every roster hero's ability and ultimate and asserts none of them can remove a life. Feel-test in `duel.tscn`.
 
 ### Add a terrain element
 1. Read DESIGN.md §6.2 and the `TerrainElement` contract in IMPLEMENTATION.md §4.
