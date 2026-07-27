@@ -1,6 +1,6 @@
 # Overstomp — Session Handoff
 
-Written 2026-07-26, at commit `64e08b6`. This file exists so a **fresh session can pick the
+Written 2026-07-26, updated through the M5 close-out. This file exists so a **fresh session can pick the
 project up cold**. It is the "what happened and what will bite you" document; it is *not* a
 spec. Precedence when they disagree:
 
@@ -21,15 +21,15 @@ Milestones M1–M5 from `docs/IMPLEMENTATION.md` §7 are **done and playable end
 | M2 | Stomp resolution, lives, stun/grace, duels | done |
 | M3 | Rosters, swap, cooldowns, ult economy, HUD, round loop, hero select | done |
 | M4 | Four hero kits + Rooftop Rumble stage | done, then reworked twice |
-| M5 | Eight terrain elements + `PoleClimb` state, stage dressed | done |
+| M5 | Eight terrain elements + `PoleClimb`, two stages, stage select | done |
 | — | Art overhaul: chibi proportions, 8 heroes, VFX, UI pass | done |
 
-You can boot `src/main.tscn`, pick heroes, play rounds, and finish a match. What follows M5 is
-**not started**: 2v2/3v3 team play beyond the data model, more stages, menus/options, audio,
-netcode.
+You can boot `src/main.tscn`, pick heroes, pick a stage, play rounds, and finish a match. What
+follows M5 (that is, all of M6) is **not started**: 2v2/3v3 team play beyond the data model,
+lobby options, audio, netcode.
 
-All four harnesses are green as of this commit — **movement 72, combat 41, match 134,
-terrain 24 = 271 checks**, zero script errors.
+All four harnesses are green — **movement 72, combat 41, match 146, terrain 35 = 294 checks**,
+zero script errors.
 
 ---
 
@@ -63,10 +63,15 @@ python assets/tools/generate_characters.py
 
 Human-playable scenes:
 
-- `src/main.tscn` — the real shell: hero select → match → results.
+- `src/main.tscn` — the real shell: hero select → stage select → match → results.
 - `src/stage/duel.tscn` — Rooftop Rumble, two players, straight into a fight. **This is the
   scene to use for feel-testing.**
+- `src/stage/cryo_lab.tscn` — the second stage: ice, a timed laser grid, a portal pair.
 - `src/stage/playground.tscn` — flat debug box with the state/velocity overlay.
+
+Booting a stage directly (F6) skips the select screens by design: `start_match`'s
+`use_stage_select` defaults to false, so a stage that is already loaded never asks which stage
+to load.
 
 ---
 
@@ -111,7 +116,12 @@ grace, anti-chain and victim authority intact. `combat_harness.gd` asserts both 
 - **Effects** are self-contained scenes/scripts in `src/heroes/effects/` that draw themselves
   in `_draw()`. No art assets involved.
 - **Terrain** implements the `TerrainElement` contract (`tick`, `on_body_entered`, …) —
-  ice, pole, portal, speed pad, jump spring, stun line, wind zone, explosion.
+  ice, pole, portal, speed pad, jump spring, stun line, wind zone, explosion. `StunLine` also
+  takes an optional duty cycle, which is what makes Cryo Lab's grid a rhythm rather than walls.
+- **Stages** are `MatchStage` (`src/stage/match_stage.gd`) plus a subclass supplying layout,
+  terrain and palette only — the base owns seats, the round loop, respawns and the overlay.
+  Registered in `GameManager.STAGE_ROSTER`, which also carries the name/blurb/features/accent
+  the select screen draws, so a menu never has to instantiate a stage to describe it.
 - **Debuffs** are a small shared system on `Player`: `apply_slow`, `apply_impairment`,
   `apply_disrupt`, `apply_freeze`, each taking a **source tag**. `src/ui/debuff_marks.gd`
   renders one badge per active tag, distinguished by **shape first** (slash / bolt / chain /
@@ -212,6 +222,11 @@ approach in the game — with diagonals explicitly untouched.
   root or pass an absolute `--path`.
 - **Use the Write tool for large files, not heredocs** — long `cat > f <<EOF` bodies failed with
   "unexpected EOF".
+- **A script error inside a harness check does not fail the run.** The error aborts that check
+  and the run still prints `ALL CHECKS PASSED`, because `_failures` never incremented. Always
+  grep the output for `SCRIPT ERROR` as well as `FAIL`.
+- **`String(x)` is a constructor, not a cast** — it rejects a value that is already a String.
+  Use `str(x)`. This one showed up as exactly the silent-pass above.
 - **`tests/test_match_state.gd` is a dead GUT stub.** GUT is not installed and is not used. It
   logs one harmless parse error on load. Ignore it, or delete it if it keeps causing confusion.
 
@@ -240,11 +255,18 @@ checklist covering the traps above.
 
 ---
 
-**Follow-up pass (this commit).** Slip's rewind stopped replaying her recorded path and became
+**Follow-up fix pass.** Slip's rewind stopped replaying her recorded path and became
 a plain teleport to the anchor — the replay was too fragile to keep (see `recall.gd` for the
 reasoning). Terra's ult travels 50% faster (480 → 720 px/s). Sai's grapple cooldown cut a third
 (7.0 → 4.7 s). The jump got taller: full-hold apex 4.5 → 5.5 tiles (+23%), initial impulse
 −268 → −285, gravity 1800 → 1900 so the extra height is not spent floating back down.
+
+**M5 close-out.** Split `duel.gd` into `MatchStage` + Rooftop Rumble, built Cryo Lab on top of
+it, gave `StunLine` a duty cycle, added the stage registry and the stage-select screen, and
+wired the shell to route every round through it (round 1 to the coinflip winner, later rounds
+to whoever just lost). Harness coverage came with it: the timed-line case that matters (a body
+already standing in a line when it comes back on), Cryo Lab as a whole stage over several grid
+cycles, the registry, and the phase order around `choose_stage`.
 
 ---
 
@@ -253,12 +275,14 @@ reasoning). Terra's ult travels 50% faster (480 → 720 px/s). Sai's grapple coo
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
 makes sense:
 
-1. **Feel-test the last tuning pass in `duel.tscn`** — the debuff buffs, the dive-dash nerf and
-   Sai's swing speed were verified by harness, but only a human can say whether they're right.
-2. **2v2 / 3v3.** The data model already carries teams; what's missing is spawns, the HUD
-   layout, and friendly-fire rules per DESIGN §2.
-3. **A second stage.** Rooftop Rumble is the only real one; the terrain elements exist and are
-   tested, so this is mostly composition.
-4. **Audio** — there is none at all yet.
-5. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
+1. **Feel-test both stages and the last tuning pass in `duel.tscn`** — the taller jump, the
+   debuff buffs, the dive-dash nerf and Sai's swing speed all pass their harness checks, but
+   only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
+   is the single most likely thing to be wrong by feel.
+2. **2v2 / 3v3** (M6). The data model already carries teams; what's missing is spawns, the HUD
+   layout, and friendly-fire rules per DESIGN §2. Two known TODOs point here: which player on
+   a multi-player team holds the stage-pick cursor (`MatchState.stage_picker`,
+   `stage_select.gd`), and per-match RNG seeding in `GameManager._ready`.
+3. **Audio** — there is none at all yet.
+4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.

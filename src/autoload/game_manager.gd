@@ -23,6 +23,32 @@ const HERO_ROSTER: Dictionary = {
 	&"kid": "res://src/heroes/resources/kid.tres",
 }
 
+## Registered stages. Extend via SKILL.md "Add a stage"; order here is the order
+## they appear on the select screen.
+##
+## Name, blurb and features live here rather than on the stage script so the
+## select screen can describe a stage without instantiating it — instantiating
+## one builds its geometry, spawns two bodies and starts a match, which is not
+## something a menu should be doing to draw a card. The stage script reads its
+## own name back out of here (MatchStage.stage_name), so there is still one
+## source of truth.
+const STAGE_ROSTER: Dictionary = {
+	&"rooftop_rumble": {
+		"scene": "res://src/stage/duel.tscn",
+		"name": "Rooftop Rumble",
+		"blurb": "Open street, high slab, one narrow shaft.",
+		"features": "poles · springs · updraft",
+		"accent": Color(0.63, 0.24, 0.47),
+	},
+	&"cryo_lab": {
+		"scene": "res://src/stage/cryo_lab.tscn",
+		"name": "Cryo Lab",
+		"blurb": "Ice underfoot and a laser grid on a clock.",
+		"features": "ice · timed lasers · portal pair",
+		"accent": Color(0.18, 0.89, 0.90),
+	},
+}
+
 ## How long the results banner holds before the next round. Presentation pacing,
 ## not a feel number.
 const RESULTS_TIME: float = 2.5
@@ -36,8 +62,14 @@ var best_of: int = 3            # 1, 3, or 5
 
 var round_index: int = 0
 var coinflip_winner_team: int = 0
+## The stage the current round is on. Stages booted standalone never change it,
+## which is why it has a sensible default rather than being empty.
+var current_stage: StringName = &"rooftop_rumble"
 var _results_remaining: float = 0.0
 var _hero_cache: Dictionary = {}
+## Whether this match routes through the stage-select screen between rounds.
+## Off for harnesses and F6 boots, which have no shell to show one.
+var _stage_select_enabled: bool = false
 
 func _ready() -> void:
 	rng.seed = hash("overstomp")  # TODO(M6): seed per match, share for netcode
@@ -77,6 +109,27 @@ func roster_ids() -> Array[StringName]:
 	return out
 #endregion
 
+#region Stage registry
+func stage_ids() -> Array[StringName]:
+	var out: Array[StringName] = []
+	for id in STAGE_ROSTER:
+		out.append(id)
+	return out
+
+## One field of a registered stage, or the fallback for an unknown id. Debug
+## scenes run stages that were never registered, so this does not assert.
+func stage_info(stage_id: StringName, key: String, fallback: Variant = "") -> Variant:
+	if not STAGE_ROSTER.has(stage_id):
+		return fallback
+	return STAGE_ROSTER[stage_id].get(key, fallback)
+
+func stage_scene(stage_id: StringName) -> PackedScene:
+	var path: String = stage_info(stage_id, "scene", "")
+	if path.is_empty():
+		return null
+	return load(path) as PackedScene
+#endregion
+
 #region Match flow
 func set_phase(p: Phase) -> void:
 	phase = p
@@ -91,13 +144,32 @@ func begin_hero_select() -> void:
 
 ## Begin a match from an already-picked set of rosters: player_id -> hero ids.
 ## Hero select supplies these; arenas run standalone by calling this themselves.
-func start_match(rosters: Dictionary, teams: Dictionary) -> void:
+##
+## `use_stage_select` is off by default so that a stage booted with F6, and every
+## harness, still drops straight into a round — they are already sitting in a
+## stage, so asking them which one to load would deadlock. The shell turns it on.
+func start_match(rosters: Dictionary, teams: Dictionary,
+		use_stage_select: bool = false) -> void:
 	MatchState.clear_players()
 	MatchState.round_wins.clear()
 	round_index = 0
 	for pid in rosters:
 		MatchState.register_player(pid, teams[pid], rosters[pid])
 	coinflip_winner_team = coinflip(0, 1)
+	_stage_select_enabled = use_stage_select
+	if use_stage_select:
+		begin_stage_select()
+	else:
+		start_round()
+
+func begin_stage_select() -> void:
+	set_phase(Phase.STAGE_SELECT)
+
+## Lock in the stage for the round about to start (DESIGN 2.2). An unknown id
+## leaves the previous stage standing rather than loading nothing.
+func choose_stage(stage_id: StringName) -> void:
+	if STAGE_ROSTER.has(stage_id):
+		current_stage = stage_id
 	start_round()
 
 func start_round() -> void:
@@ -121,7 +193,10 @@ func _advance_after_results() -> void:
 			match_won.emit(team)
 			return
 	round_index += 1
-	start_round()
+	if _stage_select_enabled:
+		begin_stage_select()
+	else:
+		start_round()
 
 func coinflip(player_a: int, player_b: int) -> int:
 	return player_a if rng.randi() % 2 == 0 else player_b

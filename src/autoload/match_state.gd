@@ -199,6 +199,11 @@ func stage_picker(round_index: int, coinflip_winner: int) -> int:
 	## round — TODO(M6): resolve which player on multi-player teams.
 	if round_index == 0:
 		return coinflip_winner
+	# No loser on record means the previous round never resolved through
+	# round_won — a debug jump, or a match restarted mid-round. Fall back rather
+	# than hand a caller -1, which would index a seat that does not exist.
+	if last_round_loser_team < 0:
+		return coinflip_winner
 	return last_round_loser_team
 
 func reset_round() -> void:

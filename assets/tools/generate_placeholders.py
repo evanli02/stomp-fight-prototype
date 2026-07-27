@@ -80,6 +80,15 @@ def make_tiles() -> None:
         c.rect(0, 0, 15, 3, "#3b2d63")
         c.rect(0, 0, 15, 0, "#a03e78")
 
+    def lab(c: Canvas) -> None:
+        # Cryo Lab's structure tile: cold steel plate, not the rooftop's brick.
+        c.rect(0, 0, 15, 15, "#122430")
+        c.rect(0, 0, 15, 3, "#1b3a49")
+        c.rect(0, 0, 15, 0, "#2de2e6")
+        for x in (3, 12):
+            c.put(x, 8, "#2a4d5e")
+            c.put(x, 12, "#2a4d5e")
+
     def ice(c: Canvas) -> None:
         c.rect(0, 0, 15, 15, "#2e5a66")
         c.rect(0, 0, 15, 2, "#7df9ff")
@@ -125,6 +134,7 @@ def make_tiles() -> None:
         c.rect(6, 2, 9, 4, "#ffd23f")
 
     tile("ground", ground)
+    tile("lab", lab)
     tile("ice", ice)
     tile("stun_line", stun_line)
     tile("spring", spring)

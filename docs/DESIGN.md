@@ -199,7 +199,7 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 
 ### 6.3 Launch stages (vertical slice: first 2)
 1. **Rooftop Rumble** (Small) — city rooftops at dusk; poles (antennas), springs (awnings), one wind corridor between buildings.
-2. **Cryo Lab** (Small/Medium) — ice floors, stun-line laser grid on a timer, portal pair.
+2. **Cryo Lab** (Medium, 56×32) — a sealed cryogenics floor. Ice on the outer thirds of the floor and on both mid benches, the centre deliberately grippy so there is somewhere to plant a stomp from; a four-line laser grid on one 3 s clock with staggered phases; one portal pair at floor level against opposite walls, both facing the same way so a full-speed run comes out the far side at the same speed. A containment cell in the middle is the contested platform, with a 128 px wall-jump shaft hanging under it.
 3. **Powerplant** (Medium) — conveyor belts, periodic explosion vents, sticky walls.
 4. **Skyline Gardens** (Large) — rotating platforms, wind updrafts, bumper orbs, many one-ways.
 

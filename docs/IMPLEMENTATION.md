@@ -21,19 +21,19 @@ overstomp/
 │   ├── config/                # movement_config.tres, combat_config.tres (created M1)
 │   ├── player/                # player.tscn/.gd + states/ (movement state machine)
 │   ├── heroes/                # HeroData resources + abilities/ + effects/
-│   ├── stage/                 # Stage scenes + terrain/ element scenes
+│   ├── stage/                 # match_stage.gd base + stage scenes + terrain/ elements
 │   └── ui/                    # HUD, hero select, stage select, lobby
 ├── assets/                    # Pixel art (characters/<hero>/, abilities/, stages/, palettes/)
 │   ├── STYLE_GUIDE.md
 │   └── tools/                 # pixel.py canvas + the two generators (stdlib only)
-└── tests/                     # GUT unit tests for pure-logic systems
+└── tests/                     # Headless harnesses (movement, combat, match, terrain)
 ```
 
 ## 2. Autoloads (singletons)
 
 | Autoload | Responsibility |
 |---|---|
-| `GameManager` (`src/autoload/game_manager.gd`) | Match lifecycle: lobby config → round loop (hero select → stage select → combat → results). Owns the seeded RNG, the hero roster registry (`hero_data(id)`, cached), and the results countdown. **Ticks ability cooldowns, and only during `ROUND_ACTIVE`** — so nothing burns down behind a results banner. Holds no scene references. |
+| `GameManager` (`src/autoload/game_manager.gd`) | Match lifecycle: lobby config → round loop (hero select → stage select → combat → results). Owns the seeded RNG, the hero roster registry (`hero_data(id)`, cached), the stage registry (`STAGE_ROSTER`, `stage_ids()`, `stage_info()`, `stage_scene()`, `current_stage`), and the results countdown. **Ticks ability cooldowns, and only during `ROUND_ACTIVE`** — so nothing burns down behind a results banner. Holds no scene references. |
 | `MatchState` (`src/autoload/match_state.gd`) | Single source of truth for: per-player rosters, active hero, per-hero lives, eliminations, **per-hero ability cooldowns**, ultimate availability, round wins, coinflip/stage-pick ownership. Pure data + signals; no scene refs. Fully testable without a tree. |
 | `InputConfig` (`src/autoload/input_config.gd`) | Per-seat action namespaces (`p0_jump`, `p1_jump`, … — always via `action(player_id, base)`), device assignment (`assign_device`, seat 0 KBM / seat 1 pad by default), the R2+L2 ultimate chord resolver, and the shared aim-vector provider. `poll(player_id, body)` returns an `InputFrame` (`src/autoload/input_frame.gd`) — the one place gameplay reads inputs, so a rollback layer can swap the source (§9) — and is memoised per tick, so the chord state advances exactly once a frame. Rebind persistence to `user://input.cfg` lands with the rebind UI (M6). |
 
@@ -121,6 +121,14 @@ state; it is called from `Player._ready()` so the player's `@onready` refs are l
 - Contact bookkeeping the states read: `time_since_landing`, `time_since_wall_contact`, `wall_normal`, `wall_player` (the other player being used as a wall, if any), `wall_jump_chain`, `coyote_remaining`, `landing_settled`.
 - `fall_speed_memory` — downward speed carried into the current contact, held for `stomp_fall_memory_time` and only charged while airborne. Stomp detection reads it instead of `velocity.y`, because the collision that ends a fall zeroes the velocity a frame before the feet/head areas report their overlap.
 
+## 3a. Stage architecture
+
+Every playable stage is `MatchStage` (`src/stage/match_stage.gd`) plus a subclass that supplies **only** its layout, terrain and palette. The base owns the parts that are the same everywhere: seats and spawns, the round loop, respawn timers, the MatchState/GameManager signal wiring, the sealed-box draw, and the debug overlay.
+
+Subclass hooks: `stage_id()`, `arena_size()`, `spawns()`, `arena_blocks()`, `build_terrain()`, `sky_bands()`, `horizon()`, `ground_fill()`, `ground_texture()`, `cap_color()`. The base never reads a subclass field directly, so a stage may compute its layout however it likes. Two ship today — `duel.tscn` (Rooftop Rumble) and `cryo_lab.tscn` — and each is under 90 lines because of the split.
+
+Stage collision is still a list of `Rect2` built in code by `Arena` (`arena.gd`) rather than a TileMap: the geometry stays retunable between runs without opening the editor, and the harnesses assert against a plain list. `Arena.sealed_box()` is what makes "stages are sealed" (DESIGN 6.1) true by construction rather than by inspection.
+
 ## 4. Terrain contract
 
 Every element in `src/stage/terrain/` extends `TerrainElement` (`terrain_element.gd`):
@@ -139,6 +147,8 @@ Two live TerrainElements ship in `src/heroes/effects/`, both placed by Mason. `B
 Both re-scan overlaps every physics tick with a per-player re-trigger gap rather than listening for `body_entered`. A player already inside an area cannot "enter" it again, which is exactly how the first version let people walk through.
 
 **The base owns detection.** `TerrainElement` builds its own Area2D from an exported `size` and re-scans overlaps every physics tick, synthesising `on_body_entered` / `on_body_exited` / `physics_effect` from the scan. It does not use Godot's enter/exit signals: a body already inside an area cannot "enter" it again, and half these elements care about bodies sitting still inside them. Elements override behaviour only, plus `tick()` for logic that needs no body (explosion timers).
+
+`StunLine` also carries an optional duty cycle (`cycle_time`, `on_ratio`, `phase_offset`, `warn_time`), which is what makes Cryo Lab's laser *grid* a rhythm rather than a set of walls. A timed line applies its stun from `physics_effect` rather than `on_body_entered`, because the case that matters is the body that walked in while the line was dark and is still standing there when it comes back on. Always-on is the default and behaves exactly as before.
 
 All eight core elements are implemented (M5): pole, ice, stun_line, jump_spring, speed_pad, portal, wind_zone, explosion. Extras from DESIGN §6.2 (conveyor, crumble, sticky wall, one-way, rotator, bumper) follow the same contract.
 
@@ -181,23 +191,27 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 - Stage pick ownership: round 1 = seeded coinflip winner; later = loser of previous round (`MatchState.stage_picker()`).
 - Round reset: lives → 2×3, cooldowns cleared, ultimate restored, active hero back to the first pick.
 - **Who calls what:** the arena owns the bodies and calls `GameManager.end_round()` when it has shown the result; GameManager holds `RESULTS_TIME`, then either starts the next round (`round_started`) or ends the match (`match_won`). GameManager never touches a node — that separation is what lets the match harness drive whole rounds without a stage.
-- Implemented as of M3: hero select, `start_match`, the round loop, results countdown, best-of resolution. **Not yet: stage select** — it needs more than one stage to mean anything, so it lands with M5.
-- **Scene ownership**: `main.tscn` (`src/main.gd`) is the shell that turns phases into scenes — hero select, then the arena. It is deliberately tiny, and nothing else routes through it: arenas and harnesses instantiate their own scenes directly. An arena finding `MatchState.players` empty starts its own match from a fallback roster, which is what keeps F6-into-a-stage and the harnesses working without a shell.
+- Implemented: hero select, stage select, `start_match`, the round loop, results countdown, best-of resolution.
+- **Stage registry**: `GameManager.STAGE_ROSTER` maps a stage id to its scene *and* its display name, blurb, feature list and accent. The metadata lives there rather than on the stage script so the select screen can describe a stage without instantiating it — instantiating one builds geometry, spawns two bodies and starts a match, which is not something a menu should do to draw a card. A stage script declares only its `stage_id()` and reads its name back out of the registry, so there is still one source of truth.
+- **Stage select is opt-in**: `start_match(rosters, teams, use_stage_select)` defaults to *false*, which sends harnesses and F6-into-a-stage boots straight into a round — they are already sitting in a stage, so asking them which one to load would deadlock. The shell passes `true`, and from then on every round routes back through `STAGE_SELECT` before `start_round()`.
+- **Scene ownership**: `main.tscn` (`src/main.gd`) is the shell that turns phases into scenes — hero select, stage select, then the stage. It is deliberately tiny, and nothing else routes through it: stages and harnesses instantiate their own scenes directly. A stage finding `MatchState.players` empty starts its own match from a fallback roster, which is what keeps F6-into-a-stage and the harnesses working without a shell. The shell swaps the stage in on `round_started`, **not** on the `ROUND_ACTIVE` phase change: a stage's `_ready` spawns the round itself when it finds the signal has already gone out, and arriving one step later is what makes that the branch it takes.
+- **Stage select** (`src/ui/stage_select.tscn`) polls only the picking seat, on the physics tick for the same reason hero select does. Its cursor starts on the stage already loaded, so "keep playing here" is the zero-input answer and the timeout never feels like it stole a pick.
 - **Hero select** (`src/ui/hero_select.tscn`) polls per-seat input on the *physics* tick, because `InputConfig` memoises one `InputFrame` per physics tick and polling from `_process` would replay the same "just pressed" edge once per rendered frame. A `SELECT_TIME` countdown auto-fills any seat that has not finished — which is also what covers a seat with no controller plugged in.
 
 ## 7. Milestone order (build in this order)
 
 1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
-3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, one-ult-per-round, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select is deferred to M5, when there is more than one stage to pick between. The human pass on the full flow still has to sign off.*
+3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, two ults per round with a 10 s gap, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select landed with M5, when there was more than one stage to pick between. The human pass on the full flow still has to sign off.*
 4. **M4 — Heroes**: full roster of EIGHT implemented and verified headlessly (2026-07-26): Deadeye, Fei, Mason, Cerebelle, Sai, Slip, Terra, Kid. Two ultimates use free-recast (`Ability._is_free_recast`), one ability is multi-stage (`_cooldown_after_fire`), one is air-gated (`_can_fire`). Terra's slam kill routes through the ordinary stomp system — no exception to rule 1 exists anywhere. Human pass outstanding.
-5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab. *All 8 elements implemented and verified headlessly (2026-07-26), plus the PoleClimb state they needed. Rooftop Rumble (`duel.tscn`) is built and dressed with the terrain DESIGN 6.3 calls for — antennas, awning springs, one wind corridor. **Outstanding: Cryo Lab, and a stage-select screen once there are two stages to pick between.***
-6. **M6 — Formats & polish**: 2v2/3v3, stage select flow, Bo3/Bo5, VFX/SFX pass, remaining heroes/stages.
+5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab. *Complete and verified headlessly (2026-07-26). All 8 elements plus the PoleClimb state they needed; Rooftop Rumble (`duel.tscn`) dressed with antennas, awning springs and a wind corridor; Cryo Lab (`cryo_lab.tscn`) built from ice, a timed laser grid and a portal pair; and the stage-select screen now that there are two stages to pick between. The generic half of a stage was lifted into `MatchStage` at the same time, so a third stage is layout and palette only. Human pass on both stages outstanding.*
+6. **M6 — Formats & polish**: 2v2/3v3, Bo3/Bo5 lobby options, VFX/SFX pass, remaining heroes/stages.
 
 ## 8. How to update this document
 
 Update **in the same commit** as the code change:
 - New/changed **autoload** → §2 table.
+- New **stage** → register it in `GameManager.STAGE_ROSTER` (with name/blurb/features/accent) and add a row to DESIGN §6.3; §3a if the `MatchStage` hooks changed.
 - New **state** or transition → §3 tree (and mention the exit conditions).
 - New **public API** method on Player → §3 API list (abilities depend on this being complete).
 - New **terrain element** → §4 implemented list.

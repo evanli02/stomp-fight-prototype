@@ -75,6 +75,7 @@ func _settle(at: Vector2, velocity: Vector2) -> void:
 
 func _run() -> void:
 	await _check_stun_line()
+	await _check_timed_stun_line()
 	await _check_jump_spring()
 	await _check_speed_pad()
 	await _check_wind_zone()
@@ -83,6 +84,7 @@ func _run() -> void:
 	await _check_explosion()
 	await _check_pole()
 	await _check_nothing_took_a_life()
+	await _check_cryo_lab()
 
 func _check_stun_line() -> void:
 	var lives_before := lives()
@@ -95,6 +97,37 @@ func _check_stun_line() -> void:
 	check("the stun line costs no life", lives() == lives_before)
 	# Momentum kept, head hurtbox still live — this is a setup tool, not a shield.
 	check("a stun line leaves the head hurtbox active", _p.head_hurtbox.monitorable)
+	line.queue_free()
+	await step(2)
+
+## A line on a duty cycle (Cryo Lab's grid). The case that matters is the body
+## standing in a dark line when it comes back on: entry already happened, so an
+## enter-driven hazard would never touch it (CLAUDE.md: body_entered misses
+## bodies already inside).
+func _check_timed_stun_line() -> void:
+	var lives_before := lives()
+	await park(Vector2(TEST_X, FLOOR_Y))
+	var line := StunLine.new()
+	line.cycle_time = 1.0
+	line.on_ratio = 0.4
+	line.phase_offset = 0.6      # starts dark, roughly half its off-phase in
+	line.retrigger = 0.2
+	await place_element(line, Vector2(TEST_X, FLOOR_Y), Vector2(64, 8))
+	check("a timed line starts dark on a dark phase", not line.is_live())
+	await step(2)
+	check("a dark line does not stun", is_zero_approx(_p.stun_remaining),
+		"stun=%.2f" % _p.stun_remaining)
+
+	# Stand still and wait for it to come back on. The body never re-enters.
+	var caught := false
+	for i in 90:
+		await get_tree().physics_frame
+		if _p.stun_remaining > 0.0:
+			caught = true
+			break
+	check("a line that comes on catches a body already standing in it", caught,
+		"live=%s stun=%.2f" % [line.is_live(), _p.stun_remaining])
+	check("a timed line still costs no life", lives() == lives_before)
 	line.queue_free()
 	await step(2)
 
@@ -229,3 +262,61 @@ func _check_pole() -> void:
 func _check_nothing_took_a_life() -> void:
 	check("no terrain element removed a life",
 		lives() == MatchState.LIVES_PER_HERO, "lives=%d" % lives())
+
+## Cryo Lab, as a whole stage rather than element by element: it is the first
+## stage assembled from terrain rather than decorated with it, so the thing worth
+## asserting is that living in it for several grid cycles is survivable and
+## sealed.
+##
+## Rooftop Rumble comes down first — two stages in one physics world would have
+## their geometry overlapping, and every measurement after that is fiction.
+func _check_cryo_lab() -> void:
+	_stage.queue_free()
+	await step(2)
+	var lab := load("res://src/stage/cryo_lab.tscn").instantiate() as MatchStage
+	add_child(lab)
+	await step(2)
+
+	var ice := 0
+	var lines: Array[StunLine] = []
+	var portals: Array[Portal] = []
+	for child in lab.get_children():
+		if child is Ice:
+			ice += 1
+		elif child is StunLine:
+			lines.append(child)
+		elif child is Portal:
+			portals.append(child)
+	check("cryo lab lays down ice", ice >= 2, "sheets=%d" % ice)
+	check("cryo lab lays down a laser grid", lines.size() >= 3, "lines=%d" % lines.size())
+	check("cryo lab places exactly one portal pair", portals.size() == 2,
+		"portals=%d" % portals.size())
+	if portals.size() == 2:
+		check("the portal pair points at each other",
+			portals[0].get_node_or_null(portals[0].linked_portal) == portals[1]
+				and portals[1].get_node_or_null(portals[1].linked_portal) == portals[0])
+
+	# The grid has to actually toggle, or it is just walls with extra steps.
+	var seen_live := false
+	var seen_dark := false
+	var bounds := Vector2(lab.arena_size()) * float(Arena.TILE)
+	var lives_before := lives()
+	var escaped := ""
+	for i in 240:
+		await get_tree().physics_frame
+		if not lines.is_empty():
+			if lines[0].is_live():
+				seen_live = true
+			else:
+				seen_dark = true
+		for p: Player in lab.players:
+			var at := p.global_position
+			if at.x < 0.0 or at.y < 0.0 or at.x > bounds.x or at.y > bounds.y:
+				escaped = "%s outside %s" % [at, bounds]
+	check("the laser grid cycles", seen_live and seen_dark,
+		"live=%s dark=%s" % [seen_live, seen_dark])
+	check("cryo lab is sealed — nobody leaves the box", escaped.is_empty(), escaped)
+	check("nothing in cryo lab removed a life", lives() == lives_before,
+		"lives=%d" % lives())
+	lab.queue_free()
+	await step(2)

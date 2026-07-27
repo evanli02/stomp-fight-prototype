@@ -33,15 +33,22 @@ Do not implement from memory of similar games; this game deviates from genre def
 4. Add a `Hero(...)` entry to `assets/tools/generate_characters.py` — colors, build, head style, prop — then re-run it, `--import`, and `verify_frames.gd`. That produces all 16 animations and the SpriteFrames resource; point the hero's `.tres` at it. Register the hero in `GameManager.HERO_ROSTER`.
 5. Add the hero to the `_check_abilities` sweep expectations if it needs a special gate (`_can_fire` / `_cooldown_after_fire` / `_is_free_recast`), then run `match_harness` — it already fires every roster hero's ability and ultimate and asserts none of them can remove a life. Feel-test in `duel.tscn`.
 
+### Add a stage
+1. Read DESIGN.md §6.1 (sizes, sealed rule) and §6.3 for the stage's brief.
+2. New script in `src/stage/` extending `MatchStage`, overriding only `stage_id()`, layout (`arena_size`, `spawns`, `arena_blocks`), `build_terrain()`, and the palette hooks. Build collision with `Arena.sealed_box()` so the no-pits rule holds by construction. Do **not** copy the round loop — the base owns it.
+3. A matching `.tscn` with the script on the root, a Camera2D, two `%Player1`/`%Player2` instances at the spawns, the HUD CanvasLayer, and the Debug `%Readout`/`%Banner` labels. `cryo_lab.tscn` is the template.
+4. Register it in `GameManager.STAGE_ROSTER` with `scene`, `name`, `blurb`, `features`, `accent` — the select screen reads all five and never instantiates the stage.
+5. Add a case to `terrain_harness.gd` asserting the stage is sealed and that living in it costs no life, then run all four harnesses. Update DESIGN §6.3 and IMPLEMENTATION §3a in the same commit.
+
 ### Add a terrain element
 1. Read DESIGN.md §6.2 and the `TerrainElement` contract in IMPLEMENTATION.md §4.
 2. New scene in `src/stage/terrain/`, script extends the contract, all numbers exported or in config.
-3. Add to the playground stage for testing; document the element's row in DESIGN.md §6.2 if it's new.
+3. Add a case to `tests/terrain_harness.gd`; document the element's row in DESIGN.md §6.2 if it's new.
 
 ### Tune game feel
 1. Change values **only** in `src/config/*.tres` or hero resources.
 2. One concern per `tune:` commit with before → after values in the message.
-3. Validate with the playground scene's debug overlay (velocity/momentum/state readout).
+3. Validate with a stage's debug overlay (velocity/momentum/state readout) — `duel.tscn` for feel, `playground.tscn` for isolation.
 
 ### Movement changes
 1. New behavior = new state or transition in `src/player/states/`; update the state diagram in IMPLEMENTATION.md.
@@ -55,5 +62,5 @@ Any change to architecture, signals, contracts, or milestones must update `docs/
 - [ ] Ran the affected scene (or `playground.tscn`) without script errors.
 - [ ] No new hardcoded feel numbers in scripts.
 - [ ] CLAUDE.md checklist items relevant to the change re-verified.
-- [ ] GUT tests updated/added for pure-logic changes (`tests/`).
+- [ ] All four headless harnesses (`movement`, `combat`, `match`, `terrain`) run green — GUT is not installed here.
 - [ ] Docs updated if architecture changed.

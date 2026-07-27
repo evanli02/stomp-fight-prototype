@@ -51,6 +51,8 @@ func _run() -> void:
 	await _check_ultimate_economy()
 	await _check_abilities()
 	await _check_round_win_and_reset()
+	await _check_stage_registry()
+	await _check_stage_select_flow()
 
 ## Hero select's rules, driven directly rather than through synthetic button
 ## presses — the screen is a thin shell over these and the rules are the part
@@ -432,3 +434,80 @@ func _check_round_win_and_reset() -> void:
 		"lives=%d,%d" % [MatchState.lives_of(1, roster[0]), MatchState.lives_of(1, roster[2])])
 	check("round wins survive the reset", MatchState.wins_for(0) == wins_before + 1,
 		"wins=%d" % MatchState.wins_for(0))
+
+## The stage registry is what the select screen reads to draw a card without
+## instantiating a stage — an entry missing a field would surface as a blank
+## card at the worst possible moment rather than as an error.
+func _check_stage_registry() -> void:
+	var ids := GameManager.stage_ids()
+	check("more than one stage is registered", ids.size() >= 2, "ids=%s" % [ids])
+	var complete := true
+	var missing := ""
+	for id: StringName in ids:
+		for key: String in ["scene", "name", "blurb", "features"]:
+			# str(), not String() — String(x) is a constructor and rejects a
+			# value that is already a String.
+			if str(GameManager.stage_info(id, key, "")).is_empty():
+				complete = false
+				missing += " %s.%s" % [id, key]
+		if not (GameManager.stage_info(id, "accent", null) is Color):
+			complete = false
+			missing += " %s.accent" % id
+		if GameManager.stage_scene(id) == null:
+			complete = false
+			missing += " %s.scene(unloadable)" % id
+	check("every registered stage is fully described", complete, missing)
+	check("an unregistered id falls back rather than erroring",
+		GameManager.stage_info(&"not_a_stage", "name", "?") == "?")
+	check("an unregistered id loads no scene",
+		GameManager.stage_scene(&"not_a_stage") == null)
+
+## The stage-select round trip, driven through GameManager rather than through
+## the screen: the screen is a thin shell over choose_stage, and the part that
+## can silently go wrong is the phase order around it.
+func _check_stage_select_flow() -> void:
+	var phases: Array[int] = []
+	var cb := func(phase: int) -> void: phases.append(phase)
+	GameManager.phase_changed.connect(cb)
+
+	var rosters := {0: MatchState.roster(0).duplicate(), 1: MatchState.roster(1).duplicate()}
+	GameManager.start_match(rosters, {0: 0, 1: 1}, true)
+	check("a match with stage select waits in STAGE_SELECT",
+		GameManager.phase == GameManager.Phase.STAGE_SELECT, "phase=%d" % GameManager.phase)
+	check("no round starts before a stage is chosen",
+		not phases.has(GameManager.Phase.ROUND_ACTIVE), "phases=%s" % [phases])
+
+	GameManager.choose_stage(&"cryo_lab")
+	check("choosing a stage starts the round",
+		GameManager.phase == GameManager.Phase.ROUND_ACTIVE, "phase=%d" % GameManager.phase)
+	check("the chosen stage is what the shell will load",
+		GameManager.current_stage == &"cryo_lab", "stage=%s" % GameManager.current_stage)
+
+	var held := GameManager.current_stage
+	GameManager.choose_stage(&"not_a_stage")
+	check("an unknown pick leaves the current stage standing",
+		GameManager.current_stage == held, "stage=%s" % GameManager.current_stage)
+
+	# Between rounds the pick happens again — that is the whole point of the
+	# rule, since it is the loser who gets to change the ground (DESIGN 2.2).
+	for hero: StringName in MatchState.roster(1).duplicate():
+		kill_hero(1, hero)
+	GameManager.end_round()
+	var returned: Array[bool] = [false]
+	for i in 400:
+		await get_tree().physics_frame
+		if GameManager.phase == GameManager.Phase.STAGE_SELECT:
+			returned[0] = true
+			break
+	check("the next round routes back through stage select", returned[0],
+		"phase=%d round=%d" % [GameManager.phase, GameManager.round_index])
+	check("the loser of that round holds the next pick",
+		GameManager.stage_picker_team() == 1, "picker=%d" % GameManager.stage_picker_team())
+	GameManager.choose_stage(held)
+
+	# Back to the default so nothing after this runs on a surprise stage, and so
+	# a harness re-run starts from the same place.
+	GameManager.phase_changed.disconnect(cb)
+	GameManager.start_match(rosters, {0: 0, 1: 1})
+	check("a match without stage select drops straight into the round",
+		GameManager.phase == GameManager.Phase.ROUND_ACTIVE, "phase=%d" % GameManager.phase)
