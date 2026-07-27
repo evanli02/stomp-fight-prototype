@@ -15,6 +15,7 @@ overstomp/
 │   ├── DESIGN.md              # Authoritative game spec
 │   ├── IMPLEMENTATION.md      # This file
 │   ├── SETUP.md               # Environment install guide
+│   ├── PLAYTEST.md            # Building the .exe + Steam Remote Play Together
 │   └── OPUS_PROMPT.md         # Kickoff prompt for implementation sessions
 ├── src/
 │   ├── autoload/              # GameManager, MatchState, InputConfig (singletons)
@@ -22,11 +23,13 @@ overstomp/
 │   ├── player/                # player.tscn/.gd + states/ (movement state machine)
 │   ├── heroes/                # HeroData resources + abilities/ + effects/
 │   ├── stage/                 # match_stage.gd base + stage scenes + terrain/ elements
-│   └── ui/                    # HUD, hero select, stage select, lobby
+│   └── ui/                    # HUD, lobby, hero select, stage select, per-player overlays
 ├── assets/                    # Pixel art (characters/<hero>/, abilities/, stages/, palettes/)
 │   ├── STYLE_GUIDE.md
 │   └── tools/                 # pixel.py canvas + the two generators (stdlib only)
-└── tests/                     # Headless harnesses (movement, combat, match, terrain)
+├── tests/                     # Headless harnesses (movement, combat, match, terrain)
+├── tools/                     # build_windows.ps1
+└── export_presets.cfg         # Windows Desktop export (committed; holds no secrets)
 ```
 
 ## 2. Autoloads (singletons)
@@ -164,14 +167,14 @@ Two things terrain authors need to know:
 ```
 StompBox overlap + fall-speed check (attacker's player.gd, post-move, in player_id order)
   → victim.receive_stomp(attacker)        # authoritative on victim
-    → MatchState.lose_life(player_id, hero_id)
-    → victim: apply_stun(stomp_stun), bounce impulse, start grace
-    → attacker: on_stomp_landed → Air with an impulse override (hold-extendable),
-                air-dash lock and wall-jump chain cleared, stomp_landed emitted
+	→ MatchState.lose_life(player_id, hero_id)
+	→ victim: apply_stun(stomp_stun), bounce impulse, start grace
+	→ attacker: on_stomp_landed → Air with an impulse override (hold-extendable),
+				air-dash lock and wall-jump chain cleared, stomp_landed emitted
   → MatchState emits:
-       life_lost → HUD
-       hero_eliminated (2nd life) → GameManager (auto-swap or spectate)
-       round_won (all heroes of a team dead) → GameManager (results → next round)
+	   life_lost → HUD
+	   hero_eliminated (2nd life) → GameManager (auto-swap or spectate)
+	   round_won (all heroes of a team dead) → GameManager (results → next round)
 ```
 A stomp landed while the attacker is stunned applies the bounce but does not return control. `lose_life` on an already-empty hero is a no-op.
 
@@ -196,7 +199,8 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 - **Who calls what:** the arena owns the bodies and calls `GameManager.end_round()` when it has shown the result; GameManager holds `RESULTS_TIME`, then either starts the next round (`round_started`) or ends the match (`match_won`). GameManager never touches a node — that separation is what lets the match harness drive whole rounds without a stage.
 - Implemented: hero select, stage select, `start_match`, the round loop, results countdown, best-of resolution.
 - **Stage registry**: `GameManager.STAGE_ROSTER` maps a stage id to its scene *and* its display name, blurb, feature list and accent. The metadata lives there rather than on the stage script so the select screen can describe a stage without instantiating it — instantiating one builds geometry, spawns two bodies and starts a match, which is not something a menu should do to draw a card. A stage script declares only its `stage_id()` and reads its name back out of the registry, so there is still one source of truth.
-- **Format**: `GameManager.team_size` (1/2/3) is the whole of "play 2v2". Everything downstream derives from it — `seat_count()`, `team_of_seat()` (seats are allocated in **blocks**: 0..team_size-1 are team 0), `index_in_team()`, `seat_teams()`, and `stage_picker_seat()` (DESIGN 2.2 gives the pick to a *team*; the first seat on it holds the cursor). Nothing sets `team_size` yet — the lobby screen that would is the next piece of M6.
+- **Lobby** (`src/ui/lobby.tscn`) is the first screen and the only one that decides how many seats exist. Players join by pressing a button on the device they want; the lobby reads the **raw event**, not a namespaced action, because before a device has a seat it has no actions — and over Steam Remote Play Together each guest's controller arrives as a virtual pad whose id nobody can predict. `InputConfig.claim_seat(device, pad_index)` binds by actual joypad id and refuses a device that is already seated. Every seat must be filled to start: an undriven body is a free life.
+- **Format**: `GameManager.team_size` (1/2/3) is the whole of "play 2v2". Everything downstream derives from it — `seat_count()`, `team_of_seat()` (seats are allocated in **blocks**: 0..team_size-1 are team 0), `index_in_team()`, `seat_teams()`, and `stage_picker_seat()` (DESIGN 2.2 gives the pick to a *team*; the first seat on it holds the cursor). The lobby sets it before `begin_hero_select()`.
 - **Stage select is opt-in**: `start_match(rosters, teams, use_stage_select)` defaults to *false*, which sends harnesses and F6-into-a-stage boots straight into a round — they are already sitting in a stage, so asking them which one to load would deadlock. The shell passes `true`, and from then on every round routes back through `STAGE_SELECT` before `start_round()`.
 - **Scene ownership**: `main.tscn` (`src/main.gd`) is the shell that turns phases into scenes — hero select, stage select, then the stage. It is deliberately tiny, and nothing else routes through it: stages and harnesses instantiate their own scenes directly. A stage finding `MatchState.players` empty starts its own match from a fallback roster, which is what keeps F6-into-a-stage and the harnesses working without a shell. The shell swaps the stage in on `round_started`, **not** on the `ROUND_ACTIVE` phase change: a stage's `_ready` spawns the round itself when it finds the signal has already gone out, and arriving one step later is what makes that the branch it takes.
 - **Stage select** (`src/ui/stage_select.tscn`) polls only the picking seat, on the physics tick for the same reason hero select does. Its cursor starts on the stage already loaded, so "keep playing here" is the zero-input answer and the timeout never feels like it stole a pick.
@@ -209,7 +213,7 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, two ults per round with a 10 s gap, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select landed with M5, when there was more than one stage to pick between. The human pass on the full flow still has to sign off.*
 4. **M4 — Heroes**: full roster of EIGHT implemented and verified headlessly (2026-07-26): Deadeye, Fei, Mason, Cerebelle, Sai, Slip, Terra, Kid. Two ultimates use free-recast (`Ability._is_free_recast`), one ability is multi-stage (`_cooldown_after_fire`), one is air-gated (`_can_fire`). Terra's slam kill routes through the ordinary stomp system — no exception to rule 1 exists anywhere. Human pass outstanding.
 5. **M5 — Terrain + 2 stages**: contract + 8 core elements; Rooftop Rumble, Cryo Lab. *Complete and verified headlessly (2026-07-26). All 8 elements plus the PoleClimb state they needed; Rooftop Rumble (`duel.tscn`) dressed with antennas, awning springs and a wind corridor; Cryo Lab (`cryo_lab.tscn`) built from ice, a timed laser grid and a portal pair; and the stage-select screen now that there are two stages to pick between. The generic half of a stage was lifted into `MatchStage` at the same time, so a third stage is layout and palette only. Human pass on both stages outstanding.*
-6. **M6 — Formats & polish**: 2v2/3v3, Bo3/Bo5 lobby options, VFX/SFX pass, remaining heroes/stages. *Format plumbing done and verified headlessly (2026-07-26): seat count, block seat→team allocation, per-team spawn anchors with teammates spread around them, six-seat input bindings with per-pad device indices, hero select and stage select both seat-count driven, and the round-win rule exercised at 2v2 (one player down is not a team down). **Outstanding: the lobby screen that sets `team_size`/`best_of` — until it exists 2v2 and 3v3 are reachable only from code or a harness.** Then SFX, and the rest of the stage list.*
+6. **M6 — Formats & polish**: 2v2/3v3, Bo3/Bo5 lobby options, VFX/SFX pass, remaining heroes/stages. *Format plumbing done and verified headlessly (2026-07-26): seat count, block seat→team allocation, per-team spawn anchors with teammates spread around them, six-seat input bindings with per-pad device indices, hero select and stage select both seat-count driven, and the round-win rule exercised at 2v2 (one player down is not a team down). The lobby screen landed with it, so 2v2 and 3v3 are reachable from the UI. **Outstanding: audio, the HUD laid out for more than two players, rebind UI + `user://input.cfg`, per-match RNG seeding, and the remaining two stages.** A Windows export preset and build script ship alongside (`tools/build_windows.ps1`, `docs/PLAYTEST.md`) for remote playtesting over Steam Remote Play Together.*
 
 ## 8. How to update this document
 

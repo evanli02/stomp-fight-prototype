@@ -7,6 +7,7 @@ extends Node
 ## headlessly without a shell at all — stages and the harnesses instantiate their
 ## own scenes and never go through here.
 
+const LOBBY := preload("res://src/ui/lobby.tscn")
 const HERO_SELECT := preload("res://src/ui/hero_select.tscn")
 const STAGE_SELECT := preload("res://src/ui/stage_select.tscn")
 
@@ -20,12 +21,15 @@ func _ready() -> void:
 	# the tree just early enough to spawn twice.
 	GameManager.phase_changed.connect(_on_phase_changed)
 	GameManager.round_started.connect(_on_round_started)
-	GameManager.begin_hero_select()
-	_show_hero_select()
+	# Lobby first: it is the only screen that decides how many seats exist, and
+	# every screen after it sizes itself from GameManager.team_size.
+	_show_lobby()
 
 func _on_phase_changed(phase: GameManager.Phase) -> void:
 	if phase == GameManager.Phase.STAGE_SELECT:
 		_show_stage_select()
+	elif phase == GameManager.Phase.HERO_SELECT:
+		_show_hero_select()
 
 ## Every round gets a fresh stage instance, because every round can be on a
 ## different stage. Rebuilding one that did not change costs a frame and keeps
@@ -36,6 +40,17 @@ func _on_round_started(_index: int) -> void:
 		push_error("No scene registered for stage '%s'" % GameManager.current_stage)
 		return
 	_show(scene.instantiate())
+
+func _show_lobby() -> void:
+	var screen := LOBBY.instantiate()
+	_show(screen)
+	screen.lobby_confirmed.connect(_on_lobby_confirmed)
+
+## begin_hero_select flips the phase, and the phase handler is what puts the
+## screen up — so the two paths into hero select (here, and a future rematch)
+## cannot get out of step.
+func _on_lobby_confirmed() -> void:
+	GameManager.begin_hero_select()
 
 func _show_hero_select() -> void:
 	var screen := HERO_SELECT.instantiate()

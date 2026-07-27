@@ -23,14 +23,14 @@ Milestones M1–M5 from `docs/IMPLEMENTATION.md` §7 are **done and playable end
 | M4 | Four hero kits + Rooftop Rumble stage | done, then reworked twice |
 | M5 | Eight terrain elements + `PoleClimb`, two stages, stage select | done |
 | — | Art overhaul: chibi proportions, 8 heroes, VFX, UI pass | done |
-| M6 | 2v2/3v3 plumbing | done; **lobby screen outstanding** |
+| M6 | 2v2/3v3, lobby, Windows export | playable; **audio/HUD/stages outstanding** |
 
-You can boot `src/main.tscn`, pick heroes, pick a stage, play rounds, and finish a match — in
-1v1. 2v2 and 3v3 work end to end in code and under the harness, but **nothing sets
-`GameManager.team_size` yet**, so they are not reachable from the UI. That lobby screen is the
-next piece. Audio and netcode are untouched.
+You can boot `src/main.tscn` and play a full match at 1v1, 2v2 or 3v3: lobby (format, match
+length, who is sitting where) → hero select → stage select → rounds → results. There is still
+no audio, the HUD is laid out for two players, and netcode is out of scope by design — remote
+play is covered by streaming instead (`docs/PLAYTEST.md`).
 
-All four harnesses are green — **movement 72, combat 41, match 181, terrain 35 = 329 checks**,
+All four harnesses are green — **movement 72, combat 41, match 193, terrain 35 = 341 checks**,
 zero script errors.
 
 ---
@@ -65,7 +65,7 @@ python assets/tools/generate_characters.py
 
 Human-playable scenes:
 
-- `src/main.tscn` — the real shell: hero select → stage select → match → results.
+- `src/main.tscn` — the real shell: lobby → hero select → stage select → match → results.
 - `src/stage/duel.tscn` — Rooftop Rumble, two players, straight into a fight. **This is the
   scene to use for feel-testing.**
 - `src/stage/cryo_lab.tscn` — the second stage: ice, a timed laser grid, a portal pair.
@@ -293,6 +293,16 @@ crashed rather than ignoring seats it does not own (`MatchStage.body_for`).
 
 ---
 
+**Lobby + export.** The lobby is now the first screen and the only one that decides seat count.
+Players join by pressing a button on the device they want, and the lobby reads the **raw input
+event** rather than a namespaced action — before a device has a seat it has no actions, and over
+Steam Remote Play Together each guest's pad arrives with an id nobody can predict, so asking the
+device which id it is at the moment it presses is the only mapping that survives. A Windows
+export preset, a build script that runs the harnesses before it will build, and a playtest guide
+ship with it.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
@@ -302,10 +312,9 @@ makes sense:
    debuff buffs, the dive-dash nerf and Sai's swing speed all pass their harness checks, but
    only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
    is the single most likely thing to be wrong by feel.
-2. **The lobby screen** — the one thing standing between the format plumbing and actually
-   playing 2v2. It needs to set `team_size` and `best_of` before `begin_hero_select()`, which
-   means it becomes the new first screen in `main.gd`. The HUD is also still laid out for two
-   players, and per-match RNG seeding (`GameManager._ready`) is still a TODO.
-3. **Audio** — there is none at all yet.
-4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
+2. **Audio.** There is none at all, and it is the largest single gap for a playtest.
+3. **HUD for more than two players.** 2v2 and 3v3 run, but the readout was laid out for two.
+4. Rebind UI + `user://input.cfg` persistence; per-match RNG seeding (`GameManager._ready`);
+   the two remaining launch stages (Powerplant, Skyline Gardens).
+5. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.

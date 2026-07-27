@@ -26,6 +26,10 @@ const ACTIONS: Array[StringName] = [
 var _device_of: Dictionary = {}      # player_id -> Device
 ## player_id -> joypad device index. Ignored by the KBM seat.
 var _pad_index_of: Dictionary = {}
+## Seats a real device has claimed in the lobby. Empty outside a lobby-driven
+## match, where the defaults below stand in — F6 into a stage and every harness
+## rely on seats working without anybody having pressed anything.
+var _claimed: Dictionary = {}        # player_id -> true
 ## player_id -> { dash: int, swap: int } physics frame each press is parked on
 ## while we wait to see whether it is half of a chord. -1 means nothing pending.
 var _chord_pending: Dictionary = {}
@@ -42,6 +46,58 @@ func _ready() -> void:
 			assign_device(slot, Device.KBM)
 		else:
 			assign_device(slot, Device.PAD, slot - 1)
+
+#region Lobby seat claiming
+## Forget who is sitting where. Called when a lobby opens, so a device that
+## claimed seat 2 last match is not still holding it.
+func clear_seats() -> void:
+	_claimed.clear()
+
+func seat_claimed(player_id: int) -> bool:
+	return _claimed.has(player_id)
+
+func claimed_count() -> int:
+	return _claimed.size()
+
+## Whether this physical device is already sitting somewhere. The lobby asks
+## before claiming so a held button cannot take three seats.
+func device_seated(device: Device, pad_index: int = 0) -> bool:
+	for seat in _claimed:
+		if device_of(seat) != device:
+			continue
+		if device == Device.KBM or pad_index_of(seat) == pad_index:
+			return true
+	return false
+
+## Sit a physical device in the lowest free seat and bind it there. Returns the
+## seat, or -1 if the device is already seated or every seat is taken.
+##
+## Claiming binds by ACTUAL joypad id rather than by seat order: pads connect in
+## whatever order they connect in, ids are not contiguous, and over Steam Remote
+## Play the remote players' virtual pads appear as people join. Asking the device
+## which id it is, at the moment it presses, is the only mapping that survives
+## all of that.
+func claim_seat(device: Device, pad_index: int = 0) -> int:
+	if device_seated(device, pad_index):
+		return -1
+	for seat in MAX_LOCAL_PLAYERS:
+		if _claimed.has(seat):
+			continue
+		_claimed[seat] = true
+		assign_device(seat, device, pad_index)
+		return seat
+	return -1
+
+## Give up a seat (a player backing out of the lobby).
+func release_seat(player_id: int) -> void:
+	_claimed.erase(player_id)
+
+## What is sitting in a seat, for the lobby and hero select to label rows with.
+func device_label(player_id: int) -> String:
+	if device_of(player_id) == Device.KBM:
+		return "mouse + keyboard"
+	return "pad %d" % pad_index_of(player_id)
+#endregion
 
 #region Device assignment
 ## Point a player slot at a device and rebuild its bindings.

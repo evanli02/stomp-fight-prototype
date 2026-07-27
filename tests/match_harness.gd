@@ -56,6 +56,7 @@ func _run() -> void:
 	await _check_stage_registry()
 	await _check_stage_select_flow()
 	await _check_team_formats()
+	await _check_lobby_seating()
 
 ## Hero select's rules, driven directly rather than through synthetic button
 ## presses — the screen is a thin shell over these and the rules are the part
@@ -742,3 +743,45 @@ func _check_team_formats() -> void:
 	GameManager.round_index = 0
 	GameManager.team_size = 1
 	await step(2)
+
+## Lobby seat claiming. The lobby screen itself is a thin shell over these calls;
+## what can silently go wrong is a device taking two seats, which over Remote
+## Play would mean one friend driving two characters.
+func _check_lobby_seating() -> void:
+	InputConfig.clear_seats()
+	check("a fresh lobby seats nobody", InputConfig.claimed_count() == 0)
+
+	check("the keyboard takes seat 0", InputConfig.claim_seat(InputConfig.Device.KBM) == 0)
+	check("the first pad takes seat 1",
+		InputConfig.claim_seat(InputConfig.Device.PAD, 0) == 1)
+	check("a second pad takes seat 2",
+		InputConfig.claim_seat(InputConfig.Device.PAD, 3) == 2)
+	# Pads are bound by their ACTUAL joypad id, not by seat order: ids are handed
+	# out in connection order and are not contiguous, and remote players' virtual
+	# pads appear in whatever order people join.
+	check("a seat is bound to the pad id that claimed it",
+		InputConfig.pad_index_of(2) == 3, "pad=%d" % InputConfig.pad_index_of(2))
+
+	check("a device already seated cannot take another seat",
+		InputConfig.claim_seat(InputConfig.Device.PAD, 0) == -1)
+	check("nor can the keyboard", InputConfig.claim_seat(InputConfig.Device.KBM) == -1)
+	check("holding the button does not fill the room", InputConfig.claimed_count() == 3,
+		"claimed=%d" % InputConfig.claimed_count())
+
+	check("leaving frees the seat up again", true)
+	InputConfig.release_seat(2)
+	check("a released seat is free", not InputConfig.seat_claimed(2))
+	check("and the device that held it can sit back down",
+		InputConfig.claim_seat(InputConfig.Device.PAD, 3) == 2)
+
+	# Every seat taken, then one more device: the room is full, not corrupted.
+	while InputConfig.claimed_count() < InputConfig.MAX_LOCAL_PLAYERS:
+		InputConfig.claim_seat(InputConfig.Device.PAD, 40 + InputConfig.claimed_count())
+	check("a full room turns away the next device",
+		InputConfig.claim_seat(InputConfig.Device.PAD, 99) == -1)
+
+	# Back to the startup defaults so nothing after this inherits a lobby.
+	InputConfig.clear_seats()
+	InputConfig.assign_device(0, InputConfig.Device.KBM)
+	for seat in range(1, InputConfig.MAX_LOCAL_PLAYERS):
+		InputConfig.assign_device(seat, InputConfig.Device.PAD, seat - 1)

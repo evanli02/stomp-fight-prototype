@@ -1,4 +1,10 @@
 .godot/
 *.tmp
-export_presets.cfg
+# export_presets.cfg IS committed. Godot's default gitignore drops it because
+# presets can hold signing credentials and per-machine paths; ours holds
+# neither (no codesign, no encryption, relative export path), and the build
+# script needs it. Check before adding a preset that does hold a secret.
 .DS_Store
+
+# Exported builds (docs/PLAYTEST.md) - rebuilt from source, never committed.
+build/
