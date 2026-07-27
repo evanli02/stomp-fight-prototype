@@ -1,38 +1,35 @@
 class_name RecallState extends PlayerState
-## Slip's rewind (DESIGN 5.2): retrace the exact path travelled since the anchor
-## was placed, at very high speed, back to where it was dropped.
+## Slip's rewind (DESIGN 5.2): an instant return to the anchor she dropped.
 ##
-## The path is replayed rather than teleported through so the rewind is visible
-## and chaseable — Tracer, not a blink. It follows positions that were valid
-## when the player was actually there, so it cannot tunnel anywhere the player
-## could not have gone.
+## This used to replay the exact path travelled since the anchor was placed, so
+## the return would be visible and chaseable. It was not worth what it cost — a
+## recorded path drifts out of sync with anything that moves the body for you
+## (terrain, knockback, another rewind), and a rewind that visibly misses its own
+## anchor is worse than one you cannot contest. A blink is honest about what the
+## ability does.
+##
+## The tradeoff taken on purpose: a blink does not verify the route, so the
+## anchor point itself is the only thing that has to be reachable. Godot's
+## depenetration handles arriving inside something; the brief hold below is what
+## gives it a frame to do that before normal movement resumes.
 
-const RETRACE_SPEED: float = 4200.0
+const BLINK_TIME: float = 0.08
 
-var _path: Array = []          ## breadcrumbs, oldest (anchor) first
-var _index: int = 0            ## walked from the END back to 0
+var _left: float = 0.0
 
 func enter(params: Dictionary = {}) -> void:
-	_path = params.get("path", [])
-	_index = _path.size() - 1
+	var target: Vector2 = params.get("to", player.global_position)
+	_left = BLINK_TIME
 	player.air_dash_locked = false
+	player.velocity = Vector2.ZERO
+	player.global_position = target
 
 func physics_update(delta: float) -> void:
-	var budget := RETRACE_SPEED * delta
-	while budget > 0.0 and _index >= 0:
-		var target: Vector2 = _path[_index]
-		var gap := target - player.global_position
-		if gap.length() <= budget:
-			budget -= gap.length()
-			player.global_position = target
-			_index -= 1
-		else:
-			# Velocity, not position, covers the partial step: move_and_slide
-			# does the moving, so a stray wall still stops the rewind honestly.
-			player.velocity = gap.normalized() * RETRACE_SPEED
-			return
-	if _index < 0:
-		player.velocity = Vector2.ZERO
+	# No gravity during the blink: a frame of fall before the body has settled
+	# reads as the arrival sagging, which makes the teleport look imprecise.
+	player.velocity = Vector2.ZERO
+	_left -= delta
+	if _left <= 0.0:
 		machine.change_state(&"Air")
 
 func animation() -> StringName: return &"dash"

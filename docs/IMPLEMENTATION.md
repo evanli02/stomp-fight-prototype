@@ -56,7 +56,7 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │   ├── WallSlide / WallJump        consecutive decay, aim tilt, perfect window
 │   ├── Swing                       Sai's pendulum; 2 reversals then forced release
 │   ├── Slam                        Terra: hover, plummet; head hits resolve as stomps
-│   ├── Recall                      Slip: retrace the recorded trail at high speed
+│   ├── Recall                      Slip: blink back to the anchor, brief settle
 │   ├── PoleClimb
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd
 ├── BodyShape / BodyShapeCrouch     one enabled at a time; crouch is half height,

@@ -1,7 +1,7 @@
 class_name SlipBack extends Ability
-## Slip — drop an anchor, then rewind to it (DESIGN 5.2). The rewind replays her
-## actual path at very high speed (the Recall state), so it reads as a rewind
-## rather than a blink.
+## Slip — drop an anchor, then rewind to it (DESIGN 5.2). The rewind is an
+## instant teleport back to the anchor (the Recall state); the path she took to
+## get away from it is not recorded and does not matter.
 ##
 ## Multi-stage cooldown: placing starts the cooldown, but the rewind is allowed
 ## THROUGH that cooldown while the anchor lives — the pair is one play, and an
@@ -9,10 +9,12 @@ class_name SlipBack extends Ability
 
 @export var anchor_lifetime: float = 6.0
 
+## How long the puff left behind at the departure point lingers. Cosmetic.
+const DEPART_FLASH_TIME: float = 0.3
+
 var _anchor_active: bool = false
 var _anchor_pos: Vector2 = Vector2.ZERO
 var _anchor_age: float = 0.0
-var _trail: Array = []
 var _marker: SlipAnchor = null
 
 func _physics_process(delta: float) -> void:
@@ -22,10 +24,7 @@ func _physics_process(delta: float) -> void:
 	_anchor_age += delta
 	if _anchor_age >= anchor_lifetime:
 		_anchor_active = false
-		_trail.clear()
 		_clear_marker()
-		return
-	_trail.append(player.global_position)
 
 func _on_cooldown() -> bool:
 	if _anchor_active:
@@ -40,16 +39,20 @@ func _cooldown_after_fire() -> bool:
 func _execute(_aim: Vector2) -> void:
 	if _anchor_active:
 		_anchor_active = false
-		var path := _trail.duplicate()
-		_trail.clear()
 		_clear_marker()
-		path.push_front(_anchor_pos)
-		player.request_state(&"Recall", {"path": path})
+		# A flash where she left, so the blink has two readable ends rather than
+		# one: the departure is the only cue an opponent gets.
+		var flash := SlipAnchor.new()
+		flash.global_position = player.global_position
+		flash.duration = DEPART_FLASH_TIME
+		if player.hero != null:
+			flash.accent = player.hero.accent_color
+		player.spawn_effect(flash)
+		player.request_state(&"Recall", {"to": _anchor_pos})
 		return
 	_anchor_active = true
 	_anchor_age = 0.0
 	_anchor_pos = player.global_position
-	_trail = [player.global_position]
 	_clear_marker()
 	_marker = SlipAnchor.new()
 	_marker.global_position = _anchor_pos

@@ -73,15 +73,17 @@ Human-playable scenes:
 ## 3. Roster (8 heroes)
 
 Heroes are identical in movement and hitboxes. Identity is ability + ultimate + cosmetics only.
-Cooldowns are deliberately ordered Fei < Deadeye < Cerebelle < Sai < Slip < Kid < Terra < Mason.
+Cooldown order is Sai < Fei < Deadeye < Cerebelle < Slip < Kid < Terra < Mason. The
+Fei-shortest ordering the owner set applies to the original four; Sai's grapple was cut to
+4.7 s afterwards and is now the shortest in the game.
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
 | Deadeye | red | Bolt — stunning projectile (6.4) | Rapid Fire — resets CD; next bolt +50% velocity, 5.5 s stun |
 | Fei | jade green | Double Trouble — a stronger-than-normal extra jump (5.6) | 8 s window where the ability's CD is 0.3 s |
 | Cerebelle | purple | Burst — near-instant radial knockback, 2× force (6.7) | Supernova — one map-wide ring that expands slowly; caught players are stunned, lose all horizontal velocity, and fall |
-| Sai | pink | Grapple — swing on a rope; faster the more speed you carry (7.0) | Slash — dashing multi-hit arc |
-| Slip | aqua | Slip Back — drop a **visible** anchor, recast to retrace the path back to it fast (8.0) | Teleport — a linked pad pair; enemies arrive slowed, allies hasted |
+| Sai | pink | Grapple — swing on a rope; faster the more speed you carry (4.7) | Slash — dashing multi-hit arc |
+| Slip | aqua | Slip Back — drop a **visible** anchor, recast to blink instantly back to it (8.0) | Teleport — a linked pad pair; enemies arrive slowed, allies hasted |
 | Terra | brown | Slam — hover, then rocket straight down (9.0) | Fracture — wide slab that drags, trails, and detonates |
 | Kid | orange | Wind Cannon — pushing beam (8.5) | EMP — telegraphed wave that disrupts |
 | Mason | gold | Bumper Block — solid block with lingering vector reflection (10.0) | Keystone — allies pass through, enemies freeze then drop |
@@ -166,7 +168,7 @@ one.
 tags; the stomp burst VFX in the attacker's colour; ability/ult animations; UI flair and
 accessibility pass.
 
-**Final tuning (`64e08b6`).** Slip's anchor made visible (a diamond, deliberately unlike every
+**Feel pass (`64e08b6`, then the follow-up below).** Slip's anchor made visible (a diamond, deliberately unlike every
 circular effect in the game) and the rewind faster. Sai's range and swing speed up, scaling
 with carried speed. Terra's ult slab wider, blast much bigger, with a visible travel trail.
 Debuffs buffed across the board: stuns slightly up, non-stun durations dramatically up, slows
@@ -235,6 +237,14 @@ fresh session would have read as binding and "fixed" back. Both now say two per 
 harnesses), the note that Terra's slam is not a rule-1 exception, current hitbox geometry, the
 directional air-dash taxes, and six new entries on the "things Claude gets wrong here"
 checklist covering the traps above.
+
+---
+
+**Follow-up pass (this commit).** Slip's rewind stopped replaying her recorded path and became
+a plain teleport to the anchor — the replay was too fragile to keep (see `recall.gd` for the
+reasoning). Terra's ult travels 50% faster (480 → 720 px/s). Sai's grapple cooldown cut a third
+(7.0 → 4.7 s). The jump got taller: full-hold apex 4.5 → 5.5 tiles (+23%), initial impulse
+−268 → −285, gravity 1800 → 1900 so the extra height is not spent floating back down.
 
 ---
 

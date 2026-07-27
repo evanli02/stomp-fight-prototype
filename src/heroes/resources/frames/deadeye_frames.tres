@@ -1,21 +1,53 @@
-[gd_resource type="SpriteFrames" load_steps=58 format=3]
+[gd_resource type="SpriteFrames" format=3 uid="uid://dk34a3nrbnvxn"]
 
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/idle.png" id="tex_idle"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/run.png" id="tex_run"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/rise.png" id="tex_rise"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/fall.png" id="tex_fall"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/land.png" id="tex_land"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/dash.png" id="tex_dash"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/skid.png" id="tex_skid"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/crouch.png" id="tex_crouch"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/slide.png" id="tex_slide"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/slide_jump.png" id="tex_slide_jump"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/wall_slide.png" id="tex_wall_slide"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/wall_jump.png" id="tex_wall_jump"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/pole_climb.png" id="tex_pole_climb"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/stun.png" id="tex_stun"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/cast.png" id="tex_cast"]
-[ext_resource type="Texture2D" path="res://assets/characters/deadeye/pop.png" id="tex_pop"]
+[ext_resource type="Texture2D" uid="uid://belhdfajwmt6" path="res://assets/characters/deadeye/cast.png" id="tex_cast"]
+[ext_resource type="Texture2D" uid="uid://cvssoiklyvia2" path="res://assets/characters/deadeye/crouch.png" id="tex_crouch"]
+[ext_resource type="Texture2D" uid="uid://doeapbfpcc0ik" path="res://assets/characters/deadeye/dash.png" id="tex_dash"]
+[ext_resource type="Texture2D" uid="uid://5fbe51nqe0ol" path="res://assets/characters/deadeye/fall.png" id="tex_fall"]
+[ext_resource type="Texture2D" uid="uid://cqhrhx63llohp" path="res://assets/characters/deadeye/idle.png" id="tex_idle"]
+[ext_resource type="Texture2D" uid="uid://d15vvmtxhc0ew" path="res://assets/characters/deadeye/land.png" id="tex_land"]
+[ext_resource type="Texture2D" uid="uid://dry4j373bjt06" path="res://assets/characters/deadeye/pole_climb.png" id="tex_pole_climb"]
+[ext_resource type="Texture2D" uid="uid://etpmyrv0t2f6" path="res://assets/characters/deadeye/pop.png" id="tex_pop"]
+[ext_resource type="Texture2D" uid="uid://dnemap44f5vdh" path="res://assets/characters/deadeye/rise.png" id="tex_rise"]
+[ext_resource type="Texture2D" uid="uid://pt5fh6vhjlen" path="res://assets/characters/deadeye/run.png" id="tex_run"]
+[ext_resource type="Texture2D" uid="uid://biydhv1b1wdj" path="res://assets/characters/deadeye/skid.png" id="tex_skid"]
+[ext_resource type="Texture2D" uid="uid://dnepklvpqcsq4" path="res://assets/characters/deadeye/slide.png" id="tex_slide"]
+[ext_resource type="Texture2D" uid="uid://bhkdjean51gsj" path="res://assets/characters/deadeye/slide_jump.png" id="tex_slide_jump"]
+[ext_resource type="Texture2D" uid="uid://be72s1g4hbchn" path="res://assets/characters/deadeye/stun.png" id="tex_stun"]
+[ext_resource type="Texture2D" uid="uid://bp8cf5r2papiu" path="res://assets/characters/deadeye/wall_jump.png" id="tex_wall_jump"]
+[ext_resource type="Texture2D" uid="uid://dyjqio3hgl6to" path="res://assets/characters/deadeye/wall_slide.png" id="tex_wall_slide"]
+
+[sub_resource type="AtlasTexture" id="cast_0"]
+atlas = ExtResource("tex_cast")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="cast_1"]
+atlas = ExtResource("tex_cast")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="crouch_0"]
+atlas = ExtResource("tex_crouch")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="crouch_1"]
+atlas = ExtResource("tex_crouch")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="dash_0"]
+atlas = ExtResource("tex_dash")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="dash_1"]
+atlas = ExtResource("tex_dash")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="fall_0"]
+atlas = ExtResource("tex_fall")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="fall_1"]
+atlas = ExtResource("tex_fall")
+region = Rect2(32, 0, 32, 36)
 
 [sub_resource type="AtlasTexture" id="idle_0"]
 atlas = ExtResource("tex_idle")
@@ -32,6 +64,50 @@ region = Rect2(64, 0, 32, 36)
 [sub_resource type="AtlasTexture" id="idle_3"]
 atlas = ExtResource("tex_idle")
 region = Rect2(96, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="land_0"]
+atlas = ExtResource("tex_land")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="land_1"]
+atlas = ExtResource("tex_land")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pole_climb_0"]
+atlas = ExtResource("tex_pole_climb")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pole_climb_1"]
+atlas = ExtResource("tex_pole_climb")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pop_0"]
+atlas = ExtResource("tex_pop")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pop_1"]
+atlas = ExtResource("tex_pop")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pop_2"]
+atlas = ExtResource("tex_pop")
+region = Rect2(64, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pop_3"]
+atlas = ExtResource("tex_pop")
+region = Rect2(96, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="pop_4"]
+atlas = ExtResource("tex_pop")
+region = Rect2(128, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="rise_0"]
+atlas = ExtResource("tex_rise")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="rise_1"]
+atlas = ExtResource("tex_rise")
+region = Rect2(32, 0, 32, 36)
 
 [sub_resource type="AtlasTexture" id="run_0"]
 atlas = ExtResource("tex_run")
@@ -57,52 +133,12 @@ region = Rect2(128, 0, 32, 36)
 atlas = ExtResource("tex_run")
 region = Rect2(160, 0, 32, 36)
 
-[sub_resource type="AtlasTexture" id="rise_0"]
-atlas = ExtResource("tex_rise")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="rise_1"]
-atlas = ExtResource("tex_rise")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="fall_0"]
-atlas = ExtResource("tex_fall")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="fall_1"]
-atlas = ExtResource("tex_fall")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="land_0"]
-atlas = ExtResource("tex_land")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="land_1"]
-atlas = ExtResource("tex_land")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="dash_0"]
-atlas = ExtResource("tex_dash")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="dash_1"]
-atlas = ExtResource("tex_dash")
-region = Rect2(32, 0, 32, 36)
-
 [sub_resource type="AtlasTexture" id="skid_0"]
 atlas = ExtResource("tex_skid")
 region = Rect2(0, 0, 32, 36)
 
 [sub_resource type="AtlasTexture" id="skid_1"]
 atlas = ExtResource("tex_skid")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="crouch_0"]
-atlas = ExtResource("tex_crouch")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="crouch_1"]
-atlas = ExtResource("tex_crouch")
 region = Rect2(32, 0, 32, 36)
 
 [sub_resource type="AtlasTexture" id="slide_0"]
@@ -121,12 +157,12 @@ region = Rect2(0, 0, 32, 36)
 atlas = ExtResource("tex_slide_jump")
 region = Rect2(32, 0, 32, 36)
 
-[sub_resource type="AtlasTexture" id="wall_slide_0"]
-atlas = ExtResource("tex_wall_slide")
+[sub_resource type="AtlasTexture" id="stun_0"]
+atlas = ExtResource("tex_stun")
 region = Rect2(0, 0, 32, 36)
 
-[sub_resource type="AtlasTexture" id="wall_slide_1"]
-atlas = ExtResource("tex_wall_slide")
+[sub_resource type="AtlasTexture" id="stun_1"]
+atlas = ExtResource("tex_stun")
 region = Rect2(32, 0, 32, 36)
 
 [sub_resource type="AtlasTexture" id="wall_jump_0"]
@@ -137,52 +173,60 @@ region = Rect2(0, 0, 32, 36)
 atlas = ExtResource("tex_wall_jump")
 region = Rect2(32, 0, 32, 36)
 
-[sub_resource type="AtlasTexture" id="pole_climb_0"]
-atlas = ExtResource("tex_pole_climb")
+[sub_resource type="AtlasTexture" id="wall_slide_0"]
+atlas = ExtResource("tex_wall_slide")
 region = Rect2(0, 0, 32, 36)
 
-[sub_resource type="AtlasTexture" id="pole_climb_1"]
-atlas = ExtResource("tex_pole_climb")
+[sub_resource type="AtlasTexture" id="wall_slide_1"]
+atlas = ExtResource("tex_wall_slide")
 region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="stun_0"]
-atlas = ExtResource("tex_stun")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="stun_1"]
-atlas = ExtResource("tex_stun")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="cast_0"]
-atlas = ExtResource("tex_cast")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="cast_1"]
-atlas = ExtResource("tex_cast")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="pop_0"]
-atlas = ExtResource("tex_pop")
-region = Rect2(0, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="pop_1"]
-atlas = ExtResource("tex_pop")
-region = Rect2(32, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="pop_2"]
-atlas = ExtResource("tex_pop")
-region = Rect2(64, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="pop_3"]
-atlas = ExtResource("tex_pop")
-region = Rect2(96, 0, 32, 36)
-
-[sub_resource type="AtlasTexture" id="pop_4"]
-atlas = ExtResource("tex_pop")
-region = Rect2(128, 0, 32, 36)
 
 [resource]
 animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("cast_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("cast_1")
+}],
+"loop": 0,
+"name": &"cast",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("crouch_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("crouch_1")
+}],
+"loop": 1,
+"name": &"crouch",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("dash_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("dash_1")
+}],
+"loop": 0,
+"name": &"dash",
+"speed": 16.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("fall_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("fall_1")
+}],
+"loop": 1,
+"name": &"fall",
+"speed": 8.0
+}, {
 "frames": [{
 "duration": 1.0,
 "texture": SubResource("idle_0")
@@ -196,9 +240,62 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("idle_3")
 }],
-"loop": true,
+"loop": 1,
 "name": &"idle",
 "speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("land_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("land_1")
+}],
+"loop": 0,
+"name": &"land",
+"speed": 14.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("pole_climb_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("pole_climb_1")
+}],
+"loop": 1,
+"name": &"pole_climb",
+"speed": 6.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("pop_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("pop_1")
+}, {
+"duration": 1.0,
+"texture": SubResource("pop_2")
+}, {
+"duration": 1.0,
+"texture": SubResource("pop_3")
+}, {
+"duration": 1.0,
+"texture": SubResource("pop_4")
+}],
+"loop": 0,
+"name": &"pop",
+"speed": 12.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("rise_0")
+}, {
+"duration": 1.0,
+"texture": SubResource("rise_1")
+}],
+"loop": 0,
+"name": &"rise",
+"speed": 8.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -219,53 +316,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("run_5")
 }],
-"loop": true,
+"loop": 1,
 "name": &"run",
 "speed": 14.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("rise_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("rise_1")
-}],
-"loop": false,
-"name": &"rise",
-"speed": 8.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("fall_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("fall_1")
-}],
-"loop": true,
-"name": &"fall",
-"speed": 8.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("land_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("land_1")
-}],
-"loop": false,
-"name": &"land",
-"speed": 14.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("dash_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("dash_1")
-}],
-"loop": false,
-"name": &"dash",
-"speed": 16.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -274,20 +327,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("skid_1")
 }],
-"loop": true,
+"loop": 1,
 "name": &"skid",
 "speed": 10.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("crouch_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("crouch_1")
-}],
-"loop": true,
-"name": &"crouch",
-"speed": 4.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -296,7 +338,7 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("slide_1")
 }],
-"loop": true,
+"loop": 1,
 "name": &"slide",
 "speed": 8.0
 }, {
@@ -307,42 +349,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("slide_jump_1")
 }],
-"loop": false,
+"loop": 0,
 "name": &"slide_jump",
 "speed": 10.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("wall_slide_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("wall_slide_1")
-}],
-"loop": true,
-"name": &"wall_slide",
-"speed": 6.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("wall_jump_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("wall_jump_1")
-}],
-"loop": false,
-"name": &"wall_jump",
-"speed": 12.0
-}, {
-"frames": [{
-"duration": 1.0,
-"texture": SubResource("pole_climb_0")
-}, {
-"duration": 1.0,
-"texture": SubResource("pole_climb_1")
-}],
-"loop": true,
-"name": &"pole_climb",
-"speed": 6.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -351,38 +360,29 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("stun_1")
 }],
-"loop": true,
+"loop": 1,
 "name": &"stun",
 "speed": 5.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("cast_0")
+"texture": SubResource("wall_jump_0")
 }, {
 "duration": 1.0,
-"texture": SubResource("cast_1")
+"texture": SubResource("wall_jump_1")
 }],
-"loop": false,
-"name": &"cast",
+"loop": 0,
+"name": &"wall_jump",
 "speed": 12.0
 }, {
 "frames": [{
 "duration": 1.0,
-"texture": SubResource("pop_0")
+"texture": SubResource("wall_slide_0")
 }, {
 "duration": 1.0,
-"texture": SubResource("pop_1")
-}, {
-"duration": 1.0,
-"texture": SubResource("pop_2")
-}, {
-"duration": 1.0,
-"texture": SubResource("pop_3")
-}, {
-"duration": 1.0,
-"texture": SubResource("pop_4")
+"texture": SubResource("wall_slide_1")
 }],
-"loop": false,
-"name": &"pop",
-"speed": 12.0
+"loop": 1,
+"name": &"wall_slide",
+"speed": 6.0
 }]

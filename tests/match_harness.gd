@@ -337,13 +337,12 @@ func _check_abilities() -> void:
 		"remaining=%.2f vs normal %.2f" % [
 			MatchState.cooldown_remaining(0, &"fei"), jump.cooldown])
 
-	# Slip's rewind: anchor, travel, recall lands back at the anchor.
+	# Slip's rewind: anchor, travel, blink lands back at the anchor.
 	MatchState.reset_round()
 	_p1.equip_hero(&"slip")
 	await step(2)
-	# Anchor and displacement both on the open street: the test moves the body
-	# by teleport, so the gap it creates must not cross terrain — the rewind
-	# honours collision, and a real trail is continuous by construction.
+	# Both points on the open street: the anchor is the only place the blink has
+	# to be able to occupy, so it is the only one that must be clear.
 	_p1.global_position = Vector2(320, 600)
 	_p1.velocity = Vector2.ZERO
 	await step(1)
@@ -358,7 +357,7 @@ func _check_abilities() -> void:
 		if _p1.global_position.distance_to(anchor_at) < 24.0:
 			returned = true
 			break
-	check("the rewind arrives back at the anchor", returned,
+	check("the blink arrives back at the anchor", returned,
 		"at=%s anchor=%s" % [_p1.global_position, anchor_at])
 
 	# Debuffs carry a source tag so the badges over a player can differ by cause.

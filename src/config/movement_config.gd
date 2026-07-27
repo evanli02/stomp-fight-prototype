@@ -16,18 +16,20 @@ class_name MovementConfig extends Resource
 @export var momentum_keep_on_skid: float = 0.25   ## after a skid redirect, DESIGN 4.1
 
 @export_group("Air")
-@export var gravity: float = 1800.0
+@export var gravity: float = 1900.0
 @export var fall_speed_max: float = 900.0
 @export var air_control_ratio: float = 0.15   ## fraction of the ground redirect accel
 
 @export_group("Jump")
-@export var jump_impulse_min: float = -268.0  ## min hop (1.25 tiles = sqrt(2*gravity*20))
-## Applied while held, up to jump_hold_time_max. Held slightly short of -gravity
-## so the rise still decelerates — an exactly cancelling hold climbs at a flat
-## rate and reads as floating. Solved together with the impulse and hold time to
-## put the full-hold apex on DESIGN 4.2's 4.5 tiles.
-@export var jump_hold_force: float = -1490.0
-@export var jump_hold_time_max: float = 0.28  ## ...this long (4.5 tiles total)
+@export var jump_impulse_min: float = -285.0  ## min hop ~1.35 tiles; the tap gets a little more pop
+## Applied while held, up to jump_hold_time_max. Held well short of -gravity so
+## the rise still decelerates — an exactly cancelling hold climbs at a flat rate
+## and reads as floating. Solved together with the impulse and hold time to put
+## the full-hold apex on DESIGN 4.2's 5.5 tiles. Gravity rose alongside it: a
+## taller jump wants a heavier fall, or the extra height is spent floating back
+## down and the jump reads as slower rather than bigger.
+@export var jump_hold_force: float = -1620.0
+@export var jump_hold_time_max: float = 0.33  ## ...this long (5.5 tiles total)
 @export var coyote_time: float = 0.1
 @export var jump_buffer_time: float = 0.12
 @export var bhop_window: float = 0.08         ## perfect-landing window preserving momentum

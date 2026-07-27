@@ -5,7 +5,7 @@ class_name FractureShot extends Node2D
 ## grounded, in both senses. It cannot take a life (CLAUDE.md 1).
 
 const SIZE: Vector2 = Vector2(64, 76)
-const SPEED: float = 480.0
+const SPEED: float = 720.0
 const RANGE: float = 900.0
 const BLAST_RADIUS: float = 230.0
 const SLOW_MULT: float = 0.805

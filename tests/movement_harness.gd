@@ -128,20 +128,20 @@ func _check_run_to_cap() -> void:
 	await step(30)
 
 func _check_jump_heights() -> void:
-	# Min hop: DESIGN 4.2 says ~1.25 tiles (20px).
+	# Min hop: DESIGN 4.2 says ~1.35 tiles (21px).
 	await reset_at(Vector2(200, 300))
 	press(&"jump")
 	await step(1)
 	release(&"jump")
 	var min_apex: float = await measure_apex(90)
-	check("min hop ~= 1.25 tiles", near(min_apex, 20.0, 5.0), "apex=%.1fpx (%.2f tiles)" % [min_apex, min_apex / 16.0])
+	check("min hop ~= 1.35 tiles", near(min_apex, 21.5, 5.0), "apex=%.1fpx (%.2f tiles)" % [min_apex, min_apex / 16.0])
 
-	# Full hold: DESIGN 4.2 says ~4.5 tiles (72px).
+	# Full hold: DESIGN 4.2 says ~5.5 tiles (88px).
 	await reset_at(Vector2(200, 300))
 	press(&"jump")
 	var full_apex: float = await measure_apex(90)
 	release(&"jump")
-	check("full hold ~= 4.5 tiles", near(full_apex, 72.0, 8.0), "apex=%.1fpx (%.2f tiles)" % [full_apex, full_apex / 16.0])
+	check("full hold ~= 5.5 tiles", near(full_apex, 88.0, 8.0), "apex=%.1fpx (%.2f tiles)" % [full_apex, full_apex / 16.0])
 	check("hold extends the jump", full_apex > min_apex * 2.5,
 		"min=%.1f full=%.1f" % [min_apex, full_apex])
 	await step(20)
