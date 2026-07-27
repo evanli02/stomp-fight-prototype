@@ -9,7 +9,6 @@ extends CanvasLayer
 
 signal picks_confirmed(rosters: Dictionary, teams: Dictionary)
 
-const SEATS: int = 2
 const PICKS_REQUIRED: int = MatchState.HEROES_PER_PLAYER
 ## Nobody should be able to stall a match forever, and a seat with no controller
 ## plugged in never picks at all — when this runs out the rest is auto-filled.
@@ -25,8 +24,16 @@ const COL_CARD: Color = Color(0.10, 0.07, 0.18)
 const COL_FRAME: Color = Color(0.36, 0.36, 0.48)
 const COL_TEXT: Color = Color(0.96, 0.96, 0.98)
 const COL_DIM: Color = Color(0.45, 0.45, 0.55)
-const SEAT_CURSOR: Array[Color] = [Color(1, 1, 1), Color(1, 0.85, 0.3)]
+## One per seat, up to a 3v3. Distinct enough to tell six cursors apart on one
+## row of cards.
+const SEAT_CURSOR: Array[Color] = [
+	Color(1, 1, 1), Color(1, 0.85, 0.3), Color(0.45, 0.85, 1.0),
+	Color(0.55, 1.0, 0.55), Color(1.0, 0.55, 0.75), Color(0.75, 0.6, 1.0),
+]
 
+## Seats in the current format (2 for 1v1, 6 for 3v3). Read once at _ready
+## rather than every frame: the format cannot change while this screen is up.
+var _seats: int = 2
 var _canvas: Control
 var _roster: Array[StringName] = []
 var _cursor: Array[int] = []
@@ -37,7 +44,8 @@ var _done: bool = false
 
 func _ready() -> void:
 	_roster = GameManager.roster_ids()
-	for i in SEATS:
+	_seats = GameManager.seat_count()
+	for i in _seats:
 		_cursor.append(0)
 		_picks.append([] as Array[StringName])
 		_nav_cooldown.append(0.0)
@@ -51,7 +59,7 @@ func _physics_process(delta: float) -> void:
 	if _done:
 		return
 	_remaining -= delta
-	for seat in SEATS:
+	for seat in _seats:
 		_handle_seat(seat, delta)
 	if _remaining <= 0.0:
 		_auto_fill()
@@ -87,14 +95,14 @@ func _undo(seat: int) -> void:
 ## Fill whatever the timer ran out on, in roster order, skipping that seat's own
 ## existing picks. A seat with no device attached lands here every time.
 func _auto_fill() -> void:
-	for seat in SEATS:
+	for seat in _seats:
 		for hero_id in _roster:
 			if _picks[seat].size() >= PICKS_REQUIRED:
 				break
 			_pick(seat, hero_id)
 
 func _all_seats_ready() -> bool:
-	for seat in SEATS:
+	for seat in _seats:
 		if _picks[seat].size() < PICKS_REQUIRED:
 			return false
 	return true
@@ -103,12 +111,12 @@ func _confirm() -> void:
 	_done = true
 	var rosters := {}
 	var teams := {}
-	for seat in SEATS:
+	for seat in _seats:
 		var ids: Array[StringName] = []
 		for h in _picks[seat]:
 			ids.append(h)
 		rosters[seat] = ids
-		teams[seat] = seat   # 1v1: one seat per team. Team sizes arrive in M6.
+		teams[seat] = GameManager.team_of_seat(seat)
 	picks_confirmed.emit(rosters, teams)
 
 #region Drawing
@@ -122,21 +130,28 @@ func _draw_screen() -> void:
 		"%0.0f" % maxf(_remaining, 0.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 18,
 		COL_DIM if _remaining > 5.0 else Color(1, 0.4, 0.4))
 
+	# Rows are packed to fit however many seats the format has: six rows at the
+	# 1v1 spacing would run off the bottom of a 720px viewport.
 	var row_w := _roster.size() * CARD.x + (_roster.size() - 1) * GAP
-	for seat in SEATS:
-		var origin := Vector2(size.x * 0.5 - row_w * 0.5, 104.0 + seat * (CARD.y + 106.0))
-		_draw_seat(font, seat, origin)
+	var top := 104.0
+	var pitch: float = minf(CARD.y + 106.0, (size.y - top - 24.0) / float(_seats))
+	for seat in _seats:
+		_draw_seat(font, seat, Vector2(size.x * 0.5 - row_w * 0.5, top + seat * pitch), pitch)
 
 func _shadowed(font: Font, at: Vector2, msg: String, size: int, col: Color) -> void:
 	_canvas.draw_string(font, at + Vector2(1, 1), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size,
 		Color(0, 0, 0, 0.85))
 	_canvas.draw_string(font, at, msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size, col)
 
-func _draw_seat(font: Font, seat: int, origin: Vector2) -> void:
+func _draw_seat(font: Font, seat: int, origin: Vector2, pitch: float) -> void:
 	var picks: Array = _picks[seat]
 	_canvas.draw_string(font, origin + Vector2(0, -8),
-		"P%d   %s" % [seat + 1, "mouse+keyboard" if seat == 0 else "controller"],
+		"P%d   TEAM %d   %s" % [seat + 1, GameManager.team_of_seat(seat) + 1,
+			"mouse+keyboard" if seat == 0 else "pad %d" % InputConfig.pad_index_of(seat)],
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 13, COL_DIM)
+	# The kit text under each row is the first thing to go when rows are packed:
+	# it is the tallest part and the least useful once you already know a roster.
+	var roomy: bool = pitch > CARD.y + 70.0
 
 	for i in _roster.size():
 		var hero_id: StringName = _roster[i]
@@ -148,7 +163,7 @@ func _draw_seat(font: Font, seat: int, origin: Vector2) -> void:
 		_canvas.draw_rect(Rect2(pos, CARD), COL_CARD)
 		_canvas.draw_rect(Rect2(pos, Vector2(CARD.x, 6)), accent if not taken else accent * 0.5)
 		if _cursor[seat] == i and picks.size() < PICKS_REQUIRED:
-			_canvas.draw_rect(Rect2(pos, CARD), SEAT_CURSOR[seat], false, 3.0)
+			_canvas.draw_rect(Rect2(pos, CARD), SEAT_CURSOR[seat % SEAT_CURSOR.size()], false, 3.0)
 		else:
 			_canvas.draw_rect(Rect2(pos, CARD), COL_FRAME, false, 1.0)
 
@@ -177,7 +192,7 @@ func _draw_seat(font: Font, seat: int, origin: Vector2) -> void:
 	# What the hovered hero actually does — pick screens that hide the kit force
 	# players to memorise a wiki.
 	var hover := GameManager.hero_data(_roster[_cursor[seat]])
-	if hover != null:
+	if hover != null and roomy:
 		_shadowed(font, origin + Vector2(0, CARD.y + 46), hover.ability_text, 11,
 			Color(0.85, 0.88, 0.95))
 		_shadowed(font, origin + Vector2(0, CARD.y + 60), hover.ultimate_text, 11,

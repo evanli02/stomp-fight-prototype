@@ -21,12 +21,27 @@ const EVENT_LOG_LINES: int = 5
 const TERRAIN_COLOR: Color = Color(0.16, 0.18, 0.28)
 
 ## Seat rosters used only when a stage is booted standalone (F6) with no match
-## in progress. Trios picked to be visually distinct from each other.
+## in progress. Trios picked to be visually distinct from each other, and long
+## enough to seat a 3v3 without any two seats looking alike.
 const SEAT_ROSTERS: Array = [
 	[&"deadeye", &"fei", &"terra"],
 	[&"cerebelle", &"sai", &"slip"],
+	[&"mason", &"kid", &"deadeye"],
+	[&"slip", &"terra", &"fei"],
+	[&"sai", &"cerebelle", &"kid"],
+	[&"kid", &"mason", &"sai"],
 ]
 
+## How far apart teammates stand at a shared spawn. Wide enough that they are not
+## inside each other (bodies are 22px and players are terrain to each other), and
+## narrow enough to stay on the platform the anchor was chosen for.
+const TEAMMATE_SPACING: float = 52.0
+
+const PLAYER_SCENE := preload("res://src/player/player.tscn")
+
+## Seats 0 and 1 are placed in the scene; anything a bigger format needs is
+## instantiated next to them. Keeping the first two in the file is what lets F6
+## and the harnesses find %Player1 / %Player2 the way they always have.
 @onready var players: Array[Player] = [%Player1, %Player2]
 @onready var readout: Label = %Readout
 @onready var banner: Label = %Banner
@@ -40,9 +55,10 @@ func _ready() -> void:
 	_blocks = arena_blocks()
 	Arena.build(self, _blocks)
 	build_terrain()
+	_seat_players()
 	for i in players.size():
 		players[i].player_id = i
-		players[i].team_id = i
+		players[i].team_id = GameManager.team_of_seat(i)
 		players[i].stomp_landed.connect(_on_stomp_landed.bind(i))
 		players[i].stun_applied.connect(_on_stun_applied.bind(i))
 	MatchState.life_lost.connect(_on_life_lost)
@@ -59,26 +75,41 @@ func _ready() -> void:
 	# picks away.
 	if MatchState.players.is_empty():
 		var rosters := {}
-		var teams := {}
 		for i in players.size():
 			var ids: Array[StringName] = []
-			for h in SEAT_ROSTERS[i]:
+			for h in SEAT_ROSTERS[i % SEAT_ROSTERS.size()]:
 				ids.append(h)
 			rosters[i] = ids
-			teams[i] = i
-		GameManager.start_match(rosters, teams)
+		GameManager.start_match(rosters, GameManager.seat_teams())
 	else:
 		# round_started already fired before this scene existed.
 		_spawn_all()
 	queue_redraw()
+
+## Bring the seat count up to whatever format is being played. The scene ships
+## two bodies because 1v1 is the common case and the harnesses reach for them by
+## name; 2v2 and 3v3 clone the rest rather than every stage file carrying six.
+func _seat_players() -> void:
+	var wanted := GameManager.seat_count()
+	while players.size() < wanted:
+		var extra := PLAYER_SCENE.instantiate() as Player
+		add_child(extra)
+		players.append(extra)
+	# A format shrinking mid-session (only the harnesses do this) leaves the
+	# spare bodies in the scene doing nothing, which is worse than removing them:
+	# they are still terrain.
+	while players.size() > wanted and players.size() > 1:
+		var spare: Player = players.pop_back()
+		spare.queue_free()
 
 #region Stage definition — subclasses override these
 ## Arena footprint in 16px tiles. Used for the sky and the sealed box.
 func arena_size() -> Vector2i:
 	return Vector2i(72, 40)
 
-## Where each seat starts the round. One entry per player, opposite sides
-## (DESIGN 6.1).
+## One anchor per TEAM, on opposite sides (DESIGN 6.1). Teammates are spread
+## around their team's anchor by the base — a stage picks the two sides, not six
+## individual spots, so adding a format never means editing a stage.
 func spawns() -> Array[Vector2]:
 	return [Vector2(200, 408), Vector2(952, 408)]
 
@@ -131,10 +162,32 @@ func _draw() -> void:
 	else:
 		Arena.draw(self, _blocks, TERRAIN_COLOR)
 
+## Where one seat starts: its team's anchor, offset so teammates stand shoulder
+## to shoulder around it rather than inside each other. Centred, so a team of one
+## lands exactly on the anchor and every stage keeps the spawn it was tuned with.
+func spawn_for(seat: int) -> Vector2:
+	var anchors := spawns()
+	var team: int = GameManager.team_of_seat(seat)
+	var anchor: Vector2 = anchors[team % anchors.size()]
+	var size: int = maxi(GameManager.team_size, 1)
+	var slot := float(GameManager.index_in_team(seat)) - float(size - 1) * 0.5
+	return anchor + Vector2(slot * TEAMMATE_SPACING, 0.0)
+
+## The body for a seat, or null when this stage has none. MatchState is global
+## and a stage is not: a stage built for a smaller format than the one that is
+## registered — or a second stage alive during a test — still receives every
+## signal, and indexing straight into `players` turns that into a crash instead
+## of a body it simply does not own.
+func body_for(player_id: int) -> Player:
+	if player_id < 0 or player_id >= players.size():
+		return null
+	return players[player_id]
+
 func _spawn_all() -> void:
-	var at := spawns()
 	for i in players.size():
-		players[i].respawn_at(at[i])
+		if not MatchState.has_player(i):
+			continue
+		players[i].respawn_at(spawn_for(i))
 		players[i].equip_hero(MatchState.active_hero(i))
 
 func _physics_process(delta: float) -> void:
@@ -161,16 +214,22 @@ func _on_life_lost(player_id: int, hero_id: StringName, lives_left: int) -> void
 ## with brief protection (DESIGN 3.3). If that was the last one, the round is
 ## already decided and MatchState.round_won is on its way.
 func _on_hero_eliminated(player_id: int, hero_id: StringName) -> void:
-	players[player_id].play_elimination()
+	var body := body_for(player_id)
+	if body == null:
+		return
+	body.play_elimination()
 	_log("P%d's %s is out" % [player_id + 1, hero_id])
 	if not MatchState.is_out(player_id):
 		_respawning[player_id] = RESPAWN_DELAY
 
 func _bring_in_next_hero(player_id: int) -> void:
+	var body := body_for(player_id)
+	if body == null:
+		return
 	var next := MatchState.next_living_hero(player_id)
 	MatchState.swap_to(player_id, next)
-	players[player_id].respawn_at(spawns()[player_id])
-	players[player_id].equip_hero(next)
+	body.respawn_at(spawn_for(player_id))
+	body.equip_hero(next)
 
 func _on_hero_swapped(player_id: int, _from: StringName, to_hero: StringName) -> void:
 	_log("P%d -> %s" % [player_id + 1, to_hero])
@@ -195,8 +254,8 @@ func _on_stun_applied(duration: float, player_index: int) -> void:
 #region Debug overlay
 func _debug_text() -> String:
 	var lines: Array[String] = [
-		"%s   P1 mouse+keyboard   P2 controller   (swap: RMB / L2, ability: LMB / L1, ult: E / R2+L2)"
-			% stage_name(),
+		"%s  %dv%d   P1 mouse+keyboard, rest on pads   (swap: RMB / L2, ability: LMB / L1, ult: E / R2+L2)"
+			% [stage_name(), GameManager.team_size, GameManager.team_size],
 		"",
 	]
 	for i in players.size():
@@ -221,8 +280,9 @@ func _player_line(index: int) -> String:
 			parts.append("%s%d" % ["*" if h == MatchState.active_hero(index) else " ",
 				MatchState.lives_of(index, h)])
 		lives = "".join(parts)
-	return "P%d %s  %-10s v(%5.0f,%5.0f)%s" % [
-		index + 1, lives, p.state_machine.state_name(), p.velocity.x, p.velocity.y, flags]
+	return "P%d(T%d) %s  %-10s v(%5.0f,%5.0f)%s" % [
+		index + 1, p.team_id, lives, p.state_machine.state_name(),
+		p.velocity.x, p.velocity.y, flags]
 
 func _log(line: String) -> void:
 	_events.append(line)

@@ -60,6 +60,11 @@ var phase: Phase = Phase.LOBBY
 var team_size: int = 1          # 1, 2, or 3
 var best_of: int = 3            # 1, 3, or 5
 
+## Two teams, always (DESIGN 2.1). Everything downstream — seat count, which
+## side a seat spawns on, how many rows hero select draws — is derived from
+## team_size rather than assumed, so setting it is the whole of "play 2v2".
+const TEAMS: int = 2
+
 var round_index: int = 0
 var coinflip_winner_team: int = 0
 ## The stage the current round is on. Stages booted standalone never change it,
@@ -197,6 +202,39 @@ func _advance_after_results() -> void:
 		begin_stage_select()
 	else:
 		start_round()
+
+#region Format
+## Total local seats in the current format: 2 for 1v1, 6 for 3v3.
+func seat_count() -> int:
+	return TEAMS * team_size
+
+## Seats are allocated in blocks, not interleaved: seats 0..team_size-1 are team
+## 0 and the rest are team 1. Blocks keep "which side do I spawn on" a division
+## instead of a lookup, and keep a seat's team stable when the format changes.
+func team_of_seat(seat: int) -> int:
+	return seat / maxi(team_size, 1)
+
+## Where a seat sits within its own team — used to space teammates apart at the
+## spawn and to pick which of them holds the stage cursor.
+func index_in_team(seat: int) -> int:
+	return seat % maxi(team_size, 1)
+
+## Seat -> team map for the whole format, in the shape start_match wants.
+func seat_teams() -> Dictionary:
+	var out := {}
+	for seat in seat_count():
+		out[seat] = team_of_seat(seat)
+	return out
+
+## Which seat holds the stage cursor this round: the first seat on the picking
+## team (DESIGN 2.2 names the team, not the player).
+func stage_picker_seat() -> int:
+	var team := stage_picker_team()
+	for seat in seat_count():
+		if team_of_seat(seat) == team:
+			return seat
+	return 0
+#endregion
 
 func coinflip(player_a: int, player_b: int) -> int:
 	return player_a if rng.randi() % 2 == 0 else player_b

@@ -55,6 +55,7 @@ func _run() -> void:
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
 	await _check_stage_select_flow()
+	await _check_team_formats()
 
 ## Hero select's rules, driven directly rather than through synthetic button
 ## presses — the screen is a thin shell over these and the rules are the part
@@ -662,3 +663,82 @@ func _total_lives() -> int:
 		for hero: StringName in MatchState.roster(pid):
 			total += MatchState.lives_of(pid, hero)
 	return total
+
+## 2v2 and 3v3. The data model already grouped by team, so what this checks is
+## everything derived from the format: seat count, which side a seat spawns on,
+## teammates not spawning inside each other, and a round ending only when EVERY
+## player on a team is out rather than the first one.
+func _check_team_formats() -> void:
+	check("1v1 seats two", GameManager.seat_count() == 2, "seats=%d" % GameManager.seat_count())
+
+	GameManager.team_size = 2
+	check("2v2 seats four", GameManager.seat_count() == 4, "seats=%d" % GameManager.seat_count())
+	check("seats are allocated in team blocks",
+		[GameManager.team_of_seat(0), GameManager.team_of_seat(1),
+			GameManager.team_of_seat(2), GameManager.team_of_seat(3)] == [0, 0, 1, 1],
+		"teams=%s" % [GameManager.seat_teams()])
+
+	# A fresh stage, because seating happens in _ready — and the 1v1 one comes
+	# down first: two stages in one physics world overlap their geometry, and
+	# every position measured after that is fiction.
+	_stage.queue_free()
+	await step(2)
+	MatchState.clear_players()
+	var lab := load("res://src/stage/duel.tscn").instantiate() as MatchStage
+	add_child(lab)
+	await step(3)
+	check("the stage seats the whole format", lab.players.size() == 4,
+		"bodies=%d" % lab.players.size())
+
+	var teams: Array[int] = []
+	for p: Player in lab.players:
+		teams.append(p.team_id)
+	check("every body knows its team", teams == [0, 0, 1, 1], "teams=%s" % [teams])
+	check("the two teams spawn on opposite sides",
+		lab.spawn_for(0).x < 400.0 and lab.spawn_for(3).x > 700.0,
+		"t0=%s t1=%s" % [lab.spawn_for(0), lab.spawn_for(3)])
+	# Players are terrain to each other, so teammates sharing an anchor exactly
+	# would spawn one inside the other and shove each other on the first frame.
+	check("teammates are spaced apart at the spawn",
+		absf(lab.spawn_for(0).x - lab.spawn_for(1).x) >= 40.0,
+		"a=%s b=%s" % [lab.spawn_for(0), lab.spawn_for(1)])
+	check("the spread is centred on the team's anchor",
+		is_equal_approx((lab.spawn_for(0).x + lab.spawn_for(1).x) * 0.5, lab.spawns()[0].x),
+		"mid=%.1f anchor=%.1f" % [
+			(lab.spawn_for(0).x + lab.spawn_for(1).x) * 0.5, lab.spawns()[0].x])
+
+	# The round rule: one player down is not a team down.
+	var winners: Array[int] = []
+	var cb := func(team: int) -> void: winners.append(team)
+	MatchState.round_won.connect(cb)
+	for hero: StringName in MatchState.roster(2).duplicate():
+		kill_hero(2, hero)
+	check("wiping one player does not end the round for their team", winners.is_empty(),
+		"winners=%s" % [winners])
+	check("that player is out even though their team is not", MatchState.is_out(2))
+	for hero: StringName in MatchState.roster(3).duplicate():
+		kill_hero(3, hero)
+	check("wiping the whole team ends the round", winners == [0], "winners=%s" % [winners])
+	MatchState.round_won.disconnect(cb)
+
+	# The stage pick belongs to a team; one of its seats has to hold the cursor.
+	check("the losing team is recorded", MatchState.last_round_loser_team == 1,
+		"loser=%d" % MatchState.last_round_loser_team)
+	GameManager.round_index = 1
+	var seat := GameManager.stage_picker_seat()
+	check("the stage cursor goes to a seat on the picking team",
+		GameManager.team_of_seat(seat) == GameManager.stage_picker_team(),
+		"seat=%d team=%d picker=%d" % [seat, GameManager.team_of_seat(seat),
+			GameManager.stage_picker_team()])
+
+	GameManager.team_size = 3
+	check("3v3 seats six", GameManager.seat_count() == 6, "seats=%d" % GameManager.seat_count())
+	check("every 3v3 seat has input bindings registered",
+		InputMap.has_action(InputConfig.action(5, &"jump")))
+	check("later seats take later pads", InputConfig.pad_index_of(5) == 4,
+		"pad=%d" % InputConfig.pad_index_of(5))
+
+	lab.queue_free()
+	GameManager.round_index = 0
+	GameManager.team_size = 1
+	await step(2)

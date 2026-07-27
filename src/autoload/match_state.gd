@@ -196,7 +196,8 @@ func wins_for(team_id: int) -> int:
 
 func stage_picker(round_index: int, coinflip_winner: int) -> int:
 	## Round 1: coinflip winner. Later rounds: the losing team of the previous
-	## round — TODO(M6): resolve which player on multi-player teams.
+	## round. This answers with a TEAM; which of that team's seats holds the
+	## cursor is GameManager.stage_picker_seat().
 	if round_index == 0:
 		return coinflip_winner
 	# No loser on record means the previous round never resolved through

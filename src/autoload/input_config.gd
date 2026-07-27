@@ -10,9 +10,10 @@ extends Node
 
 enum Device { KBM, PAD }
 
-## Local seats. 2v2/3v3 are online-or-more-pads formats; local play is two seats
-## until the lobby exists (M6).
-const MAX_LOCAL_PLAYERS: int = 2
+## Local seats. Enough for 3v3 on one machine: one keyboard seat plus five pads.
+## How many are actually in play is GameManager.seat_count(); this is only how
+## many have bindings registered, and registering unused ones costs nothing.
+const MAX_LOCAL_PLAYERS: int = 6
 const CHORD_WINDOW: float = 0.1  ## seconds for R2+L2 ultimate simultaneity
 
 ## Base action names; every slot gets its own namespaced copy of each.
@@ -23,6 +24,8 @@ const ACTIONS: Array[StringName] = [
 ]
 
 var _device_of: Dictionary = {}      # player_id -> Device
+## player_id -> joypad device index. Ignored by the KBM seat.
+var _pad_index_of: Dictionary = {}
 ## player_id -> { dash: int, swap: int } physics frame each press is parked on
 ## while we wait to see whether it is half of a chord. -1 means nothing pending.
 var _chord_pending: Dictionary = {}
@@ -32,20 +35,28 @@ var _poll_cache: Dictionary = {}
 
 func _ready() -> void:
 	for slot in MAX_LOCAL_PLAYERS:
-		# Seat 0 is mouse and keyboard, seat 1 is the first controller. Rebinding
-		# UI (and user://input.cfg persistence, DESIGN 7) lands with the lobby in M6.
-		assign_device(slot, Device.KBM if slot == 0 else Device.PAD)
+		# Seat 0 is mouse and keyboard; every later seat takes the next controller
+		# in order. Rebinding UI (and user://input.cfg persistence, DESIGN 7)
+		# lands with the lobby.
+		if slot == 0:
+			assign_device(slot, Device.KBM)
+		else:
+			assign_device(slot, Device.PAD, slot - 1)
 
 #region Device assignment
 ## Point a player slot at a device and rebuild its bindings.
-func assign_device(player_id: int, device: Device) -> void:
+func assign_device(player_id: int, device: Device, pad_index: int = 0) -> void:
 	_device_of[player_id] = device
+	_pad_index_of[player_id] = pad_index
 	_chord_pending[player_id] = { &"dash": -1, &"swap": -1 }
 	_poll_cache.erase(player_id)
 	_register_actions(player_id, device)
 
 func device_of(player_id: int) -> Device:
 	return _device_of.get(player_id, Device.KBM)
+
+func pad_index_of(player_id: int) -> int:
+	return _pad_index_of.get(player_id, 0)
 
 ## The namespaced action name for a slot, e.g. action(1, &"jump") -> "p1_jump".
 func action(player_id: int, base: StringName) -> StringName:
@@ -57,7 +68,8 @@ func _register_actions(player_id: int, device: Device) -> void:
 		if InputMap.has_action(name):
 			InputMap.erase_action(name)
 		InputMap.add_action(name)
-		for event in (_kbm_events(base) if device == Device.KBM else _pad_events(base)):
+		var events: Array = _kbm_events(base) if device == Device.KBM 			else _pad_events(base, pad_index_of(player_id))
+		for event in events:
 			InputMap.action_add_event(name, event)
 
 ## KBM bindings (DESIGN 7). Aim is the mouse cursor, so the aim_* actions are
@@ -77,9 +89,15 @@ func _kbm_events(base: StringName) -> Array:
 
 ## Controller bindings (DESIGN 7). There is no ultimate button: it is the R2+L2
 ## chord, resolved in poll().
-## TODO(M6): filter by joypad device index so a third and fourth pad can be told
-## apart; today every pad drives the pad seat.
-func _pad_events(base: StringName) -> Array:
+## Every event is stamped with the seat's joypad index, so a second and third
+## controller drive their own seats instead of all of them at once.
+func _pad_events(base: StringName, pad: int) -> Array:
+	var events := _pad_events_unbound(base)
+	for event in events:
+		event.device = pad
+	return events
+
+func _pad_events_unbound(base: StringName) -> Array:
 	match base:
 		&"move_left": return [_axis(JOY_AXIS_LEFT_X, -1.0)]
 		&"move_right": return [_axis(JOY_AXIS_LEFT_X, 1.0)]

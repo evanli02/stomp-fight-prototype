@@ -32,14 +32,18 @@ const SEAT_CURSOR: Array[Color] = [Color(1, 1, 1), Color(1, 0.85, 0.3)]
 var _canvas: Control
 var _stages: Array[StringName] = []
 var _cursor: int = 0
+## The seat holding the cursor, and the team it plays for. On a team of more
+## than one they are different numbers, and the heading names the team.
 var _picker: int = 0
+var _picker_team: int = 0
 var _nav_cooldown: float = 0.0
 var _remaining: float = SELECT_TIME
 var _done: bool = false
 
 func _ready() -> void:
 	_stages = GameManager.stage_ids()
-	_picker = GameManager.stage_picker_team()
+	_picker = GameManager.stage_picker_seat()
+	_picker_team = GameManager.stage_picker_team()
 	# Start on the stage that is already loaded, so "keep playing here" is the
 	# zero-input answer and the timeout never feels like it stole a pick.
 	_cursor = maxi(_stages.find(GameManager.current_stage), 0)
@@ -59,9 +63,8 @@ func _physics_process(delta: float) -> void:
 	_canvas.queue_redraw()
 
 func _handle_picker(delta: float) -> void:
-	# In 1v1 the picking team and the picking seat are the same number. Teams
-	# with more than one player need a rule for which of them holds the cursor
-	# (TODO M6, same open question as MatchState.stage_picker).
+	# One seat drives, even though the pick belongs to the team: the first seat on
+	# the picking team holds the cursor (GameManager.stage_picker_seat).
 	var frame := InputConfig.poll(_picker)
 	_nav_cooldown = maxf(_nav_cooldown - delta, 0.0)
 	if absf(frame.move.x) < NAV_DEADZONE:
@@ -85,7 +88,7 @@ func _draw_screen() -> void:
 	var size := _canvas.size
 	_canvas.draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
 
-	var heading := "P%d PICKS THE STAGE" % [_picker + 1]
+	var heading := "TEAM %d PICKS THE STAGE  (P%d)" % [_picker_team + 1, _picker + 1]
 	_shadowed(font, Vector2(size.x * 0.5 - 120, 60), heading, 24, COL_TEXT)
 	_shadowed(font, Vector2(size.x * 0.5 - 120, 84), _why(), 13, COL_DIM)
 	_shadowed(font, Vector2(size.x * 0.5 - 12, 112), "%0.0f" % maxf(_remaining, 0.0), 18,

@@ -23,12 +23,14 @@ Milestones M1–M5 from `docs/IMPLEMENTATION.md` §7 are **done and playable end
 | M4 | Four hero kits + Rooftop Rumble stage | done, then reworked twice |
 | M5 | Eight terrain elements + `PoleClimb`, two stages, stage select | done |
 | — | Art overhaul: chibi proportions, 8 heroes, VFX, UI pass | done |
+| M6 | 2v2/3v3 plumbing | done; **lobby screen outstanding** |
 
-You can boot `src/main.tscn`, pick heroes, pick a stage, play rounds, and finish a match. What
-follows M5 (that is, all of M6) is **not started**: 2v2/3v3 team play beyond the data model,
-lobby options, audio, netcode.
+You can boot `src/main.tscn`, pick heroes, pick a stage, play rounds, and finish a match — in
+1v1. 2v2 and 3v3 work end to end in code and under the harness, but **nothing sets
+`GameManager.team_size` yet**, so they are not reachable from the UI. That lobby screen is the
+next piece. Audio and netcode are untouched.
 
-All four harnesses are green — **movement 72, combat 41, match 146, terrain 35 = 294 checks**,
+All four harnesses are green — **movement 72, combat 41, match 181, terrain 35 = 329 checks**,
 zero script errors.
 
 ---
@@ -120,6 +122,9 @@ grace, anti-chain and victim authority intact. `combat_harness.gd` asserts both 
   takes an optional duty cycle, which is what makes Cryo Lab's grid a rhythm rather than walls.
 - **Stages** are `MatchStage` (`src/stage/match_stage.gd`) plus a subclass supplying layout,
   terrain and palette only — the base owns seats, the round loop, respawns and the overlay.
+  Seating is format-driven: the scene ships two bodies, `_seat_players()` clones up to
+  `GameManager.seat_count()`, and `spawns()` returns one anchor **per team** with the base
+  spreading teammates around it.
   Registered in `GameManager.STAGE_ROSTER`, which also carries the name/blurb/features/accent
   the select screen draws, so a menu never has to instantiate a stage to describe it.
 - **Debuffs** are a small shared system on `Player`: `apply_slow`, `apply_impairment`,
@@ -279,6 +284,15 @@ it hung from. Every player now draws an `AimLine`: 6 hero-heights, dashed, clipp
 
 ---
 
+**M6 format plumbing.** `GameManager.team_size` is now the single input that makes the game
+2v2 or 3v3: seat count, block seat→team allocation, per-team spawn anchors, six-seat input
+bindings with real per-pad device indices, and both select screens all derive from it. Found
+and fixed a robustness hole on the way — a stage indexed straight into its `players` array on
+every MatchState signal, so any stage built for a smaller format than the one registered
+crashed rather than ignoring seats it does not own (`MatchStage.body_for`).
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
@@ -288,10 +302,10 @@ makes sense:
    debuff buffs, the dive-dash nerf and Sai's swing speed all pass their harness checks, but
    only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
    is the single most likely thing to be wrong by feel.
-2. **2v2 / 3v3** (M6). The data model already carries teams; what's missing is spawns, the HUD
-   layout, and friendly-fire rules per DESIGN §2. Two known TODOs point here: which player on
-   a multi-player team holds the stage-pick cursor (`MatchState.stage_picker`,
-   `stage_select.gd`), and per-match RNG seeding in `GameManager._ready`.
+2. **The lobby screen** — the one thing standing between the format plumbing and actually
+   playing 2v2. It needs to set `team_size` and `best_of` before `begin_hero_select()`, which
+   means it becomes the new first screen in `main.gd`. The HUD is also still laid out for two
+   players, and per-match RNG seeding (`GameManager._ready`) is still a TODO.
 3. **Audio** — there is none at all yet.
 4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.
