@@ -54,6 +54,10 @@ var slow_remaining: float = 0.0
 var impair_mult: float = 1.0
 var impair_remaining: float = 0.0
 var disrupt_remaining: float = 0.0
+## What is currently debuffing this player: tag -> seconds remaining. Purely for
+## the status readout, but it has to be tracked here — by the time a debuff is
+## sitting on the player, the ability that applied it is long gone.
+var debuff_tags: Dictionary = {}
 ## 0 = normal ground, 1 = full ice. Terrain writes this every tick it applies and
 ## it decays back on its own, so an element never has to remember to clear it and
 ## a player who leaves the ice is never left slippery.
@@ -130,19 +134,27 @@ func set_velocity_override(v: Vector2) -> void:
 	## Springs, portals, grapples: replaces velocity outright.
 	velocity = v
 
-func apply_slow(mult: float, dur: float) -> void:
+func apply_slow(mult: float, dur: float, tag: StringName = &"slow") -> void:
 	## Speed-cap multiplier < 1. Takes the strongest slow and the longest timer.
 	slow_mult = minf(slow_mult, clampf(mult, 0.1, 1.0))
 	slow_remaining = maxf(slow_remaining, dur)
+	mark_debuff(tag, dur)
 
-func apply_impairment(mult: float, dur: float) -> void:
+func apply_impairment(mult: float, dur: float, tag: StringName = &"impair") -> void:
 	## Scales jump, dash, and wall-jump strength. 0 disables them entirely.
 	impair_mult = minf(impair_mult, clampf(mult, 0.0, 1.0))
 	impair_remaining = maxf(impair_remaining, dur)
+	mark_debuff(tag, dur)
 
-func apply_disrupt(dur: float) -> void:
+func apply_disrupt(dur: float, tag: StringName = &"emp") -> void:
 	## EMP: no dash, no ability, no ultimate until it expires.
 	disrupt_remaining = maxf(disrupt_remaining, dur)
+	mark_debuff(tag, dur)
+
+func mark_debuff(tag: StringName, dur: float) -> void:
+	## Which SOURCE is on you, for the status icons. Longest timer wins, so a
+	## re-application refreshes rather than adding a second identical badge.
+	debuff_tags[tag] = maxf(debuff_tags.get(tag, 0.0), dur)
 
 func apply_freeze(duration: float) -> void:
 	## Stop dead in the air for a moment. Pairs with a stun so that when the
@@ -315,6 +327,7 @@ func respawn_at(spawn_position: Vector2) -> void:
 	impair_mult = 1.0
 	impair_remaining = 0.0
 	disrupt_remaining = 0.0
+	debuff_tags.clear()
 	set_crouched(false)
 	_clear_duel_claim()
 	state_machine.change_state(&"Air")
@@ -468,6 +481,10 @@ func _tick_timers(delta: float) -> void:
 			impair_mult = 1.0
 	if disrupt_remaining > 0.0:
 		disrupt_remaining -= delta
+	for tag in debuff_tags.keys():
+		debuff_tags[tag] -= delta
+		if debuff_tags[tag] <= 0.0:
+			debuff_tags.erase(tag)
 	if not is_zero_approx(input.move.x) and stun_remaining <= 0.0:
 		# signi() takes an int, so a partly-deflected stick (0.7) truncated to 0
 		# and left facing at 0 — never negative, so the sprite never flipped.

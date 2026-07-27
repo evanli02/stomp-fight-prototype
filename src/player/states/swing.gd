@@ -10,7 +10,14 @@ class_name SwingState extends PlayerState
 
 const MAX_REVERSALS: int = 2
 ## Jump off the rope: the swing's velocity, plus a little launch along it.
-const JUMP_BONUS: float = 1.08
+const JUMP_BONUS: float = 1.15
+## The rope pulls harder than gravity alone would — a swing should outrun a run,
+## not lag behind one.
+const DRIVE: float = 1.6
+## Speed carried into the hook is AMPLIFIED rather than merely kept: arriving
+## fast and converting it into a wider, faster arc is the whole reward for
+## hitting a moving grapple.
+const ENTRY_BOOST: float = 1.35
 
 var _anchor: Vector2 = Vector2.ZERO
 var _radius: float = 60.0
@@ -26,14 +33,14 @@ func enter(params: Dictionary = {}) -> void:
 	_theta = atan2(offset.x, offset.y)  # 0 = hanging straight down
 	# Carry the entry speed into the arc: project velocity onto the tangent.
 	var tangent := Vector2(cos(_theta), -sin(_theta))
-	_omega = player.velocity.dot(tangent) / _radius
+	_omega = (player.velocity.dot(tangent) * ENTRY_BOOST) / _radius
 	_reversals = 0
 	_last_sign = signf(_omega)
 	player.air_dash_locked = false
 
 func physics_update(delta: float) -> void:
 	# Pendulum: gravity pulls the bob back toward hanging straight down.
-	var alpha := -(player.movement.gravity / _radius) * sin(_theta)
+	var alpha := -(player.movement.gravity * DRIVE / _radius) * sin(_theta)
 	_omega += alpha * delta
 	_theta += _omega * delta
 

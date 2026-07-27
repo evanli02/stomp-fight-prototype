@@ -47,6 +47,13 @@ class_name MovementConfig extends Resource
 ## matters. Scaled with dash_distance so the absolute climb (~16px) holds while
 ## horizontal reach grows.
 @export var air_dash_up_mult: float = 0.22
+## Straight-DOWN airborne dashes are cut hard and grant no post-dash boost. A
+## cheap fast-fall is the strongest stomp approach in the game, and it should
+## cost something to line up. Diagonals are untouched — the nerf is aimed at the
+## one input, not at dive angles.
+@export var air_dash_down_mult: float = 0.3
+## |x| below this (with y downward) counts as "straight down".
+@export var air_dash_down_deadzone: float = 0.35
 @export var dash_boost_time: float = 0.4      ## raised speed cap after dash
 @export var dash_boost_cap_mult: float = 1.15
 

@@ -3,7 +3,7 @@ class_name SaiGrapple extends Ability
 ## The pendulum itself lives in the Swing state; this just finds the anchor.
 ## A miss still costs the cooldown — hook shots are aimed, not free.
 
-@export var range: float = 300.0
+@export var range: float = 460.0
 
 func _execute(aim: Vector2) -> void:
 	var dir := aim_or_facing(aim)

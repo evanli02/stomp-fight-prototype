@@ -7,7 +7,7 @@ class_name RecallState extends PlayerState
 ## when the player was actually there, so it cannot tunnel anywhere the player
 ## could not have gone.
 
-const RETRACE_SPEED: float = 2400.0
+const RETRACE_SPEED: float = 4200.0
 
 var _path: Array = []          ## breadcrumbs, oldest (anchor) first
 var _index: int = 0            ## walked from the END back to 0

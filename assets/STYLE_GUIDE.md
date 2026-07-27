@@ -80,4 +80,4 @@ Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), 
 - Stun/hazard telegraphy always uses the gold→white ramp; danger imminent = red `#e63946`.
 
 ## VFX language
-- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact.
+- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Debuff badges over the head, one per source, distinguished by SHAPE first and colour second** (slash / bolt / bars / ring). Slip's anchor is a pulsing diamond with a countdown arc — an invisible anchor makes the whole ability unreadable for both players. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact.

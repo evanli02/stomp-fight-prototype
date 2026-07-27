@@ -46,6 +46,9 @@ func reset_at(pos: Vector2, settle: int = 20) -> void:
 	_player.velocity = Vector2.ZERO
 	_player.momentum_charge = 0.0
 	_player.dash_charges_left = _player.movement.dash_charges
+	# Also clear the pending recharge: a timer left mid-count from an earlier
+	# check will hand back a charge the moment the next one is spent.
+	_player.dash_recharge_remaining = 0.0
 	_player.air_dash_locked = false
 	_player.wall_jump_chain = 0
 	await step(settle)
@@ -273,6 +276,48 @@ func _check_dash() -> void:
 		"vx=%.1f expected=%.1f" % [diag.x, flat_speed * sqrt(0.5)])
 	check("up-diagonal air dash still pays the upward tax",
 		absf(diag.y) < absf(diag.x) * 0.5, "v=(%.1f, %.1f)" % [diag.x, diag.y])
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
+	await step(10)
+
+	# Straight down is the nerfed input: much shorter, and no post-dash boost.
+	# Diagonally down is deliberately untouched.
+	await reset_at(Vector2(300, 300))
+	press(&"jump")
+	await step(6)
+	release(&"jump")
+	press(&"move_down")
+	press(&"dash")
+	await step(3)
+	var down_speed := absf(_player.velocity.y)
+	release(&"dash")
+	release(&"move_down")
+	var flat := _player.movement.dash_distance / _player.movement.dash_duration
+	check("straight-down air dash is cut hard",
+		near(down_speed, flat * _player.movement.air_dash_down_mult, 20.0),
+		"vy=%.1f expected=%.1f" % [down_speed, flat * _player.movement.air_dash_down_mult])
+	var boosted: bool = await wait_for_dash_end()
+	check("a straight-down air dash grants no speed boost", not boosted,
+		"boost=%.2f" % _player.dash_boost_remaining)
+	while not _player.is_on_floor():
+		await get_tree().physics_frame
+	await step(10)
+
+	await reset_at(Vector2(300, 300))
+	press(&"jump")
+	await step(6)
+	release(&"jump")
+	press(&"move_down")
+	press(&"move_right")
+	press(&"dash")
+	await step(3)
+	var down_diag := _player.velocity
+	release(&"dash")
+	release(&"move_down")
+	release(&"move_right")
+	check("down-diagonal air dash keeps its full reach",
+		near(down_diag.length(), flat, 25.0),
+		"speed=%.1f expected=%.1f" % [down_diag.length(), flat])
 	while not _player.is_on_floor():
 		await get_tree().physics_frame
 	await step(10)
@@ -580,6 +625,14 @@ func _check_animation_contract() -> void:
 	while not _player.is_on_floor():
 		await get_tree().physics_frame
 	await step(20)
+
+## Run out the current dash and report whether it left a speed boost behind.
+func wait_for_dash_end() -> bool:
+	for i in 20:
+		await get_tree().physics_frame
+		if state() != "Dash":
+			return _player.dash_boost_remaining > 0.0
+	return _player.dash_boost_remaining > 0.0
 
 ## Height of whichever body shape is currently enabled.
 func _body_height() -> float:

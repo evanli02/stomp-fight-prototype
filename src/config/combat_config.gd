@@ -17,13 +17,16 @@ class_name CombatConfig extends Resource
 ## earned the stomp is gone by the time the check runs (DESIGN 3.1).
 @export var stomp_fall_memory_time: float = 0.12
 
+## Stun table (DESIGN 5.4). Every entry is an ability, ultimate, or hazard stun
+## — stomp_stun_time above is the core mechanic and is deliberately NOT tuned
+## with them.
 @export_group("Stun table (DESIGN 5.4)")
-@export var stun_duel_loss: float = 0.3
-@export var stun_deadeye_bolt: float = 0.8
-@export var stun_line: float = 0.4
-@export var stun_explosion: float = 0.5
-@export var stun_nova_ult: float = 1.0
-@export var stun_mason_ult_block: float = 0.5
+@export var stun_duel_loss: float = 0.38
+@export var stun_deadeye_bolt: float = 1.0
+@export var stun_line: float = 0.5
+@export var stun_explosion: float = 0.65
+@export var stun_nova_ult: float = 1.3
+@export var stun_mason_ult_block: float = 0.65
 
 @export_group("Spawn")
 @export var spawn_protection_time: float = 2.0  ## or until first action

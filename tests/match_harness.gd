@@ -361,6 +361,31 @@ func _check_abilities() -> void:
 	check("the rewind arrives back at the anchor", returned,
 		"at=%s anchor=%s" % [_p1.global_position, anchor_at])
 
+	# Debuffs carry a source tag so the badges over a player can differ by cause.
+	MatchState.reset_round()
+	# Let every effect the sweep launched actually land first. Kid's EMP has a
+	# 0.6s telegraph, so clearing state immediately would be undone a moment
+	# later by a wave that had not detonated yet.
+	await step(60)
+	# Then wipe: those effects leave multi-second debuffs, and every apply_*
+	# takes the LONGER timer.
+	_p2.debuff_tags.clear()
+	_p2.disrupt_remaining = 0.0
+	_p2.slow_remaining = 0.0
+	_p2.slow_mult = 1.0
+	_p2.impair_remaining = 0.0
+	_p2.impair_mult = 1.0
+	_p2.apply_slow(0.5, 1.0, &"slash")
+	_p2.apply_disrupt(1.0, &"emp")
+	check("a debuff records its source", _p2.debuff_tags.has(&"slash")
+		and _p2.debuff_tags.has(&"emp"), "tags=%s" % [_p2.debuff_tags.keys()])
+	check("distinct sources get distinct badges",
+		DebuffMarks.MARKS[&"slash"][1] != DebuffMarks.MARKS[&"emp"][1])
+	await step(75)
+	check("debuff tags clear when they expire", _p2.debuff_tags.is_empty(),
+		"tags=%s" % [_p2.debuff_tags.keys()])
+	check("a cleared disrupt lets the player act again", _p2.disrupt_remaining <= 0.0)
+
 	await step(60)
 	check("no ability took a life",
 		MatchState.lives_of(0, MatchState.active_hero(0)) == lives_before[0]

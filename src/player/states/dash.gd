@@ -5,6 +5,9 @@ class_name DashState extends PlayerState
 
 var _remaining: float = 0.0
 var _velocity: Vector2 = Vector2.ZERO
+## A straight-down air dash forfeits the post-dash speed boost as well as most
+## of its distance.
+var _grants_boost: bool = true
 
 func enter(_params: Dictionary = {}) -> void:
 	player.consume_dash_charge()
@@ -20,7 +23,15 @@ func enter(_params: Dictionary = {}) -> void:
 		distance = player.movement.dash_distance_wall
 	# Impairment (Sai's slash, Terra's fracture) shortens every dash variant.
 	distance *= maxf(player.impair_mult, 0.05)
-	_velocity = _resolve_direction() * (distance / player.movement.dash_duration)
+	var dir := _resolve_direction()
+	_grants_boost = true
+	if not on_surface and dir.y > 0.0 			and absf(dir.x) < player.movement.air_dash_down_deadzone:
+		# Straight down only. A dive dash is the best stomp approach there is, so
+		# the pure-input version is cut hard and pays no boost; aim it diagonally
+		# and it is untouched.
+		distance *= player.movement.air_dash_down_mult
+		_grants_boost = false
+	_velocity = dir * (distance / player.movement.dash_duration)
 	if not on_surface and _velocity.y < 0.0:
 		# Airborne dashes buy height at a heavy discount — a full-strength upward
 		# dash outclimbs the jump and flattens the whole vertical game (DESIGN 4.3).
@@ -31,7 +42,8 @@ func physics_update(delta: float) -> void:
 	_remaining -= delta
 	player.velocity = _velocity  # constant-velocity burst: gravity is suspended
 	if _remaining <= 0.0:
-		player.dash_boost_remaining = player.movement.dash_boost_time
+		if _grants_boost:
+			player.dash_boost_remaining = player.movement.dash_boost_time
 		machine.change_state(&"Run" if player.is_on_floor() else &"Air")
 
 func _resolve_direction() -> Vector2:

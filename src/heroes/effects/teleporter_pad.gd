@@ -7,10 +7,10 @@ class_name TeleporterPad extends TerrainElement
 
 const PAD_SIZE: Vector2 = Vector2(34, 42)
 const DOWNTIME: float = 1.5
-const SLOW_MULT: float = 0.6
-const SLOW_TIME: float = 2.0
+const SLOW_MULT: float = 0.48
+const SLOW_TIME: float = 4.0
 const HASTE_MULT: float = 1.3
-const HASTE_TIME: float = 2.0
+const HASTE_TIME: float = 4.0
 
 var pair: TeleporterPad = null
 var owner_team: int = -1
@@ -49,7 +49,7 @@ func on_body_entered(p: Player) -> void:
 	if p.team_id == owner_team:
 		p.grant_speed_buff(HASTE_MULT, HASTE_TIME)
 	else:
-		p.apply_slow(SLOW_MULT, SLOW_TIME)
+		p.apply_slow(SLOW_MULT, SLOW_TIME, &"teleport")
 
 func _draw() -> void:
 	var half := PAD_SIZE * 0.5

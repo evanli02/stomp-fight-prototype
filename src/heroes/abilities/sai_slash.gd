@@ -6,9 +6,9 @@ class_name SaiSlash extends Ability
 
 @export var distance: float = 520.0
 @export var corridor: float = 34.0
-@export var slow_mult: float = 0.55
-@export var impair_mult: float = 0.35
-@export var debuff_time: float = 3.5
+@export var slow_mult: float = 0.415
+@export var impair_mult: float = 0.3
+@export var debuff_time: float = 7.0
 
 func _execute(aim: Vector2) -> void:
 	var dir := aim_or_facing(aim)
@@ -25,8 +25,8 @@ func _execute(aim: Vector2) -> void:
 		var along := clampf(offset.dot(dir), 0.0, from.distance_to(to))
 		if (offset - dir * along).length() > corridor:
 			continue
-		victim.apply_slow(slow_mult, debuff_time)
-		victim.apply_impairment(impair_mult, debuff_time)
+		victim.apply_slow(slow_mult, debuff_time, &"slash")
+		victim.apply_impairment(impair_mult, debuff_time, &"slash")
 
 	var trail := SlashTrail.new()
 	trail.from_point = from

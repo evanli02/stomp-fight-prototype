@@ -13,6 +13,7 @@ var _anchor_active: bool = false
 var _anchor_pos: Vector2 = Vector2.ZERO
 var _anchor_age: float = 0.0
 var _trail: Array = []
+var _marker: SlipAnchor = null
 
 func _physics_process(delta: float) -> void:
 	super(delta)
@@ -22,6 +23,7 @@ func _physics_process(delta: float) -> void:
 	if _anchor_age >= anchor_lifetime:
 		_anchor_active = false
 		_trail.clear()
+		_clear_marker()
 		return
 	_trail.append(player.global_position)
 
@@ -40,6 +42,7 @@ func _execute(_aim: Vector2) -> void:
 		_anchor_active = false
 		var path := _trail.duplicate()
 		_trail.clear()
+		_clear_marker()
 		path.push_front(_anchor_pos)
 		player.request_state(&"Recall", {"path": path})
 		return
@@ -47,3 +50,15 @@ func _execute(_aim: Vector2) -> void:
 	_anchor_age = 0.0
 	_anchor_pos = player.global_position
 	_trail = [player.global_position]
+	_clear_marker()
+	_marker = SlipAnchor.new()
+	_marker.global_position = _anchor_pos
+	_marker.duration = anchor_lifetime
+	if player.hero != null:
+		_marker.accent = player.hero.accent_color
+	player.spawn_effect(_marker)
+
+func _clear_marker() -> void:
+	if _marker != null and is_instance_valid(_marker):
+		_marker.queue_free()
+	_marker = null

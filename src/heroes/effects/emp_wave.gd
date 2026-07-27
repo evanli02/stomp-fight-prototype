@@ -5,8 +5,8 @@ class_name EmpWave extends Node2D
 ## into an EMP-locked scramble is an ult wasted.
 
 const DELAY: float = 0.6
-const SLOW_MULT: float = 0.5
-const DURATION: float = 3.0
+const SLOW_MULT: float = 0.35
+const DURATION: float = 6.0
 const FADE: float = 0.5
 
 var caster_team: int = -1
@@ -30,8 +30,8 @@ func _physics_process(delta: float) -> void:
 			var p := t as Player
 			if p == null or p.team_id == caster_team:
 				continue
-			p.apply_slow(SLOW_MULT, DURATION)
-			p.apply_disrupt(DURATION)
+			p.apply_slow(SLOW_MULT, DURATION, &"emp")
+			p.apply_disrupt(DURATION, &"emp")
 	if _age >= DELAY + FADE:
 		queue_free()
 		return
