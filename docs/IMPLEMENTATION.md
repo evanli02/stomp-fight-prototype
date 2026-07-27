@@ -54,8 +54,9 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │   ├── Air (jump, fall, variable height, coyote, buffer, b-hop check)
 │   ├── Dash                        charges, surface-parallel vs omni, air-consecutive lock
 │   ├── WallSlide / WallJump        consecutive decay, aim tilt, perfect window
-│   ├── Swing                       Sai's pendulum; 2 reversals then forced release
+│   ├── Swing                       Sai's pendulum; 5 redirects then forced release
 │   ├── Slam                        Terra: hover, plummet; head hits resolve as stomps
+│   ├── Reel                        Sai: haul up the rope, stopping short of the hook
 │   ├── Recall                      Slip: blink back to the anchor, brief settle
 │   ├── PoleClimb
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd

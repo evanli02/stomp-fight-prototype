@@ -662,6 +662,13 @@ func air_accel() -> float:
 func wants_crouch() -> bool:
 	return input.move.y > CROUCH_INPUT_THRESHOLD
 
+## Whether the body is free to be moved by something it chose to do. Effects
+## that resolve a frame or more after they were fired ask this before acting:
+## Sai's hook is in the air for a beat, and a hook that bit while he was stunned
+## does not get to yank him out of the stun.
+func can_act() -> bool:
+	return stun_remaining <= 0.0 and freeze_remaining <= 0.0
+
 func can_dash() -> bool:
 	return dash_charges_left > 0 and not air_dash_locked 		and impair_mult > 0.05 and disrupt_remaining <= 0.0
 

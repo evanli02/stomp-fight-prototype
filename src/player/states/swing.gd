@@ -5,10 +5,12 @@ class_name SwingState extends PlayerState
 ## keeps exactly the momentum the swing built. That is the whole point of the
 ## ability: it is a momentum machine, not a zipline.
 ##
-## The rope has a patience limit: after the swing has reversed direction twice,
-## it lets go. Committing to a swing means riding it, not camping under a hook.
+## The rope has a patience limit, but a generous one: it lets go after the swing
+## has changed direction MAX_REDIRECTS times. Long enough to actually work a
+## pendulum up — pumping an arc wider takes several passes, and the old limit of
+## one redirect cut every swing off before that could happen.
 
-const MAX_REVERSALS: int = 2
+const MAX_REDIRECTS: int = 5
 ## Jump off the rope: the swing's velocity, plus a little launch along it.
 const JUMP_BONUS: float = 1.15
 ## The rope pulls harder than gravity alone would — a swing should outrun a run,
@@ -48,7 +50,9 @@ func physics_update(delta: float) -> void:
 	var s := signf(_omega)
 	if s != 0.0 and _last_sign != 0.0 and s != _last_sign:
 		_reversals += 1
-		if _reversals >= MAX_REVERSALS:
+		# Strictly greater: MAX_REDIRECTS changes of direction are allowed, and
+		# the one after them is what runs the rope out.
+		if _reversals > MAX_REDIRECTS:
 			_release()
 			return
 	if s != 0.0:

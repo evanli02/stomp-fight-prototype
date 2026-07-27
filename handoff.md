@@ -87,7 +87,7 @@ Fei-shortest ordering the owner set applies to the original four; Sai's grapple 
 | Deadeye | red | Bolt — stunning projectile (6.4) | Rapid Fire — resets CD; next bolt +50% velocity, 5.5 s stun |
 | Fei | jade green | Double Trouble — a stronger-than-normal extra jump (5.6) | 8 s window where the ability's CD is 0.3 s |
 | Cerebelle | purple | Burst — near-instant radial knockback, 2× force (6.7) | Supernova — one map-wide ring that expands slowly; caught players are stunned, lose all horizontal velocity, and fall |
-| Sai | pink | Grapple — swing on a rope; faster the more speed you carry (4.7) | Slash — dashing multi-hit arc |
+| Sai | pink | Grapple — visible hook; swing on the rope (5 redirects), recast to reel in (4.7) | Slash — dashing multi-hit arc |
 | Slip | aqua | Slip Back — drop a **visible** anchor, recast to blink instantly back to it (8.0) | Teleport — a linked pad pair; enemies arrive slowed, allies hasted |
 | Terra | brown | Slam — hover, then rocket straight down (9.0) | Fracture — wide slab that drags, trails, and detonates |
 | Kid | orange | Wind Cannon — pushing beam (8.5) | EMP — telegraphed wave that disrupts |
@@ -106,8 +106,8 @@ grace, anti-chain and victim authority intact. `combat_harness.gd` asserts both 
   `MatchState` (single source of truth for lives/rosters/ults), `InputConfig` (per-seat
   namespaced actions, R2+L2 ult chord, memoised per-tick polling).
 - **Movement** is a state machine in `src/player/states/`: `Idle, Run, Skid, Air, Crouch,
-  Slide, WallSlide, WallJump, Dash, Stunned, PoleClimb, Swing (Sai), Slam (Terra), Recall
-  (Slip)`. Each state owns its own animation via `animation()`. New movement behaviour is a new
+  Slide, WallSlide, WallJump, Dash, Stunned, PoleClimb, Swing + Reel (Sai), Slam (Terra),
+  Recall (Slip)`. Each state owns its own animation via `animation()`. New movement behaviour is a new
   state or transition — never an `if` ladder in `player.gd`.
 - **Abilities** are `Ability` subclasses in `src/heroes/abilities/`, attached at spawn from
   `HeroData` `.tres` files. The base class exposes the hooks the reworked kits needed:
@@ -267,6 +267,15 @@ wired the shell to route every round through it (round 1 to the coinflip winner,
 to whoever just lost). Harness coverage came with it: the timed-line case that matters (a body
 already standing in a line when it comes back on), Cryo Lab as a whole stage over several grid
 cycles, the registry, and the phase order around `choose_stage`.
+
+---
+
+**Sai + aim guide pass.** The grapple hook became a real object with a ~0.14 s flight (it used
+to raycast and swing on the same frame, so nothing about the ability was ever visible), and it
+is now thrown on a miss too. Swing redirects 1 → 5. Recasting while roped hands Sai to the new
+`Reel` state — a fast haul up the rope that stops `STOP_SHORT` (40 px) before the anchor,
+because hooks land on ceilings and hauling all the way would end every reel inside the surface
+it hung from. Every player now draws an `AimLine`: 6 hero-heights, dashed, clipped at terrain.
 
 ---
 

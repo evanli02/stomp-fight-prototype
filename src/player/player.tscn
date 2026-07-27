@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/states/state_machine.gd" id="2"]
@@ -21,6 +21,8 @@
 [ext_resource type="Script" path="res://src/player/states/slam.gd" id="19"]
 [ext_resource type="Script" path="res://src/player/states/recall.gd" id="20"]
 [ext_resource type="Script" path="res://src/ui/debuff_marks.gd" id="21"]
+[ext_resource type="Script" path="res://src/player/states/reel.gd" id="22"]
+[ext_resource type="Script" path="res://src/ui/aim_line.gd" id="23"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
 size = Vector2(22, 34)
@@ -125,6 +127,9 @@ script = ExtResource("18")
 [node name="Slam" type="Node" parent="StateMachine"]
 script = ExtResource("19")
 
+[node name="Reel" type="Node" parent="StateMachine"]
+script = ExtResource("22")
+
 [node name="Recall" type="Node" parent="StateMachine"]
 script = ExtResource("20")
 
@@ -142,3 +147,6 @@ script = ExtResource("17")
 
 [node name="DebuffMarks" type="Node2D" parent="."]
 script = ExtResource("21")
+
+[node name="AimLine" type="Node2D" parent="."]
+script = ExtResource("23")

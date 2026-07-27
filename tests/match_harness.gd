@@ -50,6 +50,8 @@ func _run() -> void:
 	await _check_cooldowns_tick_while_benched()
 	await _check_ultimate_economy()
 	await _check_abilities()
+	await _check_sai_grapple()
+	await _check_aim_line()
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
 	await _check_stage_select_flow()
@@ -511,3 +513,152 @@ func _check_stage_select_flow() -> void:
 	GameManager.start_match(rosters, {0: 0, 1: 1})
 	check("a match without stage select drops straight into the round",
 		GameManager.phase == GameManager.Phase.ROUND_ACTIVE, "phase=%d" % GameManager.phase)
+
+## Find the live rope, whoever spawned it. The ability holds its own reference;
+## the harness has to go looking, and going through the stage is also a check
+## that spawn_effect put it somewhere that renders.
+func _find_rope() -> GrappleRope:
+	for child in _stage.get_children():
+		var rope := child as GrappleRope
+		if rope != null:
+			return rope
+	return null
+
+## Sai's grapple end to end: the hook is a visible object with a flight, biting
+## starts the swing, and recasting mid-swing reels him in and stops short of the
+## anchor instead of burying him in it.
+##
+## Fired through the ability with an explicit aim rather than through
+## Player.try_ability: headless, seat 0 is the mouse seat and its aim points at
+## wherever the pointer nominally is, which is not a direction any geometry in
+## this check is chosen for.
+func _check_sai_grapple() -> void:
+	MatchState.reset_round()
+	var lives_before := _total_lives()
+	_p1.equip_hero(&"sai")
+	# Airborne under Rooftop Rumble's contested slab, whose underside is 256px
+	# straight up — long enough that the reel below is a real haul.
+	_p1.global_position = Vector2(630, 560)
+	_p1.velocity = Vector2.ZERO
+	_p1.stun_remaining = 0.0
+	_p1.state_machine.change_state(&"Air")
+	await step(2)
+
+	var grapple := _p1.equipped_ability()
+	check("sai throws a hook", grapple.try_fire(Vector2.UP))
+	var rope := _find_rope()
+	check("the hook exists as a visible object", rope != null)
+	if rope == null:
+		return
+	# The throw takes time, which is the whole difference from the old version:
+	# the hook used to bite and swing on the same frame it was cast, so there was
+	# never anything to see.
+	check("the swing does not start on the cast frame",
+		_p1.state_machine.state_name() != &"Swing",
+		"state=%s" % _p1.state_machine.state_name())
+	check("the hook bit terrain", rope.bites)
+
+	var swinging := false
+	for i in 30:
+		await get_tree().physics_frame
+		if _p1.state_machine.state_name() == &"Swing":
+			swinging = true
+			break
+	check("the hook lands and starts the swing", swinging,
+		"state=%s" % _p1.state_machine.state_name())
+	if not swinging:
+		return
+
+	var anchor := rope.anchor
+	var reach := _p1.global_position.distance_to(anchor)
+	check("the hook reached far enough to be a real haul", reach > ReelState.CLOSE_ENOUGH,
+		"reach=%.0f" % reach)
+	check("the recast rides through the throw's cooldown", grapple.try_fire(Vector2.UP),
+		"cd=%.2f" % MatchState.cooldown_remaining(0, &"sai"))
+	check("recasting mid-swing reels instead of re-throwing",
+		_p1.state_machine.state_name() == &"Reel",
+		"state=%s" % _p1.state_machine.state_name())
+	check("the rope survives the handoff to Reel", is_instance_valid(rope) and rope.is_attached())
+
+	# Stop-short is the whole reason Reel exists as its own state: hooks land on
+	# ceilings, and hauling all the way to the anchor would end every reel inside
+	# the surface it was hanging from.
+	# Sampled only while the haul is actually running. It ends with a launch, so
+	# a sample taken after the state changed is measuring the launch and would
+	# report the reel stopping closer than it did.
+	var closest := reach
+	for i in 60:
+		await get_tree().physics_frame
+		if _p1.state_machine.state_name() != &"Reel":
+			break
+		closest = minf(closest, _p1.global_position.distance_to(anchor))
+	check("a long reel closes most of the distance", closest < reach * 0.5,
+		"%.0f -> %.0f" % [reach, closest])
+	check("a long reel stops short of the anchor",
+		closest > ReelState.STOP_SHORT * 0.8,
+		"closest=%.1f short=%.1f" % [closest, ReelState.STOP_SHORT])
+	check("the reel ends in the air with speed to spend",
+		_p1.state_machine.state_name() != &"Reel" and _p1.velocity.length() > 100.0,
+		"state=%s v=%.0f" % [_p1.state_machine.state_name(), _p1.velocity.length()])
+	check("nothing about the grapple removed a life", _total_lives() == lives_before,
+		"%d -> %d" % [lives_before, _total_lives()])
+	await step(20)
+
+## The aim guide. It is cosmetic, but it makes a promise about where a cast goes,
+## and the way it can lie is by drawing through a wall.
+##
+## Asserted geometrically rather than against a number: seat 0 aims with the
+## mouse, so the direction headless is whatever the pointer nominally is, and a
+## check written against one expected length would be testing the pointer.
+func _check_aim_line() -> void:
+	var line := _p1.get_node_or_null("AimLine") as AimLine
+	check("every player carries an aim line", line != null)
+	if line == null:
+		return
+	check("the aim line is six hero-heights long", is_equal_approx(AimLine.LENGTH, 216.0),
+		"len=%.0f" % AimLine.LENGTH)
+
+	# Inside Rooftop Rumble's shaft, where terrain is close on several sides.
+	_p1.global_position = Vector2(560, 400)
+	_p1.velocity = Vector2.ZERO
+	_p1.stun_remaining = 0.0
+	_p1.state_machine.change_state(&"Air")
+	await step(3)
+
+	var from := _p1.global_position
+	var dir := line.debug_direction()
+	var length := line.debug_length()
+	check("the aim line has a direction to draw along", dir.length() > 0.9,
+		"dir=%s" % dir)
+	check("the aim line never exceeds its own length", length <= AimLine.LENGTH + 0.01,
+		"len=%.1f" % length)
+
+	# The actual promise: nothing solid strictly between the player and the end
+	# of the line. Stopping just short of the reported end, because the endpoint
+	# itself IS the wall when it was clipped.
+	var space := _p1.get_world_2d().direct_space_state
+	var clear := PhysicsRayQueryParameters2D.create(from, from + dir * (length - 2.0))
+	clear.collision_mask = 1
+	check("the aim line does not draw through terrain",
+		space.intersect_ray(clear).is_empty(), "len=%.1f dir=%s" % [length, dir])
+
+	# ...and when it says it was blocked, there really is terrain at the end.
+	if line.debug_blocked():
+		var past := PhysicsRayQueryParameters2D.create(from, from + dir * (length + 6.0))
+		past.collision_mask = 1
+		check("a clipped aim line ends on the terrain that clipped it",
+			not space.intersect_ray(past).is_empty(), "len=%.1f" % length)
+	else:
+		check("an unblocked aim line ran its full length",
+			is_equal_approx(length, AimLine.LENGTH), "len=%.1f" % length)
+
+## Every life on the board. Used where the thing being checked is "nothing took
+## a life from anybody" — asking about one hero misses the case where the body
+## acting is equipped off-roster, which reports zero lives because that hero was
+## never registered for that seat.
+func _total_lives() -> int:
+	var total := 0
+	for pid in MatchState.players:
+		for hero: StringName in MatchState.roster(pid):
+			total += MatchState.lives_of(pid, hero)
+	return total
