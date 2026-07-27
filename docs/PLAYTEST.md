@@ -1,7 +1,32 @@
-# Remote playtesting with Steam Remote Play Together
+# Remote playtesting
 
 How to get Overstomp in front of friends who are not in the room. Nothing here
 involves publishing to Steam, a Steamworks account, or an app ID.
+
+**Read this before picking a route.** Both options below stream the game from
+your machine and forward guests' controllers back as extra local gamepads, which
+is exactly what Overstomp needs and why it works with no netcode. They differ in
+how reliably they will start at all:
+
+| | Works with our build? | Notes |
+|---|---|---|
+| **Parsec** | Yes, by design | Free. Guests join by link, each gets a virtual gamepad. Use this first. |
+| **Steam Remote Play Together** | Maybe | Officially gated on a game carrying Steam's "Remote Play Together" store category. A non-Steam shortcut has no store metadata, so Steam may never offer the option. Try it if you prefer, but do not plan an evening around it. |
+
+## Route A: Parsec (recommended)
+
+1. Install Parsec on your machine and have each friend install it (or use the
+   web client - they do not need an account for a hosted session link).
+2. Build the exe (below), then just run it. No Steam shortcut needed.
+3. In Parsec, start hosting and send each friend the invite. Their controllers
+   appear on your machine as virtual gamepads as they connect.
+4. Everyone joins seats in the lobby exactly as described under "Running a
+   session" - the game cannot tell a Parsec pad from one plugged into your desk.
+
+Guests need controllers for the same reason they do under Steam: see "Why
+guests need gamepads" below.
+
+## Route B: Steam Remote Play Together
 
 ## What Remote Play Together actually does
 
@@ -68,7 +93,7 @@ Rebuilding later overwrites the same path, so this is a one-time step.
 2. Steam overlay (Shift+Tab) → **Friends** → each friend → **Remote Play
    Together**.
 3. Wait until everyone is connected *before* leaving the lobby. Their virtual
-   pads only exist once they have joined the stream.
+   pads only exist once they have joined the stream. (Same on Parsec.)
 4. In the lobby: host sets the format (1v1 / 2v2 / 3v3) and match length with
    WASD; everyone presses **Space** (keyboard) or **R1 / A** (pad) to take a
    seat. The screen shows which device landed in which seat, so people can tell
@@ -78,6 +103,20 @@ Rebuilding later overwrites the same path, so this is a one-time step.
    undriven body on the stage is a free life for the other team.
 6. Hero select (3 heroes each, timed) → stage select (round 1: coinflip winner;
    later rounds: whoever just lost) → fight.
+
+## Why guests need gamepads
+
+Each guest's **controller** arrives as its own virtual pad with its own device
+id, which is what lets `InputConfig.claim_seat()` bind them to separate seats.
+Guest **keyboard and mouse** input is injected into your machine's single system
+keyboard and mouse - one cursor, one key stream, shared by everyone. Nothing
+downstream can tell two keyboard guests apart, and Godot has no multi-keyboard
+support to lean on even if the input were tagged. So one keyboard seat is the
+honest maximum, and it belongs to whoever is sitting at the host machine.
+
+You can also run an all-pad session: `claim_seat` fills the lowest free seat
+regardless of device, so if the host takes a controller too, seat 0 is simply a
+pad and nobody needs the keyboard.
 
 ## Controls to paste into the group chat
 
@@ -104,8 +143,12 @@ ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
   that is a bug worth a report.
 - **The build has no art / no stages.** The export ran without an import cache.
   Re-run the build script, which imports first.
-- **Steam does not offer Remote Play Together.** The game was not launched from
-  the Steam library, or the shortcut points at a stale path after a move.
+- **Steam does not offer Remote Play Together.** In order of likelihood: the
+  game was not launched from the Steam library entry (your own friends-list
+  status must read *In-Game - Overstomp*, not *Online*); you hovered the friend
+  instead of clicking them; Remote Play is disabled in Steam settings; or Steam
+  is refusing it because a non-Steam shortcut has no Remote Play Together store
+  category, which is not something you can fix. Switch to Parsec.
 
 ## What is not ready
 
