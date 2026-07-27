@@ -56,6 +56,7 @@ func _ready() -> void:
 	Arena.build(self, _blocks)
 	build_terrain()
 	_seat_players()
+	add_child(StageGrid.new())   # F3 design overlay; hidden until asked for
 	for i in players.size():
 		players[i].player_id = i
 		players[i].team_id = GameManager.team_of_seat(i)

@@ -310,6 +310,15 @@ ship with it.
 
 ---
 
+**Stage-authoring tooling.** Stages are code, so the loop was edit-run-guess with no way to
+know whether a gap was crossable. `tools/measure_reach.gd` now flies the real body and prints
+the reach envelope (held jump 92px, capped-run gap 133px, jump+dash gap 275px, up-dash ceiling
+103px, and the wall numbers), `docs/MAPS.md` is the guide built on those numbers, and **F3** in
+any stage draws a coordinate grid, the spawn markers, and the envelope around player 1. The
+overlay's constants come from the tool — re-run and update them together after a movement tune.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that

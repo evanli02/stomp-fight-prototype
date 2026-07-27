@@ -15,7 +15,8 @@ overstomp/
 │   ├── DESIGN.md              # Authoritative game spec
 │   ├── IMPLEMENTATION.md      # This file
 │   ├── SETUP.md               # Environment install guide
-│   ├── PLAYTEST.md            # Building the .exe + Steam Remote Play Together
+│   ├── MAPS.md                # Stage-building guide: reach envelope, terrain catalog
+│   ├── PLAYTEST.md            # Building the .exe + remote playtesting
 │   └── OPUS_PROMPT.md         # Kickoff prompt for implementation sessions
 ├── src/
 │   ├── autoload/              # GameManager, MatchState, InputConfig (singletons)
@@ -28,7 +29,7 @@ overstomp/
 │   ├── STYLE_GUIDE.md
 │   └── tools/                 # pixel.py canvas + the two generators (stdlib only)
 ├── tests/                     # Headless harnesses (movement, combat, match, terrain)
-├── tools/                     # build_windows.ps1
+├── tools/                     # build_windows.ps1, measure_reach (stage metrics)
 └── export_presets.cfg         # Windows Desktop export (committed; holds no secrets)
 ```
 
@@ -130,6 +131,8 @@ state; it is called from `Player._ready()` so the player's `@onready` refs are l
 Every playable stage is `MatchStage` (`src/stage/match_stage.gd`) plus a subclass that supplies **only** its layout, terrain and palette. The base owns the parts that are the same everywhere: seats and spawns, the round loop, respawn timers, the MatchState/GameManager signal wiring, the sealed-box draw, and the debug overlay.
 
 Subclass hooks: `stage_id()`, `arena_size()`, `spawns()`, `arena_blocks()`, `build_terrain()`, `sky_bands()`, `horizon()`, `ground_fill()`, `ground_texture()`, `cap_color()`. `spawns()` returns **one anchor per team**, not one per player: the base spreads teammates around their team's anchor (`spawn_for(seat)`, centred so a team of one lands exactly on it), so adding a format never means editing a stage.
+
+Every stage also carries a `StageGrid` child (`src/ui/stage_grid.gd`), hidden until **F3**: tile grid with coordinates, spawn markers, and the reach envelope drawn around player 1. Its constants come from `tools/measure_reach.gd` and must be re-run and updated together after a movement tune, or the overlay starts lying about what is reachable. See `docs/MAPS.md`.
 
 **Seating is format-driven.** A stage file ships two Player nodes because 1v1 is the common case and the harnesses reach for `%Player1`/`%Player2` by name; `_seat_players()` clones the rest up to `GameManager.seat_count()`. A stage also guards every MatchState signal through `body_for(player_id)`, which returns null for a seat it has no body for — MatchState is global and a stage is not, so a stage built for a smaller format than the one registered receives signals for players it does not own. The base never reads a subclass field directly, so a stage may compute its layout however it likes. Two ship today — `duel.tscn` (Rooftop Rumble) and `cryo_lab.tscn` — and each is under 90 lines because of the split.
 

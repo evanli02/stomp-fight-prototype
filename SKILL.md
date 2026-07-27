@@ -12,7 +12,8 @@ You are working in the Overstomp repository: a Godot 4.4+ / GDScript platform fi
 1. **Always**: `CLAUDE.md` — non-negotiable game rules, architecture rules, style, and the "Claude gets this wrong" checklist.
 2. **When touching gameplay rules or adding content**: the relevant section of `docs/DESIGN.md` (authoritative spec — match flow §2, stomp §3, movement §4, heroes §5, terrain §6, controls §7, art §8).
 3. **When touching code structure**: `docs/IMPLEMENTATION.md` — node/scene architecture, signal map, terrain contract, milestone order, and "how to update this doc."
-4. **When making art**: `assets/STYLE_GUIDE.md` — palette, sizes, per-asset specs, the animation table, and how to regenerate. Character art is generated from a pose rig, so edit `assets/tools/generate_characters.py` rather than the PNGs.
+4. **When building a stage**: `docs/MAPS.md` — the grid, the reach envelope, the terrain catalog, and the F3 design overlay.
+5. **When making art**: `assets/STYLE_GUIDE.md` — palette, sizes, per-asset specs, the animation table, and how to regenerate. Character art is generated from a pose rig, so edit `assets/tools/generate_characters.py` rather than the PNGs.
 
 Do not implement from memory of similar games; this game deviates from genre defaults on purpose (no damage, no ring-outs, identical hero movement).
 
@@ -34,6 +35,7 @@ Do not implement from memory of similar games; this game deviates from genre def
 5. Add the hero to the `_check_abilities` sweep expectations if it needs a special gate (`_can_fire` / `_cooldown_after_fire` / `_is_free_recast`), then run `match_harness` — it already fires every roster hero's ability and ultimate and asserts none of them can remove a life. Feel-test in `duel.tscn`.
 
 ### Add a stage
+0. Read `docs/MAPS.md` first — it has the measured reach envelope (how high a ledge can be, how wide a gap can be) that every distance in a layout has to be chosen against.
 1. Read DESIGN.md §6.1 (sizes, sealed rule) and §6.3 for the stage's brief.
 2. New script in `src/stage/` extending `MatchStage`, overriding only `stage_id()`, layout (`arena_size`, `spawns`, `arena_blocks`), `build_terrain()`, and the palette hooks. Build collision with `Arena.sealed_box()` so the no-pits rule holds by construction. Do **not** copy the round loop — the base owns it.
 3. A matching `.tscn` with the script on the root, a Camera2D, two `%Player1`/`%Player2` instances at the spawns, the HUD CanvasLayer, and the Debug `%Readout`/`%Banner` labels. `cryo_lab.tscn` is the template.
