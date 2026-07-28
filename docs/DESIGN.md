@@ -183,7 +183,7 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 
 | Element | Behavior |
 |---|---|
-| **Pole** | Grab to instantly zero momentum; crawl up/down; jump off either side (aimable). The "reset button" of movement. |
+| **Pole** | Grab to instantly zero momentum and refill the dash; crawl up/down; **hold down to ride it down fast**; **down + jump to let go**; **dash for a boosted drop straight down** at terminal velocity, spending a charge; or jump off either side (aimable). The "reset button" of movement, and vertical ground you can travel rather than only hang on. |
 | **Ice** | Near-zero friction: momentum cap raised slightly, redirect much slower, no skid-stop. B-hop window is more lenient on ice. |
 | **Stun line** | Glowing tripwire; touching it stuns ~0.4 s (momentum kept). Head hurtbox stays active — classic setup tool. |
 | **Jump spring** | Fixed strong launch on contact (overrides vertical velocity); can be b-hop-chained. |

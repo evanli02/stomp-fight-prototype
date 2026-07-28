@@ -128,7 +128,7 @@ From CLAUDE.md and DESIGN §6.1. These are not style preferences:
 
 | Element | Key params | What it is for |
 |---|---|---|
-| `Pole` | `size` | Grab, climb, leap off. Zeroes momentum and **refills the dash** — a reset button. Put one where someone who just got chased across the map wants it. |
+| `Pole` | `size` | Grab, climb, ride down (hold down), let go (down+jump), or dash for a boosted drop straight down. Zeroes momentum and **refills the dash** - a reset button. Keep the bottom above y=(surface-41) or players walk into it. |
 | `Ice` | `size`, `slip` | Near-zero friction. Somewhere to *build* speed, not only lose control. Applies while standing on it, so the area must overlap the body. |
 | `StunLine` | `size`, `cycle_time`, `on_ratio`, `phase_offset`, `warn_time` | Tripwire. Stuns, keeps momentum, **leaves the head hurtbox live** — a stomp setup, not a shield. With `cycle_time > 0` it becomes a timed laser; stagger `phase_offset` across several to make a grid a rhythm. |
 | `JumpSpring` | `size`, `launch_velocity` | Vertical launch. Keeps horizontal speed. Narrow ones get aimed at; wide ones get fallen onto. |

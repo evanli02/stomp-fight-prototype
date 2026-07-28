@@ -4,7 +4,9 @@ class_name Pole extends TerrainElement
 ## keeping speed, and this is the one thing that deliberately throws it away in
 ## exchange for control.
 ##
-## Holding down drops past it, so a pole in a fall line is never a trap.
+## Holding down while you touch it means you do not want it, so a pole in a fall
+## line is never a trap. Once you are ON it, down rides it downward instead -
+## see PoleClimbState for the exits.
 
 @export var climb_speed: float = 140.0
 @export var jump_off_impulse: Vector2 = Vector2(280, -420)

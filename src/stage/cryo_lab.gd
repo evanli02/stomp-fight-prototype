@@ -27,7 +27,7 @@ const FLOOR_TOP: float = 496.0
 const CROWN_TOP: float = 96.0     ## small platform under the ceiling
 const LEDGE_TOP: float = 160.0    ## upper side ledges
 const SLAB_TOP: float = 224.0     ## the wide centre slab
-const STEP_TOP: float = 368.0     ## two small steps between the poles
+const STEP_TOP: float = 352.0     ## two small steps between the poles
 const SHELF_TOP: float = 416.0    ## low side shelves, 80px above the floor
 
 ## The centre slab, and the flanking ledges that meet its edges.
@@ -72,8 +72,10 @@ func platforms() -> Array[Rect2]:
 		Rect2(128.0, LEDGE_TOP, 160.0, 16.0),                     # upper left
 		Rect2(608.0, LEDGE_TOP, 160.0, 16.0),                     # upper right
 		Rect2(SLAB_LEFT, SLAB_TOP, SLAB_RIGHT - SLAB_LEFT, 16.0), # centre slab
-		Rect2(304.0, STEP_TOP, 96.0, 16.0),                       # step, left of centre
-		Rect2(496.0, STEP_TOP, 96.0, 16.0),                       # step, right of centre
+		# 64px: two 22px bodies side by side and not much more, so holding one is
+		# a real position rather than a place to stand around on.
+		Rect2(320.0, STEP_TOP, 64.0, 16.0),                       # step, left of centre
+		Rect2(512.0, STEP_TOP, 64.0, 16.0),                       # step, right of centre
 		Rect2(16.0, SHELF_TOP, 160.0, 16.0),                      # low left shelf
 		Rect2(720.0, SHELF_TOP, 160.0, 16.0),                     # low right shelf
 	]
@@ -114,9 +116,10 @@ func _ice_over(left: float, right: float, surface_y: float) -> void:
 ## The middle one hangs off the slab's underside and runs longest, exactly as
 ## drawn. It cannot reach the top, and that is its job: it is the reposition and
 ## dash refill in the middle of the room, not a route.
-## Every pole now ends at POLE_BOTTOM, well clear of a standing body's head, so
-## reaching one is a jump rather than something you walk into.
-const POLE_BOTTOM: float = 400.0
+## Poles end as low as they can without being walked into: a body running the
+## floor tops out at y=455, so 440 leaves 15px of clearance and reaching one is
+## still a deliberate hop.
+const POLE_BOTTOM: float = 440.0
 
 func _build_poles() -> void:
 	for x: float in [264.0, 632.0]:

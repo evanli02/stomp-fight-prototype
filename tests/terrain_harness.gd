@@ -258,6 +258,48 @@ func _check_pole() -> void:
 	check("jumping off a pole leaves toward the held side",
 		_p.velocity.x < -100.0 and _p.state_machine.state_name() != &"PoleClimb",
 		"vx=%.1f state=%s" % [_p.velocity.x, _p.state_machine.state_name()])
+
+	# Down rides the pole instead of letting go: the fast way down IS the pole.
+	await park(POLE_AT, Vector2.ZERO)
+	_p.state_machine.change_state(&"PoleClimb", {
+		"pole_x": POLE_AT.x, "climb_speed": pole.climb_speed,
+		"jump_off": pole.jump_off_impulse,
+		"top": POLE_AT.y - 60.0, "bottom": POLE_AT.y + 60.0})
+	Input.action_press(InputConfig.action(0, &"move_down"))
+	await step(4)
+	check("down rides the pole down rather than dropping off",
+		_p.state_machine.state_name() == &"PoleClimb"
+			and _p.velocity.y > _p.movement.fall_speed_max * 0.4,
+		"state=%s vy=%.0f" % [_p.state_machine.state_name(), _p.velocity.y])
+
+	# Down AND jump is what lets go now.
+	Input.action_press(InputConfig.action(0, &"jump"))
+	await step(3)
+	Input.action_release(InputConfig.action(0, &"jump"))
+	check("down plus jump lets go of the pole",
+		_p.state_machine.state_name() != &"PoleClimb",
+		"state=%s" % _p.state_machine.state_name())
+	Input.action_release(InputConfig.action(0, &"move_down"))
+	await step(2)
+
+	# Dash on the pole is a boosted drop straight down.
+	await park(POLE_AT, Vector2.ZERO)
+	_p.state_machine.change_state(&"PoleClimb", {
+		"pole_x": POLE_AT.x, "climb_speed": pole.climb_speed,
+		"jump_off": pole.jump_off_impulse,
+		"top": POLE_AT.y - 60.0, "bottom": POLE_AT.y + 60.0})
+	await step(2)
+	var charges := _p.dash_charges_left
+	Input.action_press(InputConfig.action(0, &"dash"))
+	await step(2)
+	Input.action_release(InputConfig.action(0, &"dash"))
+	check("dashing on a pole drops you straight down at speed",
+		_p.velocity.y >= _p.movement.fall_speed_max - 1.0
+			and is_zero_approx(_p.velocity.x),
+		"v=%s" % _p.velocity)
+	check("the pole drop spends a dash charge", _p.dash_charges_left < charges,
+		"%d -> %d" % [charges, _p.dash_charges_left])
+
 	pole.queue_free()
 	await step(2)
 
@@ -361,7 +403,7 @@ func _check_cryo_lab() -> void:
 		if pole == null:
 			continue
 		var bottom: float = pole.position.y + pole.size.y * 0.5
-		if bottom > standing_head - 20.0:
+		if bottom > standing_head - 10.0:
 			low += " pole at %s reaches %.0f" % [pole.position, bottom]
 	check("no pole can be grabbed without jumping", low.is_empty(), low)
 	check("cryo lab places three portal pairs", portals.size() == 6,

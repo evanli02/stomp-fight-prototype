@@ -62,7 +62,7 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │   ├── Slam                        Terra: hover, plummet; head hits resolve as stomps
 │   ├── Reel                        Sai: haul up the rope, stopping short of the hook
 │   ├── Recall                      Slip: blink back to the anchor, brief settle
-│   ├── PoleClimb
+│   ├── PoleClimb                   ride down, down+jump to drop, dash to plummet
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd
 ├── BodyShape / BodyShapeCrouch     one enabled at a time; crouch is half height,
 │                                   bottom-aligned, swapped via set_deferred
