@@ -211,7 +211,8 @@ func _walls(_ground: float) -> void:
 		"climbing stays expensive")
 	_rows.append("  -> a climbable shaft needs TWO facing walls: a different face")
 	_rows.append("     resets the chain to full impulse, the same face does not.")
-	_rows.append("     Known-good widths: 64px (Rooftop, duels happen), 128px (Cryo).")
+	_rows.append("     Known-good width: 160px (Rooftop's channels - climbable but slow).")
+	_rows.append("     64px forces climbers into contact (wall-jump duels on purpose).")
 
 func _slide(ground: float) -> void:
 	_rows.append("")

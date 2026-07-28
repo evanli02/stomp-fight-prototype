@@ -186,12 +186,13 @@ Honest list, so feedback lands on real problems:
 - Sound effects are **procedurally generated placeholders** (chiptune blips from `assets/tools/generate_sfx.py`). They convey events, not atmosphere. No music.
 - Hero names drop off the HUD at 2v2 and 3v3 - blocks shrink to fit six
   seats, and the accent stripe carries hero identity instead.
-- Only two stages: Rooftop Rumble and Cryo Lab.
+- Three stages: Rooftop Rumble, Sunken Court, Cryo Lab. Two more are planned.
 - Pause (Esc / Start, from any seat) has volume, restart and quit-to-lobby.
   **Volume does not persist** between runs. No rebinding beyond that.
 - **No timers on the select screens.** Nothing advances until every player has
   acted, so one person going to get a drink stalls the lobby. Say so before you
   start rather than after.
-- Feel has been verified by harness, not by humans. The jump height, Cryo Lab's
-  laser cadence, and Sai's reel are the three most likely to be wrong — those
-  are the ones worth asking about directly.
+- Feel has been verified by harness, not by humans. The things most likely to be
+  wrong: the jump height, how punishing Rooftop's channels feel, Sunken Court's
+  dash-gated roof platform, all-ice traversal on Cryo, and Sai's reel. Those are
+  the ones worth asking about directly.
