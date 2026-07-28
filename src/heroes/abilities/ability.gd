@@ -12,6 +12,11 @@ signal fired
 signal cooldown_started(duration: float)
 
 @export var is_ultimate: bool = false
+## Opt out of the "no casting while stunned" rule (Saint, whose entire point is
+## casting his way out of trouble). Disrupt (Kid's EMP) and sleep (Vesper) are
+## NOT bypassable by anyone — see Player._can_cast. Default false, because for
+## every other hero a stun is meant to be a real interruption.
+@export var fires_while_stunned: bool = false
 var player: Player
 var hero_id: StringName
 var cooldown: float = 8.0

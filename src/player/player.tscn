@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://src/player/player.gd" id="1"]
 [ext_resource type="Script" path="res://src/player/states/state_machine.gd" id="2"]
@@ -23,6 +23,7 @@
 [ext_resource type="Script" path="res://src/ui/debuff_marks.gd" id="21"]
 [ext_resource type="Script" path="res://src/player/states/reel.gd" id="22"]
 [ext_resource type="Script" path="res://src/ui/aim_line.gd" id="23"]
+[ext_resource type="Script" path="res://src/player/states/sleeping.gd" id="24"]
 
 [sub_resource type="RectangleShape2D" id="body_shape"]
 size = Vector2(22, 34)
@@ -38,6 +39,9 @@ size = Vector2(22, 5)
 
 [sub_resource type="RectangleShape2D" id="feet_shape"]
 size = Vector2(22, 14)
+
+[sub_resource type="RectangleShape2D" id="contact_shape"]
+size = Vector2(28, 40)
 
 [node name="Player" type="CharacterBody2D"]
 collision_layer = 2
@@ -85,6 +89,15 @@ collision_mask = 4
 
 [node name="Shape" type="CollisionShape2D" parent="StompBox"]
 shape = SubResource("feet_shape")
+
+[node name="ContactSense" type="Area2D" parent="."]
+unique_name_in_owner = true
+collision_layer = 0
+collision_mask = 2
+monitoring = false
+
+[node name="Shape" type="CollisionShape2D" parent="ContactSense"]
+shape = SubResource("contact_shape")
 
 [node name="StateMachine" type="Node" parent="."]
 unique_name_in_owner = true
@@ -135,6 +148,9 @@ script = ExtResource("20")
 
 [node name="Stunned" type="Node" parent="StateMachine"]
 script = ExtResource("11")
+
+[node name="Sleeping" type="Node" parent="StateMachine"]
+script = ExtResource("24")
 
 [node name="AbilitySlot" type="Node" parent="."]
 unique_name_in_owner = true
