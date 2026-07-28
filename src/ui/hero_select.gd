@@ -10,9 +10,10 @@ extends CanvasLayer
 signal picks_confirmed(rosters: Dictionary, teams: Dictionary)
 
 const PICKS_REQUIRED: int = MatchState.HEROES_PER_PLAYER
-## Nobody should be able to stall a match forever, and a seat with no controller
-## plugged in never picks at all — when this runs out the rest is auto-filled.
-const SELECT_TIME: float = 20.0
+## No countdown for now: the screen waits until every seat has its three. The
+## lobby is what makes that safe — a seat only exists once a real device claimed
+## it, so there is no longer such a thing as a seat that will never pick. Put a
+## timer back if a stalled player ever becomes a real problem in a session.
 const NAV_REPEAT: float = 0.18
 const NAV_DEADZONE: float = 0.5
 
@@ -39,7 +40,6 @@ var _roster: Array[StringName] = []
 var _cursor: Array[int] = []
 var _picks: Array = []
 var _nav_cooldown: Array[float] = []
-var _remaining: float = SELECT_TIME
 var _done: bool = false
 
 func _ready() -> void:
@@ -58,11 +58,8 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _done:
 		return
-	_remaining -= delta
 	for seat in _seats:
 		_handle_seat(seat, delta)
-	if _remaining <= 0.0:
-		_auto_fill()
 	if _all_seats_ready():
 		_confirm()
 	_canvas.queue_redraw()
@@ -92,15 +89,6 @@ func _undo(seat: int) -> void:
 	if not picks.is_empty():
 		picks.pop_back()
 
-## Fill whatever the timer ran out on, in roster order, skipping that seat's own
-## existing picks. A seat with no device attached lands here every time.
-func _auto_fill() -> void:
-	for seat in _seats:
-		for hero_id in _roster:
-			if _picks[seat].size() >= PICKS_REQUIRED:
-				break
-			_pick(seat, hero_id)
-
 func _all_seats_ready() -> bool:
 	for seat in _seats:
 		if _picks[seat].size() < PICKS_REQUIRED:
@@ -119,6 +107,17 @@ func _confirm() -> void:
 		teams[seat] = GameManager.team_of_seat(seat)
 	picks_confirmed.emit(rosters, teams)
 
+## Who the screen is still waiting for. With no countdown, saying so is the only
+## thing that stops a stalled select from looking like a hang.
+func _waiting_on() -> String:
+	var pending: Array[String] = []
+	for seat in _seats:
+		if _picks[seat].size() < PICKS_REQUIRED:
+			pending.append("P%d" % (seat + 1))
+	if pending.is_empty():
+		return "starting..."
+	return "waiting on %s" % ", ".join(pending)
+
 #region Drawing
 func _draw_screen() -> void:
 	var font := ThemeDB.fallback_font
@@ -126,9 +125,8 @@ func _draw_screen() -> void:
 	_canvas.draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
 	_canvas.draw_string(font, Vector2(size.x * 0.5 - 90, 46), "PICK THREE HEROES",
 		HORIZONTAL_ALIGNMENT_LEFT, -1, 24, COL_TEXT)
-	_canvas.draw_string(font, Vector2(size.x * 0.5 - 40, 70),
-		"%0.0f" % maxf(_remaining, 0.0), HORIZONTAL_ALIGNMENT_LEFT, -1, 18,
-		COL_DIM if _remaining > 5.0 else Color(1, 0.4, 0.4))
+	_canvas.draw_string(font, Vector2(size.x * 0.5 - 88, 70), _waiting_on(),
+		HORIZONTAL_ALIGNMENT_LEFT, -1, 14, COL_DIM)
 
 	# Rows are packed to fit however many seats the format has: six rows at the
 	# 1v1 spacing would run off the bottom of a 720px viewport.

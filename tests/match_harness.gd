@@ -89,26 +89,36 @@ func _check_hero_select() -> void:
 	check("the screen is not ready until every seat has three",
 		not screen._all_seats_ready())
 
-	# A seat with no controller attached never picks; the timer covers it.
+	# With the timers gone, the screen confirms on the last pick and on nothing
+	# else. The lobby is what makes that safe: a seat only exists once a real
+	# device claimed it, so there is no seat that will never answer.
 	var confirmed: Array = []
 	screen.picks_confirmed.connect(func(r: Dictionary, t: Dictionary) -> void:
 		confirmed.append({"rosters": r, "teams": t}))
-	screen._remaining = 0.0
+	await step(30)
+	check("nothing confirms while a seat is still picking", confirmed.is_empty(),
+		"confirmed=%s" % [confirmed])
+
+	for i in MatchState.HEROES_PER_PLAYER:
+		screen._pick(1, roster[i])
 	var fired: bool = false
 	for i in 30:
 		await get_tree().physics_frame
 		if not confirmed.is_empty():
 			fired = true
 			break
-	check("the timer auto-fills an idle seat and confirms", fired,
-		"picks=%s" % [screen._picks[1]])
+	check("the last pick confirms the screen", fired, "picks=%s" % [screen._picks[1]])
 	if fired:
 		var rosters: Dictionary = confirmed[0]["rosters"]
 		check("every confirmed seat has exactly three heroes",
 			rosters[0].size() == 3 and rosters[1].size() == 3,
 			"p1=%s p2=%s" % [rosters[0], rosters[1]])
-		check("auto-filled picks have no duplicates",
+		check("confirmed picks have no duplicates inside a trio",
 			rosters[1].size() == _unique(rosters[1]).size(), "p2=%s" % [rosters[1]])
+		check("seats are handed the teams the format assigns",
+			confirmed[0]["teams"][0] == GameManager.team_of_seat(0)
+				and confirmed[0]["teams"][1] == GameManager.team_of_seat(1),
+			"teams=%s" % [confirmed[0]["teams"]])
 	screen.queue_free()
 	await get_tree().physics_frame
 

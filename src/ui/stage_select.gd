@@ -13,10 +13,9 @@ extends CanvasLayer
 
 signal stage_confirmed(stage_id: StringName)
 
-## Nobody should be able to stall a match forever, and a seat with no controller
-## plugged in never picks at all — when this runs out the highlighted stage is
-## taken.
-const SELECT_TIME: float = 15.0
+## No countdown for now: the pick waits for the picking seat. The lobby
+## guarantees that seat has a real device on it, so there is nobody who cannot
+## answer. Put a timer back if a stalled pick ever becomes a real problem.
 const NAV_REPEAT: float = 0.18
 const NAV_DEADZONE: float = 0.5
 
@@ -37,7 +36,6 @@ var _cursor: int = 0
 var _picker: int = 0
 var _picker_team: int = 0
 var _nav_cooldown: float = 0.0
-var _remaining: float = SELECT_TIME
 var _done: bool = false
 
 func _ready() -> void:
@@ -56,10 +54,7 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _done:
 		return
-	_remaining -= delta
 	_handle_picker(delta)
-	if _remaining <= 0.0:
-		_confirm()
 	_canvas.queue_redraw()
 
 func _handle_picker(delta: float) -> void:
@@ -91,8 +86,6 @@ func _draw_screen() -> void:
 	var heading := "TEAM %d PICKS THE STAGE  (P%d)" % [_picker_team + 1, _picker + 1]
 	_shadowed(font, Vector2(size.x * 0.5 - 120, 60), heading, 24, COL_TEXT)
 	_shadowed(font, Vector2(size.x * 0.5 - 120, 84), _why(), 13, COL_DIM)
-	_shadowed(font, Vector2(size.x * 0.5 - 12, 112), "%0.0f" % maxf(_remaining, 0.0), 18,
-		COL_DIM if _remaining > 5.0 else Color(1, 0.4, 0.4))
 
 	var row_w := _stages.size() * CARD.x + (_stages.size() - 1) * GAP
 	var origin := Vector2(size.x * 0.5 - row_w * 0.5, 160.0)

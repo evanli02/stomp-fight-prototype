@@ -101,7 +101,7 @@ Rebuilding later overwrites the same path, so this is a one-time step.
 5. When every seat for the chosen format is filled, the host presses
    **ability** (LMB / L1) to start. Unclaimed seats are not allowed — an
    undriven body on the stage is a free life for the other team.
-6. Hero select (3 heroes each, timed) → stage select (round 1: coinflip winner;
+6. Hero select (3 heroes each; **no timer** - it waits until everyone has picked, and names who it is waiting on) → stage select (round 1: coinflip winner;
    later rounds: whoever just lost) → fight.
 
 ## Why guests need gamepads
@@ -158,6 +158,9 @@ Honest list, so feedback lands on real problems:
 - The HUD is laid out for two players; 2v2 and 3v3 will look cramped.
 - Only two stages: Rooftop Rumble and Cryo Lab.
 - No rebinding, no options screen, no pause.
+- **No timers on the select screens.** Nothing advances until every player has
+  acted, so one person going to get a drink stalls the lobby. Say so before you
+  start rather than after.
 - Feel has been verified by harness, not by humans. The jump height, Cryo Lab's
   laser cadence, and Sai's reel are the three most likely to be wrong — those
   are the ones worth asking about directly.
