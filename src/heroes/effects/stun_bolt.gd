@@ -17,6 +17,9 @@ var lifetime: float = 1.4
 var accent: Color = Color(1, 0.18, 0.53)
 ## Deadeye's ultimate shot: drawn heavier so the loaded bolt is legible.
 var empowered: bool = false
+## The empowered shot flies through terrain — walls are not cover from the
+## loaded bolt. The ordinary bolt still dies on the first surface it meets.
+var piercing: bool = false
 
 var _direction: Vector2 = Vector2.RIGHT
 
@@ -49,7 +52,10 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 	# Terrain ends the bolt. Raycast rather than collide so it cannot tunnel
-	# through a thin rooftop at speed.
+	# through a thin rooftop at speed. The empowered shot skips the check —
+	# it exists to punish hiding behind geometry.
+	if piercing:
+		return
 	var space := get_world_2d().direct_space_state
 	var query := PhysicsRayQueryParameters2D.create(
 		position - _direction * speed * delta, position)

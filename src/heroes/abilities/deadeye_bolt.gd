@@ -20,6 +20,8 @@ func _execute(aim: Vector2) -> void:
 	bolt.global_position = player.global_position
 	bolt.launch(player, aim_or_facing(aim), stun, speed)
 	bolt.empowered = _empowered_stun > 0.0
+	# The loaded shot ignores terrain: nowhere on the stage is cover from it.
+	bolt.piercing = bolt.empowered
 	player.spawn_effect(bolt)
 	_empowered_speed_mult = 1.0
 	_empowered_stun = 0.0
