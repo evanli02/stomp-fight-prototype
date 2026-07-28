@@ -268,8 +268,8 @@ func _check_abilities() -> void:
 		MatchState.lives_of(0, MatchState.active_hero(0)),
 		MatchState.lives_of(1, MatchState.active_hero(1)),
 	]
-	_p1.global_position = Vector2(300, 300)
-	_p2.global_position = Vector2(360, 300)
+	_p1.global_position = Vector2(400, 300)
+	_p2.global_position = Vector2(460, 300)
 	_p1.stun_remaining = 0.0
 	_p2.stun_remaining = 0.0
 	await step(2)
@@ -359,12 +359,12 @@ func _check_abilities() -> void:
 	await step(2)
 	# Both points on the open street: the anchor is the only place the blink has
 	# to be able to occupy, so it is the only one that must be clear.
-	_p1.global_position = Vector2(320, 600)
+	_p1.global_position = Vector2(400, 344)
 	_p1.velocity = Vector2.ZERO
 	await step(1)
 	var anchor_at := _p1.global_position
 	check("slip places an anchor", _p1.try_ability())
-	_p1.global_position = Vector2(200, 600)
+	_p1.global_position = Vector2(280, 344)
 	await step(10)
 	check("slip recalls through her own cooldown", _p1.try_ability())
 	var returned: bool = false
@@ -550,7 +550,7 @@ func _check_sai_grapple() -> void:
 	_p1.equip_hero(&"sai")
 	# Airborne under Rooftop Rumble's contested slab, whose underside is 256px
 	# straight up — long enough that the reel below is a real haul.
-	_p1.global_position = Vector2(630, 560)
+	_p1.global_position = Vector2(400, 250)
 	_p1.velocity = Vector2.ZERO
 	_p1.stun_remaining = 0.0
 	_p1.state_machine.change_state(&"Air")
@@ -631,7 +631,7 @@ func _check_aim_line() -> void:
 		"len=%.0f" % AimLine.LENGTH)
 
 	# Inside Rooftop Rumble's shaft, where terrain is close on several sides.
-	_p1.global_position = Vector2(560, 400)
+	_p1.global_position = Vector2(400, 250)
 	_p1.velocity = Vector2.ZERO
 	_p1.stun_remaining = 0.0
 	_p1.state_machine.change_state(&"Air")

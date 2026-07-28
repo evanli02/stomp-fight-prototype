@@ -1,7 +1,13 @@
 class_name JumpSpring extends TerrainElement
-## Fixed strong launch on contact (DESIGN 6.2). Overrides the vertical component
-## and leaves horizontal alone, so a spring keeps whatever run you brought into
-## it — that is what makes springs chainable with b-hops.
+## Fixed strong launch on contact (DESIGN 6.2). Replaces the component of your
+## velocity ALONG its launch axis and leaves the perpendicular one alone, so an
+## upward spring keeps whatever run you brought into it - that is what makes
+## springs chainable with b-hops - and a spring mounted on a wall flings you
+## sideways without eating your fall.
+##
+## Axis rather than "vertical" so wall springs work at all: written the old way,
+## a horizontal launch_velocity set velocity.y to zero and left velocity.x to be
+## added to, which is the opposite of what a sideways spring should do.
 
 @export var launch_velocity: Vector2 = Vector2(0, -700)
 @export var retrigger: float = 0.25
@@ -22,7 +28,9 @@ func on_body_entered(p: Player) -> void:
 	if _cooldown.has(id):
 		return
 	_cooldown[id] = retrigger
-	p.set_velocity_override(Vector2(p.velocity.x + launch_velocity.x, launch_velocity.y))
+	var axis := launch_velocity.normalized()
+	var tangent := p.velocity - axis * p.velocity.dot(axis)
+	p.set_velocity_override(tangent + launch_velocity)
 	# Must leave the grounded state explicitly: Idle and Run set velocity.y = 0
 	# every frame a body is on the floor, so a launch applied to a standing
 	# player is erased before it ever moves them.

@@ -7,14 +7,16 @@ extends Node
 ##   Godot --headless --path . res://tests/terrain_harness.tscn
 ## Exits non-zero if any check fails.
 
-const FLOOR_Y: float = 607.0
+const FLOOR_Y: float = 344.0
 ## Empty air in the middle of the stage. Rooftop Rumble now has its own terrain
 ## in it, and a check that lands on a stage spring is measuring the wrong thing.
-const TEST_X: float = 640.0
-## Open sky above the left half of the stage. The pole check needs room to leap
-## into: at street level every direction runs into stage geometry within a few
-## frames, and a leap that clips a wall measures the wall.
-const POLE_AT: Vector2 = Vector2(320, 250)
+const TEST_X: float = 400.0
+## A clear column over the rooftop. The pole checks need air both above and BELOW
+## the grab point - a spot with a platform under it lands the body before the
+## slide can be measured, and a leap that clips a wall measures the wall.
+
+
+const POLE_AT: Vector2 = Vector2(400, 250)
 
 var _failures: int = 0
 var _stage: Node2D
@@ -85,6 +87,7 @@ func _run() -> void:
 	await _check_pole()
 	await _check_bumper_block()
 	await _check_nothing_took_a_life()
+	await _check_rooftop_portals()
 	await _check_cryo_lab()
 	await _check_sunken_court()
 
@@ -363,6 +366,58 @@ func _check_bumper_block() -> void:
 func _check_nothing_took_a_life() -> void:
 	check("no terrain element removed a life",
 		lives() == MatchState.LIVES_PER_HERO, "lives=%d" % lives())
+
+## Rooftop Rumble's channel teleporters are ONE-WAY, and that is the whole reason
+## falling into a channel costs anything. A pair wired both ways would make the
+## channels a free elevator, so this asserts the direction rather than trusting
+## the wiring to stay right.
+##
+## Runs while the stage from _ready is still up, before the cryo check tears it
+## down.
+func _check_rooftop_portals() -> void:
+	var entrances := 0
+	var arrivals: Array[Portal] = []
+	for child in _stage.get_children():
+		var portal := child as Portal
+		if portal == null:
+			continue
+		if portal.linked_portal.is_empty():
+			arrivals.append(portal)
+		else:
+			entrances += 1
+	check("rooftop has two channel entrances", entrances == 2, "entrances=%d" % entrances)
+	check("and two arrival pads", arrivals.size() == 2, "arrivals=%d" % arrivals.size())
+
+	# The load-bearing half: standing in an arrival pad must do nothing at all.
+	if arrivals.is_empty():
+		return
+	var pad: Portal = arrivals[0]
+	await park(pad.global_position, Vector2.ZERO)
+	var start := _p.global_position
+	await step(6)
+	check("an arrival pad never sends anyone back down",
+		_p.global_position.distance_to(start) < 120.0,
+		"moved from %s to %s" % [start, _p.global_position])
+
+	# ...and the entrance still works, upward and across.
+	var door: Portal = null
+	for child in _stage.get_children():
+		var portal := child as Portal
+		if portal != null and not portal.linked_portal.is_empty():
+			door = portal
+			break
+	var exit_at: Vector2 = door.get_node(door.linked_portal).global_position
+	await park(door.global_position + Vector2(0, -40), Vector2(0, 200))
+	var went := false
+	for i in 30:
+		await get_tree().physics_frame
+		if _p.global_position.distance_to(exit_at) < 80.0:
+			went = true
+			break
+	check("a channel entrance sends you to the far top corner", went,
+		"at=%s expected near %s" % [_p.global_position, exit_at])
+	check("the channel teleport costs no life", lives() == MatchState.LIVES_PER_HERO,
+		"lives=%d" % lives())
 
 ## Cryo Lab as a whole stage. The claims worth asserting are the ones the rebuild
 ## rests on: every surface is ice with no patch of grip left behind, the three

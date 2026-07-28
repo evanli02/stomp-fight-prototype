@@ -86,7 +86,7 @@ the chain to full impulse; hammering the same face does not (DESIGN 4.4). A
 single tall wall is a dead end, and that is a legitimate thing to build — just
 know you are building it.
 
-Known-good shaft widths: **64 px** (Rooftop Rumble — narrow enough that two
+Known-good shaft widths: **160 px** (Rooftop Rumble's side channels - climbable but slow, which is the point), **64 px** (Rooftop Rumble — narrow enough that two
 players climbing it meet, which is how wall-jump duels happen on purpose) and
 **128 px** (Cryo Lab — climbable without forcing contact).
 
@@ -131,9 +131,9 @@ From CLAUDE.md and DESIGN §6.1. These are not style preferences:
 | `Pole` | `size` | Grab, climb, ride down (hold down), let go (down+jump), or dash for a boosted drop straight down. Zeroes momentum and **refills the dash** - a reset button. Keep the bottom above y=(surface-41) or players walk into it. |
 | `Ice` | `size`, `slip` | Near-zero friction. Somewhere to *build* speed, not only lose control. Applies while standing on it, so the area must overlap the body. |
 | `StunLine` | `size`, `cycle_time`, `on_ratio`, `phase_offset`, `warn_time` | Tripwire. Stuns, keeps momentum, **leaves the head hurtbox live** — a stomp setup, not a shield. With `cycle_time > 0` it becomes a timed laser; stagger `phase_offset` across several to make a grid a rhythm. |
-| `JumpSpring` | `size`, `launch_velocity` | Vertical launch. Keeps horizontal speed. Narrow ones get aimed at; wide ones get fallen onto. |
+| `JumpSpring` | `size`, `launch_velocity` | Replaces the velocity component **along its launch axis** and keeps the perpendicular one. Upward springs keep your run; a spring laid against a wall flings you sideways without eating your fall. |
 | `SpeedPad` | `size`, `direction`, `boost_speed` | Sets you at or over the momentum cap along its direction. |
-| `Portal` | `size`, `linked_portal`, `facing` | Paired teleport that **rotates the velocity vector** into the exit's facing. Redirects momentum without giving or taking any. |
+| `Portal` | `size`, `linked_portal`, `facing`, `accent` | Paired teleport that **rotates the velocity vector** into the exit's facing. Link **only one end** to make the pair one-way - the unlinked end becomes an arrival pad and draws hollow. `accent` colour-codes a stage with more than one pair. |
 | `WindZone` | `size`, `force` | Constant push. Rooftop's updraft does not beat gravity — it makes a shaft climbable *with* wall jumps rather than climbing it for you. |
 | `ExplosionHazard` | `size`, `period`, `warning_time` | Periodic blast: shove plus a brief stun, on a telegraph. |
 

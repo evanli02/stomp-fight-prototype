@@ -16,10 +16,10 @@ extends Node
 ## Street level in duel.tscn: the floor's top edge is y=624, so a standing body's
 ## centre sits 17px above it (bodies are 34 tall). The open street is what these checks need — the
 ## rooftops above have their own geometry in the way.
-const FLOOR_Y: float = 607.0
+const FLOOR_Y: float = 344.0
 ## A clear column of street: no awning (x 176..272), no mid platform (384..480),
 ## nothing overhead to land on instead of the other player.
-const TEST_X: float = 320.0
+const TEST_X: float = 400.0
 
 var _failures: int = 0
 var _stage: Node2D

@@ -4,6 +4,10 @@ class_name Portal extends TerrainElement
 ## taking any — enter fast, leave fast, pointing somewhere new.
 ##
 ## Both ends lock out briefly on use, or the pair ping-pongs a body forever.
+##
+## A pair is one-way when only one end carries a linked_portal: the other is an
+## arrival pad that does nothing when touched. It draws hollow instead of solid
+## so the difference is visible before you commit to running into it.
 
 @export var linked_portal: NodePath
 @export var lockout: float = 0.35
@@ -43,6 +47,16 @@ func _draw() -> void:
 	var rx := size.x * 0.5
 	var ry := size.y * 0.5
 	var dim := 0.35 if _lock > 0.0 else 1.0
+	# An arrival-only end has no destination of its own: draw the outer ring only,
+	# so it reads as a mouth you come out of rather than one you go into.
+	if linked_portal.is_empty():
+		draw_arc(Vector2.ZERO, minf(rx, ry) * 0.95, 0.0, TAU, 28,
+			Color(accent.r, accent.g, accent.b, dim * 0.55), 2.0)
+		for i in 6:
+			var a0: float = TAU * float(i) / 6.0 + t * 0.6
+			draw_arc(Vector2.ZERO, minf(rx, ry) * 0.55, a0, a0 + 0.5, 6,
+				Color(accent.r, accent.g, accent.b, dim * 0.8), 2.0)
+		return
 	for i in 3:
 		var scale := 1.0 - i * 0.22 - 0.05 * sin(t + i)
 		draw_arc(Vector2.ZERO, minf(rx, ry) * scale, 0.0, TAU, 28,
