@@ -94,6 +94,15 @@ players climbing it meet, which is how wall-jump duels happen on purpose) and
 
 ### Two things that are easy to get wrong
 
+- **Stage tiles vs the backdrop.** Rooftop's ground tile was `#2a1d4a` and its
+  second sky band `#291c4a`; platforms high in the stage vanished into the sky
+  they were drawn against. Check a new tile against `sky_bands()`, not on its own.
+- **Harness columns.** `combat_harness` and `terrain_harness` stand bodies at
+  `TEST_X` on a surface at `FLOOR_Y`, and `terrain_harness` needs air both above
+  AND below `POLE_AT`. Reworking a stage's geometry can put a platform in one of
+  those columns; the failure then looks like a movement bug. Re-check them
+  whenever Rooftop changes.
+
 - **Headroom.** A platform needs ~36px of clear air above it or the 34px body
   cannot stand there. Stacking a small platform under a wide slab is the usual
   way to build something that looks fine and cannot be used. `terrain_harness`

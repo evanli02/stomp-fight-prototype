@@ -31,17 +31,32 @@ const TIER_MID: float = 288.0     ## side platforms overhanging the roof edges
 const TIER_CENTRE: float = 224.0  ## the contested middle
 const TIER_UPPER: float = 144.0   ## the high pair
 
-## Opposite ends of the roof.
-const SPAWNS: Array[Vector2] = [Vector2(280, 344), Vector2(872, 344)]
+## Opposite ends of the roof, inside the clear span either side of the platforms.
+const SPAWNS: Array[Vector2] = [Vector2(240, 344), Vector2(912, 344)]
 
-## The roof spring. Wider than the platform above it, so its outer 48px on each
-## side launch clear while the middle bumps the underside — approach matters, and
-## springs keep horizontal speed precisely so that it can.
-const SPRING_SPAN: float = 192.0
+## Every platform above the roof is this wide. One size for all of them so the
+## stage reads as a set of equal footholds and none of them is the obvious one to
+## camp; the roof itself is the only wide surface.
+const PLATFORM_W: float = 96.0
+
+## Two roof springs, one either side of the centre platform rather than one under
+## it. A single centred spring could only ever launch into the underside of the
+## platform it was supposed to deliver you to; flanking it, both throw you up
+## clear and you steer in.
 const SPRING_LAUNCH: Vector2 = Vector2(0, -820)
 ## Wall springs, mounted mid-height on both side walls: they fling you across the
 ## roof rather than up it, which is what a body climbing out of a channel needs.
 const WALL_SPRING_LAUNCH: float = 760.0
+const WALL_SPRING_SIZE: Vector2 = Vector2(24.0, 176.0)
+
+## The channel teleporters fill their channel wall to wall and reach the floor,
+## so falling in is a guaranteed trip and there is nowhere down there to stand
+## beside one. A channel you could land next to would be a hiding place at the
+## bottom of the stage, which is the last thing it should be.
+const CHANNEL_PORTAL: Vector2 = Vector2(160.0, 64.0)
+const CHANNEL_PORTAL_Y: float = 592.0
+## Arrival pads sit above the topmost platforms and drop you onto them.
+const ARRIVAL_Y: float = 88.0
 
 const PORTAL_SIZE: Vector2 = Vector2(40, 56)
 const COL_RED: Color = Color(0.93, 0.42, 0.42)
@@ -66,11 +81,13 @@ func ground_texture() -> Texture2D: return _ground_tex
 ## Every platform above the roof, listed once. Symmetric about x=576.
 func platforms() -> Array[Rect2]:
 	return [
-		Rect2(288.0, TIER_UPPER, 160.0, 16.0),   # upper left
-		Rect2(704.0, TIER_UPPER, 160.0, 16.0),   # upper right
-		Rect2(528.0, TIER_CENTRE, 96.0, 16.0),   # the contested middle
-		Rect2(176.0, TIER_MID, 160.0, 16.0),     # mid left
-		Rect2(816.0, TIER_MID, 160.0, 16.0),     # mid right
+		Rect2(320.0, TIER_UPPER, PLATFORM_W, 16.0),   # upper left
+		Rect2(736.0, TIER_UPPER, PLATFORM_W, 16.0),   # upper right
+		Rect2(528.0, TIER_CENTRE, PLATFORM_W, 16.0),  # the contested middle
+		# Pulled in off the roof edges: flush with them they read as part of the
+		# roof rather than as a tier above it.
+		Rect2(224.0, TIER_MID, PLATFORM_W, 16.0),     # mid left
+		Rect2(832.0, TIER_MID, PLATFORM_W, 16.0),     # mid right
 	]
 
 ## The roof, the platforms above it, and the sealed box. The channels are simply
@@ -85,14 +102,16 @@ func arena_blocks() -> Array[Rect2]:
 
 func build_terrain() -> void:
 	_build_springs()
+	_build_pole()
 	_build_portals()
 
 func _build_springs() -> void:
-	var roof := JumpSpring.new()
-	roof.size = Vector2(SPRING_SPAN, 16.0)
-	roof.position = Vector2(576.0, ROOF_TOP - 8.0)
-	roof.launch_velocity = SPRING_LAUNCH
-	add_child(roof)
+	for x: float in [464.0, 688.0]:
+		var roof := JumpSpring.new()
+		roof.size = Vector2(PLATFORM_W, 16.0)
+		roof.position = Vector2(x, ROOF_TOP - 8.0)
+		roof.launch_velocity = SPRING_LAUNCH
+		add_child(roof)
 
 	# One on each side wall, spanning the height between the mid and upper tiers.
 	# They launch along their own axis now, so they keep your fall and replace
@@ -100,10 +119,22 @@ func _build_springs() -> void:
 	# roof still descending, which is the recovery the channels need.
 	for side: float in [-1.0, 1.0]:
 		var wall := JumpSpring.new()
-		wall.size = Vector2(16.0, 112.0)
-		wall.position = Vector2(24.0 if side > 0.0 else 1128.0, 224.0)
+		wall.size = WALL_SPRING_SIZE
+		wall.position = Vector2(28.0 if side > 0.0 else 1124.0, 224.0)
 		wall.launch_velocity = Vector2(WALL_SPRING_LAUNCH * side, 0.0)
 		add_child(wall)
+
+## A pole over the centre platform, hanging from the height of the arrival pads
+## down to just above the head of anyone standing on the platform. It is the only
+## way from the middle up to the very top of the stage that is not a teleporter,
+## and being directly over the most contested platform means reaching for it is
+## always a decision taken in front of somebody.
+func _build_pole() -> void:
+	var pole := Pole.new()
+	var bottom := TIER_CENTRE - 24.0 - 17.0 - 15.0   # standing head, plus a gap
+	pole.size = Vector2(8.0, bottom - ARRIVAL_Y)
+	pole.position = Vector2(576.0, (ARRIVAL_Y + bottom) * 0.5)
+	add_child(pole)
 
 ## Two ONE-WAY pairs, both diagonal and both upward: only the bottom end carries
 ## a link, so the top end is an arrival pad that does nothing when touched.
@@ -112,11 +143,14 @@ func _build_springs() -> void:
 ## you come out of a channel on the far side of the stage, not the side you fell
 ## down.
 func _build_portals() -> void:
-	_one_way(Vector2(96.0, 572.0), Vector2(952.0, 56.0), COL_RED)
-	_one_way(Vector2(1056.0, 572.0), Vector2(200.0, 56.0), COL_GREEN)
+	# Arrivals sit over the upper platforms, so you land on a foothold rather
+	# than in open air.
+	_one_way(Vector2(96.0, CHANNEL_PORTAL_Y), Vector2(784.0, ARRIVAL_Y), COL_RED)
+	_one_way(Vector2(1056.0, CHANNEL_PORTAL_Y), Vector2(368.0, ARRIVAL_Y), COL_GREEN)
 
 func _one_way(from_at: Vector2, to_at: Vector2, accent: Color) -> void:
 	var entrance := _portal(from_at, accent)
+	entrance.size = CHANNEL_PORTAL
 	var arrival := _portal(to_at, accent)
 	add_child(entrance)
 	add_child(arrival)

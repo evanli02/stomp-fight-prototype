@@ -19,7 +19,7 @@ extends Node
 const FLOOR_Y: float = 344.0
 ## A clear column of street: no awning (x 176..272), no mid platform (384..480),
 ## nothing overhead to land on instead of the other player.
-const TEST_X: float = 400.0
+const TEST_X: float = 368.0
 
 var _failures: int = 0
 var _stage: Node2D

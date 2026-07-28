@@ -10,7 +10,7 @@ extends Node
 const FLOOR_Y: float = 344.0
 ## Empty air in the middle of the stage. Rooftop Rumble now has its own terrain
 ## in it, and a check that lands on a stage spring is measuring the wrong thing.
-const TEST_X: float = 400.0
+const TEST_X: float = 368.0
 ## A clear column over the rooftop. The pole checks need air both above and BELOW
 ## the grab point - a spot with a platform under it lands the body before the
 ## slide can be measured, and a leap that clips a wall measures the wall.
@@ -386,6 +386,45 @@ func _check_rooftop_portals() -> void:
 		else:
 			entrances += 1
 	check("rooftop has two channel entrances", entrances == 2, "entrances=%d" % entrances)
+
+	# A channel entrance has to fill its channel wall to wall and reach the floor.
+	# Any strip of floor beside one is somewhere to stand at the bottom of the
+	# stage, which is exactly what the channels must not offer.
+	var narrow := ""
+	for child in _stage.get_children():
+		var door := child as Portal
+		if door == null or door.linked_portal.is_empty():
+			continue
+		var left: float = door.position.x - door.size.x * 0.5
+		var right: float = door.position.x + door.size.x * 0.5
+		var wall_side: float = 16.0 if left < 576.0 else 976.0
+		var roof_side: float = 176.0 if left < 576.0 else 1136.0
+		if minf(left, right) > minf(wall_side, roof_side) + 0.5 				or maxf(left, right) < maxf(wall_side, roof_side) - 0.5:
+			narrow += " %s spans %.0f..%.0f" % [door.position, left, right]
+		if door.position.y + door.size.y * 0.5 < 623.0:
+			narrow += " %s stops above the floor" % door.position
+	check("a channel entrance fills its channel down to the floor", narrow.is_empty(),
+		narrow)
+
+	# The pole over the centre platform: reachable by jumping from it, and topping
+	# out level with the arrival pads.
+	var mid_pole: Pole = null
+	for child in _stage.get_children():
+		var candidate := child as Pole
+		if candidate != null:
+			mid_pole = candidate
+	check("rooftop hangs a pole over the centre platform", mid_pole != null)
+	if mid_pole != null:
+		var bottom: float = mid_pole.position.y + mid_pole.size.y * 0.5
+		var top: float = mid_pole.position.y - mid_pole.size.y * 0.5
+		var standing_head: float = 224.0 - 24.0 - 17.0
+		check("the pole hangs clear of a head on the centre platform",
+			bottom < standing_head, "bottom=%.0f head=%.0f" % [bottom, standing_head])
+		check("but inside a held jump from it",
+			standing_head - bottom < StageGrid.JUMP_APEX,
+			"gap=%.0f jump=%.0f" % [standing_head - bottom, StageGrid.JUMP_APEX])
+		check("and tops out level with the arrival pads",
+			absf(top - 88.0) < 1.0, "top=%.0f" % top)
 	check("and two arrival pads", arrivals.size() == 2, "arrivals=%d" % arrivals.size())
 
 	# The load-bearing half: standing in an arrival pad must do nothing at all.
