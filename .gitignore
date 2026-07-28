@@ -8,3 +8,7 @@
 
 # Exported builds (docs/PLAYTEST.md) - rebuilt from source, never committed.
 build/
+# ...and the zips cut from them for handing to playtesters. build.zip was tracked
+# for a while at 38MB a copy; git keeps every version of a binary forever, so a
+# handful of those is a repo nobody wants to clone.
+build*.zip
