@@ -406,6 +406,26 @@ func _check_rooftop_portals() -> void:
 	check("a channel entrance fills its channel down to the floor", narrow.is_empty(),
 		narrow)
 
+	# The outer platforms hang PAST the roof edges, out over the channels - but
+	# not so far that they roof one over. A covered channel is a channel you
+	# cannot fall into, which would quietly remove the stage's whole down-side.
+	var overhang := ""
+	for block: Rect2 in (_stage as MatchStage).platforms():
+		var left: float = block.position.x
+		var right: float = left + block.size.x
+		if left < 176.0:
+			if right <= 176.0:
+				overhang += " %s is entirely off the roof" % block
+			elif left < 16.0 + 96.0:
+				overhang += " %s covers too much of the left channel" % block
+		elif right > 976.0:
+			if left >= 976.0:
+				overhang += " %s is entirely off the roof" % block
+			elif right > 1136.0 - 96.0:
+				overhang += " %s covers too much of the right channel" % block
+	check("the outer platforms overhang without roofing the channels",
+		overhang.is_empty(), overhang)
+
 	# The pole over the centre platform: reachable by jumping from it, and topping
 	# out level with the arrival pads.
 	var mid_pole: Pole = null

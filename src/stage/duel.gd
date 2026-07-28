@@ -31,8 +31,9 @@ const TIER_MID: float = 288.0     ## side platforms overhanging the roof edges
 const TIER_CENTRE: float = 224.0  ## the contested middle
 const TIER_UPPER: float = 144.0   ## the high pair
 
-## Opposite ends of the roof, inside the clear span either side of the platforms.
-const SPAWNS: Array[Vector2] = [Vector2(240, 344), Vector2(912, 344)]
+## Opposite ends of the roof, inside the clear span the platforms leave either
+## side of centre - so a team spawns with open sky overhead even at 3v3.
+const SPAWNS: Array[Vector2] = [Vector2(300, 344), Vector2(852, 344)]
 
 ## Every platform above the roof is this wide. One size for all of them so the
 ## stage reads as a set of equal footholds and none of them is the obvious one to
@@ -84,15 +85,18 @@ func platforms() -> Array[Rect2]:
 		Rect2(320.0, TIER_UPPER, PLATFORM_W, 16.0),   # upper left
 		Rect2(736.0, TIER_UPPER, PLATFORM_W, 16.0),   # upper right
 		Rect2(528.0, TIER_CENTRE, PLATFORM_W, 16.0),  # the contested middle
-		# Pulled in off the roof edges: flush with them they read as part of the
-		# roof rather than as a tier above it.
-		Rect2(224.0, TIER_MID, PLATFORM_W, 16.0),     # mid left
-		Rect2(832.0, TIER_MID, PLATFORM_W, 16.0),     # mid right
+		# Overhanging the roof edges by 32px, out over the channels. Flush with
+		# the edge they read as part of the roof; hanging past it they are a
+		# separate thing you can be knocked off, and the overhang gives a body
+		# climbing out of a channel something to aim at that is not the roof.
+		Rect2(144.0, TIER_MID, PLATFORM_W, 16.0),     # mid left
+		Rect2(912.0, TIER_MID, PLATFORM_W, 16.0),     # mid right
 	]
 
 ## The roof, the platforms above it, and the sealed box. The channels are simply
 ## where the roof is not: 160px wide, walled on both sides, which makes them
-## climbable by wall jump (a shaft needs two facing faces) but slowly.
+## climbable by wall jump (a shaft needs two facing faces) but slowly. The mid
+## platforms overhang them, leaving 128px of open mouth to fall through.
 func arena_blocks() -> Array[Rect2]:
 	var blocks := Arena.sealed_box(ARENA)
 	blocks.append(Rect2(ROOF_LEFT, ROOF_TOP, ROOF_RIGHT - ROOF_LEFT,
