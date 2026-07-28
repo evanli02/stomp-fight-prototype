@@ -86,12 +86,10 @@ the harness can audit what it clears.
 
 ### 1.5 `fires_while_stunned` on `Ability` + `grant_debuff_immunity(dur)` + `grant_stomp_ward(dur)`
 
-- `fires_while_stunned: bool = false` export on `Ability`.
-  `Player.try_ability`/`try_ultimate` currently refuse while
-  `stun_remaining > 0.0 or disrupt_remaining > 0.0`; change the stun half to
-  honour the flag. **The disrupt half is not negotiable**: Kid's EMP beats
-  Saint, by design. Sleep also blocks casting (1.6) and is NOT bypassed —
-  the flag reads "castable while stunned", not "castable while disabled".
+- `fires_while_stunned: bool = false` export on `Ability`. The flag bypasses
+  the stun gate AND the sleep gate (owner ruling 2026-07-28 — Saint casts his
+  way out of a sleep too). **The disrupt half is not negotiable**: Kid's EMP
+  beats Saint, by design, and is now his only hard counter.
 - `grant_debuff_immunity(dur)`: while it runs, `apply_stun`, `apply_slow`,
   `apply_impairment`, `apply_disrupt`, `apply_freeze`, `add_sleep_stack`, and
   `apply_sleep` are no-ops on this player (early-out at the top of each).
@@ -124,14 +122,21 @@ Vesper's system, and the biggest piece.
 - **`Sleeping`**: walk left/right only, hard-capped at
   `run_speed_base * sleep_walk_mult`, `momentum_charge` forced to 0 (no
   building momentum while slept), gravity applies, everything else refused:
-  no jump, dash, wall interaction, slide, crouch. Swap is blocked (extend the
-  `try_swap` stun check), ability/ultimate are blocked (extend
-  `try_ability`/`try_ultimate` — and sleep is not bypassed by
-  `fires_while_stunned`). Head hurtbox **stays live**: a sleeping player is
-  the most stompable player in the game — that is the whole kit. Being
-  stomped while asleep resolves normally (stun then grace); sleep continues
-  underneath unless cleansed. Animation: reuse `&"stun"` until the generator
-  gains a `sleep` pose.
+  no jump, dash, wall interaction, slide, crouch. Swap is blocked; casting is
+  blocked except through `fires_while_stunned` (Saint). Head hurtbox **stays
+  live**: a sleeping player is the most stompable player in the game — that
+  is the whole kit. Animation: reuse `&"stun"` until the generator gains a
+  `sleep` pose.
+- **How a sleep ends** (owner rulings 2026-07-28): expiry, a stun, or a fresh
+  debuff — nothing else. A stun or any `apply_*` debuff calls `_wake()`
+  first, so hitting a sleeper wakes them (collecting on the setup finishes
+  it; a stomp therefore wakes, via its stun). Terrain launches do NOT wake:
+  `request_state` redirects any non-Stunned request back to `Sleeping` while
+  asleep, so a spring throws the slept body without freeing it — the original
+  bug was a sleeper walking onto a jump spring and getting a free wake-up.
+  The one hand-off left in `Stunned` covers a sleep applied *during* a stun
+  (Deep Sleep catching an already-stunned body): that sleep is newer and
+  takes hold when the stun ends.
 - **Legibility** (the spec is explicit about this): stack pips and the sleep
   state must be readable on the victim. Extend `src/ui/debuff_marks.gd` —
   a `&"dart"` tag renders as 1-3 pips (pass the count through
@@ -190,8 +195,9 @@ what is not obvious from those.
   pink of her eyes because the accent drives the stomp burst, the HUD stripe,
   and the aim line, and pure black is invisible on a dusk stage. Her effects
   should read black-bodied with pink rims (the Deep Sleep sphere especially).
-- The dart is `StunBolt`'s body with different payload: same 620 speed, same
-  size, same raycast terrain death, first enemy only. Do not fork StunBolt —
+- The dart is `StunBolt`'s body with a different payload: same size, same
+  raycast terrain death, first enemy only — but faster (780 vs the bolt's
+  620, owner pass 2026-07-28). Do not fork StunBolt —
   extract the flight into a shared base or parameterise the payload with a
   Callable; either is fine, copy-paste is not.
 - Stack bookkeeping lives on the **victim** (1.6), not the dart or the
@@ -219,13 +225,17 @@ what is not obvious from those.
   maintained), `request_state(&"Air")` (grounded states zero a launch —
   CLAUDE.md checklist). Everyone in the footprint launches: Siku, allies,
   enemies — terrain does not take sides.
-- Footprint = bodies overlapping the pillar's column at cast (Area2D scan of
-  the footprint rect at ground level). Launch first, then add the collision —
-  same frame is fine because the launch has already moved them into `Air`,
-  but never add a solid under a body that was not launched (a body standing
-  half-off the footprint must not end up inside the pillar wall: the launch
-  set must be exactly "overlaps the footprint", and the pillar spawn happens
-  after the launches in the same tick).
+- Footprint = bodies overlapping the pillar's column at cast. **Launch-first
+  ordering is NOT sufficient on its own** — this shipped wrong and lodged
+  Siku in the floor: one frame of launch moves ~11px and the column is 80, so
+  the solid still appeared around the launched bodies and depenetration
+  shoved them out the shortest way (down, at the base). The fix: everyone
+  launched is also a **collision exception on the pillar's StaticBody2D**
+  (`IcePillar.ignore_until_clear`) until their AABB has left the column —
+  usually at the top of the launch arc, so they re-solidify in time to land
+  on the cap. A body that never clears keeps its exception for the pillar's
+  life, which degrades to "not solid to that one body", never to
+  "entombed".
 - The melt frees a StaticBody2D under whoever climbed on top; Godot's
   depenetration can shove a standing body ~100 px when its support vanishes
   (handoff.md trap). Melt by shrinking the collision downward over a few
@@ -247,15 +257,16 @@ what is not obvious from those.
 | Interaction | Ruling |
 |---|---|
 | Saint's Cleanse vs Kid's EMP | EMP wins: disrupt blocks the cast. The one hole in Cleanse, by design. |
-| Saint's Cleanse vs sleep | Cleansing an ally's sleep: yes. Casting while HE is slept: no (sleep blocks casting). |
+| Saint's Cleanse vs sleep | Cleansing an ally's sleep: yes. Casting while HE is slept: **also yes** (owner ruling 2026-07-28) — the EMP is his only hard counter. |
 | Benediction immunity vs Vesper | Darts apply nothing, stacks don't accrue, sphere doesn't sleep. Existing stacks were already cleansed by the cast. |
 | Benediction ward vs Terra slam | Slam-onto-head is a stomp, so the ward eats it: no life, blessing gone, Terra still bounces. |
 | Benediction ward vs stomp during grace | Grace check runs first (existing early-out); a graced stomp attempt still costs nothing and does not consume the ward. |
 | Voodoo phantom stomp | A life, via `receive_stomp`, exactly like Terra's slam. Two-sided harness assertion required. |
 | Voodoo phantom + wall-jump duels | You cannot wall-jump off a phasing body (no contact); no duel can open. |
 | Voodoo touch vs Saint immunity | Knockback lands (an impulse is not a debuff); the slow does not. |
-| Sleep + stomp | Stomping a sleeping player: normal stomp, stun+grace on top, sleep keeps ticking under it unless cleansed. |
-| Sleep + swap | Blocked, like stun. Waking (expiry or cleanse) unblocks. |
+| Sleep + stomp | Stomping a sleeping player: normal stomp — and the stomp's stun **wakes** them (a stun ends a sleep). |
+| Sleep + terrain launch | Springs and Mason's block throw the slept body but never wake it (`request_state` redirects to `Sleeping`). |
+| Sleep + swap | Blocked, like stun. Waking (expiry, stun, fresh debuff, or cleanse) unblocks. |
 | Two Vespers (duplicate picks) | One stack pool per victim; either Vesper's dart advances it. |
 | Siku pillar under an enemy mid-grace | Launches them (launch is not a debuff and not a head event). |
 | Frostbite vs Benediction | Immune allies shrug the stun and the drop is never applied (the drop rides the stun application). |
@@ -291,3 +302,11 @@ Three things worth carrying forward:
   at x 416-512 and 640-736. A body parked there is launched out of whatever
   state the check just established — which read, for a while, as sleep failing
   to hold.
+- **Spawning a solid around a body needs a collision exception, not just a
+  launch.** The pillar launched everyone first and placed collision second, and
+  it STILL shoved bodies into the floor — a launch moves pixels per frame and a
+  column is tens of them, so the overlap survives into the next physics step
+  and depenetration resolves it downward. Any effect that materialises terrain
+  where bodies stand must except those bodies until they have physically left
+  the shape. Corollary for tests: assert the body's **position over time**, not
+  its velocity — the velocity was correct the whole way through this bug.

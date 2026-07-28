@@ -121,10 +121,16 @@ Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
-| Voodoo | bright purple | Soul Ignition — self empower window; touching an enemy knocks them back and slows their whole kit 3 s (9.0) | Phantom — bigger empower, far longer, phases through bodies (3 s stun on pass-through), inverted skin. A fall through a head is still a stomp |
-| Saint | white | Cleanse — strip all debuffs/stuns from the team; casts **while stunned** (11.0) | Benediction — cleanse, then empower + debuff immunity + one stomp ward each |
-| Vesper | black / neon pink | Sleep Dart — slow + a stack; 3 stacks sleeps them ~6.5 s (5.0) | Deep Sleep — huge slow sphere through everything; drops and sleeps ~9.75 s |
-| Siku | ice blue | Pillar — ground only; ice column launches everyone in the footprint, refused under a low ceiling (10.0) | Frostbite — six fast pulses, 1.5 s stun and a drop each |
+| Voodoo | bright purple | Soul Ignition — long strong empower window (10 s, 1.5× run); touching an enemy knocks them back and slows their whole kit 3 s (18.0) | Phantom — 1.6× run + 1.45× dash, **jump untouched**, phases through bodies (2 s stun on pass-through), fully inverted skin, mask included. A fall through a head is still a stomp |
+| Saint | white | Cleanse — strip all debuffs/stuns from the team; casts **while stunned or slept** (11.0) | Benediction — cleanse, then empower + debuff immunity + one stomp ward each |
+| Vesper | black / neon pink | Sleep Dart — fast dart (780), slow + a stack; 3 stacks sleeps them ~6.5 s (3.5) | Deep Sleep — huge slow sphere through everything; drops and sleeps ~9.75 s |
+| Siku | ice blue | Pillar — ground only; 80px ice column launches everyone in the footprint, refused under a low ceiling (10.0) | Frostbite — five fast pulses with a frost aura on her, 1.5 s stun and a drop each |
+
+**Sleep rules after the owner pass:** a sleep ends on expiry, a stun, or a fresh debuff —
+and on nothing else. Terrain launches throw the sleeper without waking them
+(`Player.request_state` redirects to `Sleeping` while asleep — a sleeper on a jump spring
+was getting a free wake-up). A stun or any `apply_*` debuff calls `_wake()`, so stomping a
+sleeper wakes them. Saint casts through his own sleep; only the EMP locks him.
 
 `docs/NEW_HEROES.md` is still their detailed reference: the shared Player systems they
 introduced (impulse buff, contact scan, phasing, cleanse, stomp ward, the sleep stack
@@ -454,6 +460,20 @@ extracted into a shared `BoltProjectile` rather than forked for Vesper's dart, a
 phantom negative is a generated palette VARIANT of his own rig (a whole SpriteFrames swap,
 because the grace blink already owns `modulate.a`).
 
+**Owner playtest pass on the second wave + select screens (2026-07-28, later).** The pillar
+bug was real and instructive: launch-first ordering did NOT stop the pillar's solid from
+depenetrating Siku into the floor (one frame of launch is ~11px against an 80px column), so
+launched bodies are now collision exceptions on the pillar until they physically clear it —
+and the harness asserts her *position rises*, because her velocity was correct all through
+the bug. Sleep got its final rules (see §3). Voodoo's windows and cooldown roughly doubled
+with much bigger buffs; Phantom buffs run+dash but never the jump (a new dash-only buff on
+Player), and his mask inverts with the rest of the skin. **Hero select was rebuilt
+Smash-style** — one shared 12-tile grid with per-seat nested cursors, pick boxes with real
+hero models flanking a VS mark, compressing at 3v3 — and **stage select draws hand-kept
+layout miniatures** from new `preview` data in `STAGE_ROSTER` (drawing a card still never
+instantiates a stage). `tools/screenshot_select.tscn` boots both screens and screenshots
+them into `screenshots/` for eyeballing without a full match.
+
 ---
 
 ## 8. Open threads
@@ -480,6 +500,5 @@ makes sense:
    the other before the numbers drift.
 7. Sai's slash-through-terrain landing search wants human eyes on weird aims specifically
    (straight down through the roof, into a channel, at the outer wall).
-8. Two art follow-ups the second wave left open: Vesper has no `sleep` pose (the Sleeping
-   state reuses `stun`), and the hero-select screen has never been looked at with twelve
-   cards in it.
+8. One art follow-up left open: Vesper has no `sleep` pose (the Sleeping state reuses
+   `stun`). The twelve-card hero select is resolved — it is a shared Smash-style grid now.

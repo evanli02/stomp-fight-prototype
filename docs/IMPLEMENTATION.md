@@ -104,6 +104,7 @@ apply_impairment(mult, dur)               # scales jump/dash/wall-jump; 0 disabl
 apply_disrupt(dur)                        # EMP: no dash, no ability, no ultimate
 apply_freeze(dur)                         # pinned mid-air, gravity suspended
 grant_impulse_buff(mult, dur)             # buff-side twin of impairment; launch_mult() multiplies both
+grant_dash_buff(mult, dur)                # dash-only (Voodoo's Phantom: run+dash, never the jump)
 grant_debuff_immunity(dur)                # Saint: every apply_* above becomes a no-op
 grant_stomp_ward(dur)                     # Saint: next stomp spends the blessing, not the life
 clear_all_debuffs()                       # Saint: stun/slow/impair/disrupt/freeze/sleep/stacks/tags
