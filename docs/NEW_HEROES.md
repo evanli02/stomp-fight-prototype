@@ -280,8 +280,8 @@ life, it is wrong — stop and restructure.
 
 All six steps of the original plan are done: shared systems, kits, harness
 cases, registration in `HERO_ROSTER` (twelve heroes now), docs. All four
-harnesses and `verify_frames` are green — **movement 78, combat 54, match 300,
-terrain 74 = 506 checks**. The human feel pass in `duel.tscn` is outstanding
+harnesses and `verify_frames` are green — **movement 78, combat 54, match 305,
+terrain 74 = 511 checks**. The human feel pass in `duel.tscn` is outstanding
 for all four.
 
 Three things worth carrying forward:
