@@ -322,65 +322,92 @@ func _check_cryo_lab() -> void:
 	lab.queue_free()
 	await step(2)
 
-## Sunken Court. The layout claim worth testing is the one the whole stage rests
-## on: the trench is too deep to jump out of, and the springs get you out anyway.
-## If either half stops being true the stage becomes a trap or a formality.
+## Sunken Court. The layout claims worth testing are the ones the stage rests on:
+## the trench is too deep to jump out of, it has no standing room at all, and the
+## springs get you out anyway. If any of those stops being true the stage becomes
+## a trap, a rest stop, or a formality.
 func _check_sunken_court() -> void:
 	var court := load("res://src/stage/sunken_court.tscn").instantiate() as MatchStage
 	add_child(court)
 	await step(3)
 	var p: Player = court.players[0]
 
-	var springs := 0
-	var poles := 0
+	var springs: Array[JumpSpring] = []
+	var poles: Array[Pole] = []
 	for child in court.get_children():
 		if child is JumpSpring:
-			springs += 1
+			springs.append(child)
 		elif child is Pole:
-			poles += 1
-	check("sunken court has three springs", springs == 3, "springs=%d" % springs)
-	check("sunken court has a pole over each mesa", poles == 2, "poles=%d" % poles)
+			poles.append(child)
+	check("sunken court has five springs", springs.size() == 5, "springs=%d" % springs.size())
+	check("sunken court has a pole over each mesa", poles.size() == 2, "poles=%d" % poles.size())
+
+	# A pole should sit on top of each spawn, which is also what puts them as far
+	# apart as the stage allows.
+	var paired := true
+	for i in mini(poles.size(), 2):
+		paired = paired and absf(poles[i].position.x - court.spawn_for(i).x) < 24.0
+	check("each pole sits over a spawn", paired,
+		"poles=%s spawns=%s,%s" % [
+			[poles[0].position.x, poles[1].position.x] if poles.size() == 2 else [],
+			court.spawn_for(0).x, court.spawn_for(1).x])
+
 	check("both seats spawn on the mesa tops",
 		is_equal_approx(court.spawn_for(0).y, court.spawn_for(1).y)
 			and court.spawn_for(0).x < 448.0 and court.spawn_for(1).x > 448.0,
 		"a=%s b=%s" % [court.spawn_for(0), court.spawn_for(1)])
 
-	# Stand on the un-sprung ledge against the trench wall and try to jump out.
-	# The mesa lip is 128px above the trench floor and a held jump is 92px, so
-	# this has to fail — the depth is the whole point of the stage. Standing room
-	# down there is the other half: springs wall-to-wall would mean a 22px body
-	# could never be in the trench at all.
-	var trench_mid := Vector2(352.0, 440.0)
-	p.global_position = trench_mid
+	# No seam anywhere along the trench floor: sort the springs and require each
+	# one to start no later than the previous one ended. A 22px body can rest in
+	# any gap, and the trench is meant to be passed through, not held.
+	springs.sort_custom(func(a: JumpSpring, b: JumpSpring) -> bool:
+		return a.position.x < b.position.x)
+	var seam := ""
+	var reach: float = springs[0].position.x - springs[0].size.x * 0.5
+	for spring: JumpSpring in springs:
+		var left: float = spring.position.x - spring.size.x * 0.5
+		if left > reach + 0.01:
+			seam += " gap %.0f..%.0f" % [reach, left]
+		reach = maxf(reach, spring.position.x + spring.size.x * 0.5)
+	check("the springs leave no standing room in the pit", seam.is_empty(), seam)
+	check("the springs span the trench wall to wall",
+		springs[0].position.x - springs[0].size.x * 0.5 <= 288.5 and reach >= 607.5,
+		"%.0f..%.0f, trench 288..608" % [
+			springs[0].position.x - springs[0].size.x * 0.5, reach])
+
+	# The platform is as long as the gap it roofs, and high enough that reaching
+	# it costs a dash.
+	var platform := Rect2()
+	for block: Rect2 in court.arena_blocks():
+		if is_equal_approx(block.position.y, 272.0):
+			platform = block
+	check("the platform is as long as the gap", is_equal_approx(platform.size.x, 320.0),
+		"platform=%.0f trench=320" % platform.size.x)
+	check("the platform is past a plain held jump",
+		368.0 - platform.position.y > StageGrid.JUMP_APEX,
+		"rise=%.0f held jump=%.0f" % [368.0 - platform.position.y, StageGrid.JUMP_APEX])
+	check("...but inside the jump-plus-dash ceiling",
+		368.0 - platform.position.y <= StageGrid.JUMP_DASH_APEX,
+		"rise=%.0f ceiling=%.0f" % [368.0 - platform.position.y, StageGrid.JUMP_DASH_APEX])
+
+	# Drop in anywhere and the floor throws you back out. Checked from the very
+	# corner of the trench, which is the spot most likely to have been missed.
+	p.global_position = Vector2(300.0, 440.0)
 	p.velocity = Vector2.ZERO
 	p.stun_remaining = 0.0
-	await step(20)
-	var floor_y := p.global_position.y
-	check("a body dropped in the trench lands on its floor", p.is_on_floor(),
-		"y=%.0f state=%s" % [floor_y, p.state_machine.state_name()])
-	Input.action_press(InputConfig.action(p.player_id, &"jump"))
-	var apex := floor_y
-	for i in 60:
-		await get_tree().physics_frame
-		apex = minf(apex, p.global_position.y)
-	Input.action_release(InputConfig.action(p.player_id, &"jump"))
-	check("a held jump cannot clear the trench lip",
-		apex > 368.0, "apex y=%.0f, mesa top y=368" % apex)
-
-	# Now take a spring. It has to clear the lip, or the trench is a prison.
-	p.global_position = Vector2(448.0, 440.0)
-	p.velocity = Vector2.ZERO
 	await step(30)
 	var sprung := 512.0
 	for i in 90:
 		await get_tree().physics_frame
 		sprung = minf(sprung, p.global_position.y)
-	check("a spring throws you clear of the trench", sprung < 344.0,
+	check("the pit corner is sprung too, not standable", sprung < 344.0,
 		"apex y=%.0f, need < 344 (mesa standing height)" % sprung)
-	# ...but not so far that it hands you the high platform for free.
-	check("a spring stops short of the high platform", sprung > 264.0,
-		"apex y=%.0f, platform standing height 264" % sprung)
+	check("a spring stops short of the platform overhead", sprung > 248.0,
+		"apex y=%.0f, platform standing height 248" % sprung)
 
+	check("the trench is deeper than a held jump",
+		496.0 - 368.0 > StageGrid.JUMP_APEX,
+		"depth=128 held jump=%.0f" % StageGrid.JUMP_APEX)
 	check("nothing in sunken court removed a life",
 		lives() == MatchState.LIVES_PER_HERO, "lives=%d" % lives())
 	court.queue_free()

@@ -20,27 +20,32 @@ const FLOOR_TOP: float = 496.0
 const MESA_TOP: float = 368.0
 const SPAWNS: Array[Vector2] = [Vector2(120, 344), Vector2(776, 344)]
 
-## The trench between the mesas: 224px wide, 128px deep.
+## The trench between the mesas: 320px wide, 128px deep.
 ##
 ## Deeper than a held jump (92px) on purpose. You cannot simply hop out, and the
 ## facing mesa walls are too far apart to wall-jump across without losing height,
-## so the springs are the way out. That is what makes the trench a real place
-## rather than a decorative dip — and why there are three springs, so it is never
-## a trap.
-const TRENCH_LEFT: float = 336.0
-const TRENCH_RIGHT: float = 560.0
-## Plain floor left un-sprung against each trench wall, wider than the 22px body
-## so there is somewhere down there to actually stand.
-const LEDGE: float = 32.0
+## so the springs are the way out.
+const TRENCH_LEFT: float = 288.0
+const TRENCH_RIGHT: float = 608.0
+## Five springs, wall to wall, no standing room. A 22px body always touches one,
+## so the trench cannot be occupied — you enter it, you bounce, you steer your way
+## out. Springs keep horizontal speed, so each bounce banks whatever air control
+## added to the last one and the exit builds itself over two or three arcs.
+const SPRING_COUNT: int = 5
 
-## The contested platform, 80px above a mesa top: inside a held jump (92px) from
-## either side, so it is reachable without spending a dash but not by accident.
-const PLATFORM: Rect2 = Rect2(392.0, 288.0, 112.0, 16.0)
+## The contested platform: exactly as long as the trench and directly over it, so
+## the pit reads as roofed and the high ground is the pit's ceiling.
+##
+## At 96px above a mesa top it sits just PAST the 92px held jump and inside the
+## 103px jump-plus-up-dash ceiling, so taking the high ground costs a dash
+## charge. That is a real change from the first pass, where it was an ordinary
+## jump — one tile is the smallest raise the grid allows and this is which side
+## of the threshold it lands on.
+const PLATFORM_TOP: float = 272.0
 
-## Springs clear the trench and land you on a mesa, but deliberately stop short
-## of the platform overhead — 820 lifts a body about 177px, and the platform's
-## underside is 26px above that apex. Getting to the high ground is a jump you
-## choose from the top, not something the floor does for you.
+## Springs clear the trench lip but stop short of the platform roofing it: 820
+## lifts a body about 177px, leaving its head clear of the underside. The floor
+## throws you out of the hole; it never hands you the ceiling.
 const SPRING_LAUNCH: Vector2 = Vector2(0, -820)
 
 const BACKDROP: Array[Color] = [
@@ -79,7 +84,9 @@ func arena_blocks() -> Array[Rect2]:
 		Rect2(16.0, MESA_TOP, TRENCH_LEFT - 16.0, FLOOR_TOP - MESA_TOP),
 		# Right mesa, mirrored.
 		Rect2(TRENCH_RIGHT, MESA_TOP, 880.0 - TRENCH_RIGHT, FLOOR_TOP - MESA_TOP),
-		PLATFORM,
+		# Same length as the gap it covers, by construction rather than by a
+		# number that has to be kept in step.
+		Rect2(TRENCH_LEFT, PLATFORM_TOP, TRENCH_RIGHT - TRENCH_LEFT, 16.0),
 	])
 	return blocks
 
@@ -87,34 +94,28 @@ func build_terrain() -> void:
 	_build_springs()
 	_build_poles()
 
-## Three springs across the trench floor, inset from its walls.
-##
-## The inset is the whole difference between a trench and a bounce pad. Bodies
-## are 22px wide, so springs running wall to wall mean you can never stand down
-## there at all — you touch the floor and you are gone. LEDGE px of plain floor
-## at each end makes the trench somewhere you can choose to be: drop in, fight,
-## and leave on a spring when you want to.
-##
-## They keep whatever horizontal speed you bring in (that is what makes them
-## chainable), so which one you hit decides where you come out.
+## Springs tiled edge to edge across the whole trench floor. Butted together with
+## no seam on purpose: a 22px body standing in any gap would have somewhere to
+## rest, and the trench is meant to be a place you pass through, not hold.
 func _build_springs() -> void:
-	var span := (TRENCH_RIGHT - LEDGE) - (TRENCH_LEFT + LEDGE)
-	var width := span / 3.0
-	for i in 3:
+	var width := (TRENCH_RIGHT - TRENCH_LEFT) / float(SPRING_COUNT)
+	for i in SPRING_COUNT:
 		var spring := JumpSpring.new()
-		spring.size = Vector2(width - 4.0, 16.0)
+		spring.size = Vector2(width, 16.0)
 		# Sitting ON the trench floor: the trigger's top edge meets the surface.
 		spring.position = Vector2(
-			TRENCH_LEFT + LEDGE + width * (float(i) + 0.5), FLOOR_TOP - 8.0)
+			TRENCH_LEFT + width * (float(i) + 0.5), FLOOR_TOP - 8.0)
 		spring.launch_velocity = SPRING_LAUNCH
 		add_child(spring)
 
-## A pole above each mesa. Their lower ends hang at y=280, which a held jump from
-## the mesa (apex 252) passes on the way up — so they are grabbed in flight, and
-## grabbing one refills the dash and kills momentum. That is the reset button,
-## parked over the ground each side already owns.
+## A pole directly over each spawn, as far apart as the mesas allow. Their lower
+## ends hang at y=280, which a held jump from the mesa (apex 252) passes on the
+## way up — so they are grabbed in flight, and grabbing one refills the dash and
+## kills momentum. Parking the reset over the spawn means the ground a player
+## already owns is also where they can recover, and it puts the two of them a
+## full stage apart.
 func _build_poles() -> void:
-	for x: float in [224.0, 672.0]:
+	for x: float in [SPAWNS[0].x, SPAWNS[1].x]:
 		var pole := Pole.new()
 		pole.size = Vector2(8, 160)
 		pole.position = Vector2(x, 200)

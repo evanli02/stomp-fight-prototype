@@ -194,22 +194,28 @@ was chosen against §2 rather than eyeballed:
 
 - **Trench 128 px deep** — chosen to be *more* than the 92 px held jump, so you
   cannot climb out unaided. That is the whole premise of the stage.
-- **Trench 224 px wide** — too wide to wall-jump across without losing height
+- **Trench 320 px wide** — too wide to wall-jump across without losing height
   (a kick gives 42 px of rise and ~126 px of push), which is what stops the
   facing walls from quietly undoing the depth.
-- **Platform 80 px above the mesa tops** — *inside* the 92 px held jump, so the
-  high ground is reachable from either side without spending a dash, but only if
-  you commit to the jump.
-- **Springs at −820** — lift a body ~177 px, which clears the 128 px lip
-  comfortably but stops 26 px short of the platform's underside. The floor gets
-  you out of the hole; it does not hand you the high ground.
-- **Poles hanging to y=280** — a held jump from a mesa apexes at y=252, so the
-  pole is passed on the way up and grabbed in flight.
+- **Five springs, tiled edge to edge** — no seam anywhere, so a 22 px body can
+  never rest in the pit. You enter, you bounce, and because springs preserve
+  horizontal speed each arc banks whatever air control added to the last one:
+  the exit builds itself over two or three bounces.
+- **Platform 96 px above the mesa tops** — deliberately *past* the 92 px held
+  jump and inside the 103 px jump-plus-up-dash ceiling, so taking the high
+  ground costs a dash charge. One tile is the smallest raise the grid allows,
+  and this is which side of the threshold it lands on: worth knowing before you
+  nudge a platform "slightly".
+- **Springs at −820** lift a body ~177 px — clears the 128 px lip comfortably,
+  and still leaves the head clear of the platform roofing the pit.
+- **Poles over the spawns** — a held jump from a mesa apexes at y=252 and the
+  poles hang to y=280, so they are passed on the way up and grabbed in flight.
 
-The one thing the sketch could not tell me, and testing did: springs spanning the
-trench wall-to-wall meant a 22 px body always touched one, so you could never
-*stand* in the trench at all — it was a bounce pad, not a place. 32 px of plain
-floor against each wall fixed it. That is the kind of thing only the harness or
+Two things the sketch could not say, and testing did. First: springs must either
+leave real standing room (≥ the 22 px body plus margin) or leave none at all —
+anything between is a seam you land in by accident. Second: a "slight" raise on a
+16 px grid is one tile, and one tile is enough to cross a reach threshold and
+change what the platform costs. Both are the kind of thing only the harness or
 your hands will catch, which is why §6 step 4 exists.
 
 ## 7. Worked example — why Rooftop Rumble is shaped like that
