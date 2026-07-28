@@ -6,7 +6,9 @@ class_name EmpWave extends Node2D
 
 const DELAY: float = 0.6
 const SLOW_MULT: float = 0.35
-const DURATION: float = 6.0
+## Long: the EMP is a window the whole team plays inside, not a beat. An
+## ultimate that turns the tech off should leave time to actually collect on it.
+const DURATION: float = 9.0
 const FADE: float = 0.5
 
 var caster_team: int = -1

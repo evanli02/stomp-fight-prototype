@@ -17,6 +17,13 @@ func physics_update(delta: float) -> void:
 			player.movement.fall_speed_max)
 	# velocity.x is deliberately untouched: being stunned never costs momentum.
 	if player.stun_remaining <= 0.0:
+		# A stun WAKES a sleeper (_wake in player.gd), so sleep_remaining can
+		# only be positive here if the sleep landed DURING this stun — Vesper's
+		# sphere catching an already-stunned body. That sleep is the newer
+		# effect and takes hold now.
+		if player.sleep_remaining > 0.0:
+			machine.change_state(&"Sleeping")
+			return
 		machine.change_state(&"Idle" if player.is_on_floor() else &"Air")
 
 func animation() -> StringName: return &"stun"

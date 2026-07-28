@@ -86,13 +86,23 @@ the chain to full impulse; hammering the same face does not (DESIGN 4.4). A
 single tall wall is a dead end, and that is a legitimate thing to build — just
 know you are building it.
 
-Known-good shaft widths: **160 px** (Rooftop Rumble's side channels - climbable but slow, which is the point), **64 px** (Rooftop Rumble — narrow enough that two
-players climbing it meet, which is how wall-jump duels happen on purpose) and
-**128 px** (Cryo Lab — climbable without forcing contact).
+Known-good shaft widths: **160 px** (Rooftop Rumble's side channels — climbable but slow,
+which is the point). Historical reference points from earlier layouts: 64 px forces two
+climbing players into contact (that is how you make wall-jump duels happen on purpose), and
+128 px climbs comfortably without forcing contact. No current stage uses either.
 
 ---
 
 ### Two things that are easy to get wrong
+
+- **Stage tiles vs the backdrop.** Rooftop's ground tile was `#2a1d4a` and its
+  second sky band `#291c4a`; platforms high in the stage vanished into the sky
+  they were drawn against. Check a new tile against `sky_bands()`, not on its own.
+- **Harness columns.** `combat_harness` and `terrain_harness` stand bodies at
+  `TEST_X` on a surface at `FLOOR_Y`, and `terrain_harness` needs air both above
+  AND below `POLE_AT`. Reworking a stage's geometry can put a platform in one of
+  those columns; the failure then looks like a movement bug. Re-check them
+  whenever Rooftop changes.
 
 - **Headroom.** A platform needs ~36px of clear air above it or the 34px body
   cannot stand there. Stacking a small platform under a wide slab is the usual
@@ -233,24 +243,37 @@ your hands will catch, which is why §6 step 4 exists.
 
 ## 7. Worked example — why Rooftop Rumble is shaped like that
 
-Read `src/stage/duel.gd` alongside this.
+Read `src/stage/duel.gd` alongside this. (The stage was rebuilt from a sketch;
+this describes the current layout.)
 
-- **The street** runs the full 72-tile width with nothing on it. B-hop chains
-  need a runway with no geometry in the arc. This is the single biggest reason
-  the stage is Large rather than the Small a 1v1 calls for.
-- **Rooftops are slabs with air beneath**, not solid buildings — that keeps the
-  street open underneath. In a stomp game you want vertical layers you can pass
-  between, not walls.
-- **The shaft is 64 px wide** with facing walls at `x=528` and `x=592`. Bodies
-  are 22 px, so two players climbing it are forced into contact — that is how
-  wall-jump duels (DESIGN 3.4) happen deliberately instead of by accident.
-- **The high slab spans the shaft** (`Rect2(496, 288, 160, 16)`), so the most
-  valuable platform is directly above the most contested route.
-- **Every terrain element sits clear of the street** — putting anything on the
-  runway would take away the one part of the stage that is deliberately empty.
-- **Stepping platforms at `y=496`** sit 96 px above the awnings and 208 px below
-  the rooftops: reachable by jump from below, and a dash-or-nothing from the
-  street. Compare those to the table in §2 and you can see the intent.
+- **One wide roof** (`x=176..976`, top at `y=368`) is the runway *and* the
+  fight: 800 px of flat ground with open sky over the spawns. B-hop chains need
+  a runway with no geometry in the arc, and that is why the stage is Large.
+- **A 160 px channel drops down each side** of the roof to street level. Two
+  facing walls make it climbable by wall-jump chain — but 160 px is wide enough
+  that the climb is slow. Falling in is a mistake you pay for in time.
+- **The only quick way out of a channel is a one-way teleporter** that fills the
+  channel floor wall to wall and exits at the *far* top corner. One-way is the
+  whole point: a two-way pair would be a free elevator, and coming back on the
+  opposite side puts the entire roof between you and the fight you fell out of.
+  There is deliberately nowhere to stand at the bottom — a channel you could
+  land beside would be a hiding place at the bottom of the stage.
+- **Every platform above the roof is the same 96 px wide**, so no single
+  foothold is the obvious one to camp. The tiers (`368 → 288 → 224 → 144`) are
+  each within the 92 px held jump of the tier that feeds them.
+- **The mid platforms overhang the roof edges by 32 px**, out over the channels
+  — flush with the edge they read as part of the roof; overhanging, they are a
+  separate thing you can be knocked off, and they give a body climbing out of a
+  channel something to aim for that is not the roof itself.
+- **Two roof springs flank the centre platform** rather than one sitting under
+  it — a centred spring could only launch you into the underside of the
+  platform it was meant to deliver you to. **Wall springs mounted mid-height**
+  launch sideways (springs replace velocity along their own axis only), so
+  stepping into one mid-fall throws you out over the roof still descending.
+- **One pole** hangs over the centre, from the arrival-pad height down to just
+  above standing head-height on the centre platform — the dash reset, parked
+  over the most contested ground.
 
 The thing to copy is not the shapes — it is that every distance in that file was
-chosen against §2 and every element placement was chosen against §3.4.
+chosen against §2, and every element earns its placement with a sentence you
+could say out loud.

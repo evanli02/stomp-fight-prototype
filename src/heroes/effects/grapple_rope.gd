@@ -19,10 +19,11 @@ class_name GrappleRope extends Node2D
 
 enum Phase { FLYING, ANCHORED, RETRACT }
 
-## Fast enough that the flight is a beat rather than a wind-up: the full 460px
-## throw lands in about a seventh of a second.
-const HOOK_SPEED: float = 3200.0
-const RETRACT_SPEED: float = 2600.0
+## Fast enough that the flight is a beat rather than a wind-up. Range is now
+## effectively unlimited, so the head has to move: a cross-stage throw at this
+## speed still lands in under a fifth of a second.
+const HOOK_SPEED: float = 5400.0
+const RETRACT_SPEED: float = 3600.0
 ## States the rope stays attached through. Recasting mid-swing hands Sai to Reel,
 ## and the rope has to survive that or the ability visibly breaks halfway.
 const HOLDING_STATES: Array[StringName] = [&"Swing", &"Reel"]

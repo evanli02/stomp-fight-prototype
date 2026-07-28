@@ -10,6 +10,7 @@ var _velocity: Vector2 = Vector2.ZERO
 var _grants_boost: bool = true
 
 func enter(_params: Dictionary = {}) -> void:
+	Audio.play(&"dash", 0.7)
 	player.consume_dash_charge()
 	_remaining = player.movement.dash_duration
 	var on_surface := player.is_on_floor() or player.is_on_wall()
@@ -21,8 +22,9 @@ func enter(_params: Dictionary = {}) -> void:
 		distance = player.movement.dash_distance_ground
 	elif player.is_on_wall():
 		distance = player.movement.dash_distance_wall
-	# Impairment (Sai's slash, Terra's fracture) shortens every dash variant.
-	distance *= maxf(player.impair_mult, 0.05)
+	# Impairment shortens every dash variant; empowerment lengthens it. The dash
+	# buff stacks on top and touches only this — jumps never read it.
+	distance *= maxf(player.launch_mult() * player.dash_buff_mult, 0.05)
 	var dir := _resolve_direction()
 	_grants_boost = true
 	if not on_surface and dir.y > 0.0 			and absf(dir.x) < player.movement.air_dash_down_deadzone:

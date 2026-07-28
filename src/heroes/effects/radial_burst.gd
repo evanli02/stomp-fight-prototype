@@ -6,14 +6,17 @@ class_name RadialBurst extends Node2D
 ## just a visual, so a player cannot dodge by being fast, and the result does not
 ## depend on when anyone's frame happened to land.
 
-## Near-instant: the hit already resolves on spawn, so a slow ring made the
-## ability look laggy when it was not.
-const FADE: float = 0.1
+## The hit resolves on spawn; the visual is in two beats. The ring still snaps
+## out near-instantly (EXPAND) so the ability never looks laggy, then the full
+## circle LINGERS and fades — the same afterimage trick as Kid's wind cannon,
+## so both players get a readable record of the space that was just claimed.
+const EXPAND: float = 0.1
+const LINGER: float = 0.45
 
 var radius: float = 110.0
 var force: float = 460.0
 var stun_time: float = 0.0
-var accent: Color = Color(0.62, 0.31, 0.87)
+var accent: Color = Color(0.35, 0.09, 0.60)
 
 var _age: float = 0.0
 
@@ -44,14 +47,22 @@ func detonate(at: Vector2, targets: Array, burst_radius: float,
 
 func _process(delta: float) -> void:
 	_age += delta
-	if _age >= FADE:
+	if _age >= EXPAND + LINGER:
 		queue_free()
 		return
 	queue_redraw()
 
 func _draw() -> void:
-	var t: float = clampf(_age / FADE, 0.0, 1.0)
-	var r := radius * (0.35 + 0.65 * t)
-	var col := Color(accent.r, accent.g, accent.b, 1.0 - t)
-	draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, col, 3.0)
-	draw_arc(Vector2.ZERO, r * 0.75, 0.0, TAU, 32, Color(1, 1, 1, (1.0 - t) * 0.5), 1.5)
+	if _age < EXPAND:
+		# Beat one: the ring snaps out to the full radius.
+		var t: float = clampf(_age / EXPAND, 0.0, 1.0)
+		var r := radius * (0.35 + 0.65 * t)
+		draw_arc(Vector2.ZERO, r, 0.0, TAU, 40, accent, 3.0)
+		draw_arc(Vector2.ZERO, r * 0.75, 0.0, TAU, 32, Color(1, 1, 1, 0.5), 1.5)
+		return
+	# Beat two: the full circle holds and fades — the afterimage of the reach.
+	var fade: float = 1.0 - clampf((_age - EXPAND) / LINGER, 0.0, 1.0)
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 48,
+		Color(accent.r, accent.g, accent.b, fade * 0.8), 2.5)
+	draw_arc(Vector2.ZERO, radius * 0.92, 0.0, TAU, 40,
+		Color(1, 1, 1, fade * 0.25), 1.0)

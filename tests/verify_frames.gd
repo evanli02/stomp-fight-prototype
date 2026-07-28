@@ -7,7 +7,10 @@ func _init() -> void:
 		&"crouch", &"slide", &"slide_jump", &"wall_slide", &"wall_jump",
 		&"pole_climb", &"stun", &"cast", &"pop"]
 	var failures := 0
-	for key in ["deadeye", "fei", "mason", "cerebelle", "sai", "slip", "terra", "kid"]:
+	# The second wave (voodoo..siku) has art and HeroData but no registered kit
+	# yet — their frames are still held to the same contract as everyone's.
+	for key in ["deadeye", "fei", "mason", "cerebelle", "sai", "slip", "terra", "kid",
+			"voodoo", "saint", "vesper", "siku"]:
 		var hero: HeroData = load("res://src/heroes/resources/%s.tres" % key)
 		if hero == null or hero.sprite_frames == null:
 			print("FAIL %s has no sprite_frames" % key)

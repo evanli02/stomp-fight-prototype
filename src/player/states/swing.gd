@@ -11,8 +11,10 @@ class_name SwingState extends PlayerState
 ## one redirect cut every swing off before that could happen.
 
 const MAX_REDIRECTS: int = 5
-## Jump off the rope: the swing's velocity, plus a little launch along it.
-const JUMP_BONUS: float = 1.15
+## Jump off the rope: the swing's velocity, amplified. Leaving the rope at the
+## right moment should be the fastest thing in Sai's kit — the swing builds the
+## speed and the jump-off is where it pays out.
+const JUMP_BONUS: float = 1.35
 ## The rope pulls harder than gravity alone would — a swing should outrun a run,
 ## not lag behind one.
 const DRIVE: float = 1.6

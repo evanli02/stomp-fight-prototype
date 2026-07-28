@@ -9,7 +9,15 @@ class_name FreezeBlock extends TerrainElement
 ## Bigger than the bumper: the ultimate takes a lane away, and a lane needs
 ## width. The ability block stays small.
 const SIZE: Vector2 = Vector2(40, 40)
-const RETRIGGER: float = 0.6
+## How long a body falls freely between one freeze wearing off and the block
+## being allowed to freeze it again. This is the number that decides how many
+## times a body falling straight down through the block gets stunned: each
+## cycle it drops from rest for FALL_GAP seconds (~24px at gravity 1900), and
+## the overlap zone is block + body (~74px), so a clean vertical fall eats
+## 3-4 freezes before dropping out the bottom. The old fixed retrigger was
+## SHORTER than the freeze, which re-froze a body the frame its stun ended —
+## anyone who fell in was stuck until the block expired.
+const FALL_GAP: float = 0.16
 
 var lifetime: float = 10.0
 var owner_team: int = -1
@@ -48,7 +56,9 @@ func _physics_process(delta: float) -> void:
 		var p := body as Player
 		if p == null or _recent.has(p.get_instance_id()):
 			continue
-		_recent[p.get_instance_id()] = RETRIGGER
+		# Derived, not fixed: the gap must outlive the freeze or the block
+		# re-freezes a body the instant its stun ends and never lets go.
+		_recent[p.get_instance_id()] = freeze_time + FALL_GAP
 		on_body_entered(p)
 	queue_redraw()
 

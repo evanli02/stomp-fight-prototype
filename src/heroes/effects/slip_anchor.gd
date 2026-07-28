@@ -7,7 +7,7 @@ class_name SlipAnchor extends Node2D
 ## Purely cosmetic — the ability owns the real anchor. This just watches the
 ## clock it was handed and shows how much of it is left.
 
-var accent: Color = Color(0.18, 0.89, 0.90)
+var accent: Color = Color(0.11, 0.43, 0.82)
 var duration: float = 6.0
 var _age: float = 0.0
 

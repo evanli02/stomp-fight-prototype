@@ -127,6 +127,7 @@ Idle ↔ Run → Skid
 Air ↔ Dash (omni)  ↔ WallSlide → WallJump
   ↓
 Stunned (stomp / duel-loss / hazard) → Grace
+Sleeping (Vesper) — walk-only; a stun suspends it and hands the body back
 PoleClimb (terrain-specific state)
 ```
 
@@ -142,33 +143,55 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 - Abilities provide **positioning utility**: self-buffs, mobility, terrain creation/modification, crowd control (stuns/knockback), zoning. They must never directly remove a life.
 - Aimable abilities use the shared aim vector (cursor / right stick).
 
-### 5.2 Launch roster (8 heroes; first 4 are the vertical-slice set)
+### 5.2 Roster (8 implemented + a designed second wave of 4; first 4 were the vertical-slice set)
 
 | # | Hero (working name) | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
-| 1 | **Deadeye** (red) | Aim & fire a stun bolt; on hit, enemy is stunned ~0.8 s (6.4 s) | **Loaded Shot**: refunds the bolt cooldown; the *next* bolt is 50% faster with a 5.5 s stun | Cyberpunk cowboy, augmented eyes |
-| 2 | **Fei** (jade) | Second jump in mid-air, **stronger** than a normal jump; not aimed, momentum untouched (5.6 s) | **Tailwind**: for 8 s her jump cooldown drops to 0.3 s | Jade dancer, sword-saint grace |
-| 3 | **Mason** (gold) | Place a **solid** block with a lingering hitbox that acts as a **four-sided spring**: a fixed launch out of whichever face you touch (~half a stage spring), tangential speed kept (10 s, max 1 alive, ~4 s life) | **Keystone**: a gate his own team walks through; enemies who touch it are **frozen and stunned**, then dropped (20 s life) | Engineer-chieftain, fur and tech |
-| 4 | **Cerebelle** (purple) | Radial burst: heavy knockback on nearby enemies, no stun (6.7 s) | **Supernova**: one slow ring crosses the **whole stage**; the caught are stunned, stripped of momentum, and dropped | Gravity valkyrie, crested helm, tattoos |
-| 5 | **Sai** (pink) | **Grapple Hook** (4.7 s): throw a visible hook along the aim; if it bites terrain, swing on a fixed-radius pendulum. Five direction changes, then the rope releases. **Recast while roped to reel in** — a fast haul up the rope that stops a body's length short of the anchor, free because it is the same activation. Jumping off keeps the swing's momentum | **Sai Slash**: instantly cross a long line through bodies (never terrain); everyone hit is slowed with jump/dash/wall jump gutted for ~3.5 s | Stylish grappler |
-| 6 | **Slip** (aqua) | **Slip Back** (8 s): drop an anchor; recast to blink instantly back to it. Anchor expires in 6 s | **Teleport**: place two pads (recast places the second, free). Touch one, exit the other; both go dark 1.5 s after each use. Enemies arrive slowed, allies hasted | Streetpunk tinkerer |
-| 7 | **Terra** (brown) | **Slam** (9 s, air only): hang, then drive straight down. Landing on a head resolves as a **stomp** — the one ability kill, and it is a stomp kill. Landing beside one is a shockwave: shove + brief stun | **Fracture**: a slab that drags whoever it catches, detonates on terrain; the caught drop, slowed, no dash or jump ~2 s | Warrior-builder (name is a placeholder) |
-| 8 | **Kid** (orange) | **Wind Cannon** (8.5 s): a stage-crossing gust along the aim, through walls, shoving everyone in it — allies too | **EMP**: after a 0.6 s telegraph, every enemy is slowed 50% and locked out of dash/ability/ultimate for 3 s | Nerdy gadgeteer |
-(Former concepts Wisp / Tether / Gale / Frostbyte are retired; their best ideas were folded into Slip, Sai, and Kid. Terra's slam is the only ability that can end in a life — and only because a slam onto a head **is** a stomp, resolved by the ordinary stomp system with grace and anti-chain intact.)
+| 1 | **Deadeye** (red) | Aim & fire a stun bolt; on hit, enemy is stunned ~1 s (5.2 s) | **Loaded Shot**: refunds the bolt cooldown; the *next* bolt is 2× fast, **flies through terrain**, and stuns 6.5 s | Cyberpunk cowboy, augmented eyes |
+| 2 | **Fei** (jade) | Second jump in mid-air, **stronger** than a normal jump; not aimed, momentum untouched; kicks off a visible wind puff (5.6 s) | **Tailwind**: for 8 s her jump cooldown drops to 0.3 s; she wears a wind aura for the window | Jade dancer, sword-saint grace |
+| 3 | **Mason** (gold) | Place a **solid** block with a lingering hitbox that acts as a **four-sided spring**: a fixed launch out of whichever face you touch (over half a stage spring), tangential speed kept (10 s, max 1 alive, ~6.5 s life) | **Keystone**: a gate his own team walks through; enemies who touch it are **frozen and stunned** (0.45 s per freeze), dropped, and re-frozen on the way through — a straight fall eats 3–4 freezes before it clears the block (20 s life) | Engineer-chieftain, fur and tech |
+| 4 | **Cerebelle** (dark violet) | Radial burst: heavy knockback on nearby enemies in a wide radius, no stun; the ring lingers as an afterimage (6.7 s) | **Supernova**: one slow ring crosses the **whole stage**; the caught are stunned, stripped of momentum, and dropped | Gravity valkyrie, crested helm, tattoos |
+| 5 | **Sai** (pink) | **Grapple Hook** (4.7 s): throw a visible hook along the aim, **at any range** — if the aim line touches terrain anywhere, the hook bites it and you swing on a fixed-radius pendulum. Five direction changes, then the rope releases. **Recast while roped to reel in** — a fast haul up the rope that stops a body's length short of the anchor, free because it is the same activation. Jumping off **amplifies** the swing's momentum | **Sai Slash**: instantly cross a long line through bodies **and terrain** — the cut passes through platforms and walls, landing at the furthest safe point along the line that is still inside the sealed stage. Everyone in the widened corridor is slowed with jump/dash/wall jump gutted | Stylish grappler |
+| 6 | **Slip** (deep blue) | **Slip Back** (8 s): drop an anchor; recast to blink instantly back to it. Anchor expires in 6 s | **Teleport**: place two pads (recast places the second, free). Touch one, exit the other; both go dark 1.5 s after each use. Enemies arrive slowed, allies hasted | Streetpunk tinkerer |
+| 7 | **Terra** (brown) | **Slam** (9 s, air only): hang, then drive straight down. Landing on a head resolves as a **stomp** — the one ability kill, and it is a stomp kill. Landing beside one is a shockwave: shove + brief stun | **Fracture**: an **instantaneous**, very wide wave (2× the wind cannon's width) that stops at the first terrain on its line — never at a body. Everyone caught is stunned 2 s, **hurled into the surface the wave stopped at**, and left slowed ~11 s with dash/jump gone ~8.5 s | Warrior-builder (name is a placeholder) |
+| 8 | **Kid** (orange) | **Wind Cannon** (8.5 s): a stage-crossing gust along the aim, through walls, shoving everyone in it — allies too | **EMP**: after a 0.6 s telegraph, every enemy is slowed and locked out of dash/ability/ultimate for **9 s** | Nerdy gadgeteer |
 
-**Ability cooldowns are ordered, not uniform**: Skyla 5.6 s < Deadeye 6.4 s < Nova 7.2 s < Mason 10 s. The cheaper an ability is to press, the less it should decide on its own — Skyla's is pure mobility, Mason's places terrain that outlives the press.
+**The second wave** — implemented 2026-07-28 and rostered. `docs/NEW_HEROES.md` remains their detailed spec (the shared systems they introduced, and the interaction table):
 
-Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it moves well below a capped run, so reacting early keeps you ahead of it, but it covers the entire stage, so there is no edge to escape past. Escaping it outright is a hole left for later kit — Wisp's teleport, portal terrain — rather than something movement alone should solve.
+| # | Hero | Ability (CD) | Ultimate | Fantasy |
+|---|---|---|---|---|
+| 9 | **Voodoo** (bright purple) | **Soul Ignition** (18 s): an 8 s self-empowerment window — faster run, bigger jump/dash/slide-jump, purple flames; touching an enemy knocks them back and slows their whole kit 3 s (reset, never stacked) | **Phantom**: ignite completely in **green** — the fastest run and dash in the game, the **jump deliberately untouched** — and phase through bodies, wearing an inverted skin (mask included); passing through an enemy stuns 2 s. **Supersedes Soul Ignition**: casting it ends an active ignition and puts it on a full cooldown, and the ability cannot be used while it runs. Falling through a head is still a stomp | Masked spirit brawler, purple head-flames |
+| 10 | **Saint** (white) | **Cleanse** (11 s): strip every debuff and stun from himself and all allies; castable while stunned **or slept** — but never through Kid's EMP | **Benediction**: cleanse, then bless the team — empowered movement, debuff/stun immunity, and the first stomp on each blessed ally costs the blessing instead of a life | Battle priest crossed with a monk |
+| 11 | **Vesper** (black, neon pink tells) | **Sleep Dart** (3.5 s): a fast dart (780 px/s) that briefly slows and adds a stack (12–15 s life, reset on re-hit); the third stack sleeps the target ~6.5 s — walk-only at a crawl, no momentum, nothing else | **Deep Sleep**: a huge slow sphere through walls and bodies alike; enemies touched drop from the air and sleep ~1.5× the dart's window | Shinobi assassin, hooded, half-masked |
+| 12 | **Siku** (ice blue) | **Pillar** (10 s, ground only): a 3-body-wide, ~2⅓-body-tall ice pillar erupts underneath her, launching everyone standing there — Siku included — straight up with horizontal speed kept; icy top, melts in 5 s. **Refused under a low ceiling** (anti-stuck) | **Frostbite**: five fast ice pulses from her body, one every ~3.5 s, a frost aura on her for the whole storm; each catch is a 1.5 s stun and a dead drop | Arctic hunter in a fur-ringed parka |
+
+(Former concepts Wisp / Tether / Gale / Frostbyte are retired; their best ideas were folded into Slip, Sai, and Kid. Terra's slam and Voodoo's Phantom are the only abilities that can end in a life — and only because falling onto a head **is** a stomp, resolved by the ordinary stomp system with grace and anti-chain intact. Saint's Benediction is the mirror image: it is the only thing that can make a stomp *not* cost a life, and it does that as an early-out inside `receive_stomp` next to grace, spending the blessing instead. Neither is an exception to the rule; both go through the one authority.)
+
+### 5.2a Sleep (Vesper's debuff)
+
+Sleep is the one status that is neither a stun nor a slow, and it is worth stating separately because it is the only place a player keeps *partial* control:
+
+- The sleeper may walk left and right, at ~35% of base speed, and **builds no momentum** while doing it.
+- Everything else is refused: jump, dash, wall interaction, slide, crouch, hero swap, ability, ultimate.
+- The **head hurtbox stays live**. A sleeping player is the most stompable player in the game — that is what Vesper's kit is buying, and why sleep is a setup rather than a kill.
+- **A sleep ends three ways only: it expires, a stun lands, or a fresh debuff lands.** Collecting on the setup is what finishes it — a stomp (whose stun wakes them), a bolt, a slash. Nothing *else* breaks it: terrain launches in particular do not. A sleeper who walks onto a jump spring is still **launched by it**, asleep the whole way up, and wakes wherever the timer says — the throw is kept, the escape is not.
+- Duration refreshes, never stacks.
+- Saint's Cleanse removes it (and Saint himself can cast **through** his own sleep — the EMP is the only thing that locks him); Saint's Benediction prevents it.
+
+**Ability cooldowns are ordered, not uniform**: Sai 4.7 s < Vesper 5 s < Deadeye 5.2 s < Fei 5.6 s < Cerebelle 6.7 s < Slip 8 s < Kid 8.5 s < Terra 9 s = Voodoo 9 s < Mason 10 s = Siku 10 s < Saint 11 s. The cheaper an ability is to press, the less it should decide on its own — Sai's is pure mobility, Mason's and Siku's place terrain that outlives the press, Saint's undoes four other kits at once.
+
+Cerebelle's Supernova is deliberately outrunnable and deliberately undodgeable: it moves well below a capped run, so reacting early keeps you ahead of it, but it covers the entire stage, so there is no edge to escape past. Escaping it outright is what Slip's teleport and the portal terrain are for, rather than something movement alone should solve.
 
 ### 5.3 Cooldown rules
 - Cooldowns tick in real time, including while benched (see §2.4).
 - Cooldowns reset between rounds. The unspent ultimate does **not** carry over.
 
 ### 5.4 Stun rules (unified)
-- Stun sources: stomp (0.6 s), duel loss (0.3 s), Deadeye bolt (0.8 s), stun line (0.4 s), explosion (0.5 s), Nova ult (1.0 s), Mason ult block (0.5 s).
+- Stun sources (live values in `combat_config.tres`): stomp (0.6 s), duel loss (0.38 s), Deadeye bolt (1.0 s; 6.5 s from the loaded shot), stun line (0.5 s), explosion (0.65 s), Cerebelle ult (1.3 s), Mason ult block (0.45 s per freeze, re-applied as a body falls through), Terra ult (2.0 s). Pending with the second wave: Voodoo's pass-through (3 s), Siku's pulses (1.5 s), and Vesper's sleep — which is its own debuff, not a stun (see `NEW_HEROES.md`).
 - While stunned: no inputs, momentum preserved, gravity applies, cannot swap heroes.
-- Stuns do **not** stack; a new stun refreshes to `max(remaining, new)`.
+- Stuns do **not** stack; a new stun refreshes to `max(remaining, new)`. Every other status follows the same rule — slow, impairment, disrupt, sleep, sleep stacks, and both of Saint's buffs.
 - Stunned players' head hurtboxes remain **active** (stun into stomp is the core combo) *except* during post-stomp grace.
+- **Saint's blessing makes a body immune to all of the above** — but not to the stomp. A stomp's own stun bypasses immunity, because nothing may make a body unstompable; what protects a blessed player is the ward, which spends the blessing in place of the life exactly once.
 
 ---
 
@@ -199,7 +222,7 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 | *Extra:* **Bumper orb** | Pinball bumper: fixed-magnitude radial knockback, no stun. |
 
 ### 6.3 Launch stages (vertical slice: first 2)
-1. **Rooftop Rumble** (Large, 72x40) - one wide rooftop filling the middle of the stage with a 160px channel down each side to street level. Three tiers of platforms above the roof, each within a held jump of the one feeding it; a spring on the roof wider than the platform it sits under, so approach decides whether you clear it; a spring on each side wall that flings you back out over the roof. Two **one-way** teleporters: the bottom of each channel sends you to the *opposite* top corner, and the top ends send nobody anywhere. Falling in costs you the length of the stage.
+1. **Rooftop Rumble** (Large, 72x40) - one wide rooftop filling the middle of the stage with a 160px channel down each side to street level. Five equal 96px platforms in three tiers above the roof, the outer pair overhanging the roof edges out over the channels, each within a held jump of the one feeding it; two springs flanking the centre platform; a wall spring on each side wall that flings you back out over the roof; a pole over the centre platform reaching up to arrival height. Two **one-way** teleporters: each channel entrance **fills its channel wall to wall down to the floor**, so falling in is a guaranteed trip with nowhere to stand beside it, and drops you over the *opposite* top platform. The top ends send nobody anywhere.
 2. **Cryo Lab** (Medium, 56x32) - a sealed cryogenics floor where **every surface is ice**, floor included. Platforms stack the left and right halves in reachable 64px steps (crown, upper ledges, centre slab, two small steps between the poles, low shelves), but the 192px between the lower chamber and the slab is past any jump: it is crossed on one of three poles or through a portal. **Three colour-coded portal pairs** - red bottom-right to top-left, purple bottom-left to top-right, green mid-left to mid-right. The diagonals are escalators run into from the bottom corners; green is a flat shortcut you must be airborne to take. No hazards at all: the ice and the geometry are the stage.
 3. **Sunken Court** (Medium, 56×32) — two solid mesas either side of a 320×128 trench. The trench is deeper than a held jump and **five springs tile its floor wall to wall**, so it has no standing room at all: you enter it, bounce, and steer out over two or three arcs. One platform exactly as long as the trench roofs it 96px above the mesa tops — past a plain held jump, inside the jump-plus-dash ceiling, so the high ground costs a dash. A pole sits over each spawn as the dash reset. The vertical counterpart to Rooftop Rumble's runway.
 4. **Powerplant** (Medium) — conveyor belts, periodic explosion vents, sticky walls.
@@ -219,9 +242,11 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 | Ability | Left click | L1 (left bumper) |
 | Swap hero | Right click (cycles; hold for radial menu) | L2 (left trigger) — tap cycles, hold for radial |
 | Ultimate | E | **R2 + L2 together** (chord) |
+| Pause | Esc | **Start** (any pad) |
 
 Notes:
 - The controller ultimate chord requires a small simultaneity window (~0.1 s) and suppresses the individual dash/swap actions when the chord lands.
+- A **second keyboard seat** exists for streamed play (arrows to move, numpad to act, key-based aim). Streamed guest keyboards all merge into the host's one key stream, so the *keycode* is the only thing that distinguishes two keyboard players - two clusters is therefore the ceiling, and the second seat has no mouse.
 - All bindings rebindable via `InputMap`; store overrides in `user://input.cfg`.
 - Aim vector is *always live* (feeds aimed wall jumps and dashes even for heroes with untargeted abilities).
 - **Aim guide**: every player draws a short dashed line from their body along the aim, six hero-heights (216 px) long, clipped at the first terrain it meets. Not a laser sight — knowing your exact line across the whole stage would turn aimed abilities into hitscan. Its tip reads as a bar when terrain stopped it and a chevron when it did not, so it doubles as "the hook bites here". Hidden while stunned or frozen, when there is nothing to aim with.
@@ -232,7 +257,7 @@ Notes:
 - **Aesthetic target**: **comic-book chibi with a punk edge** — Big Hero 6 / My Hero Academia proportions (oversized heads, ~40% of the body) wearing cyberpunk gear. Two-plane cel shading, thick keylines, one loud accent per hero, minimal clutter. Squash-and-stretch stays expressive on jumps and stomps.
 - **Every stomp pops**: an eight-spoke starburst in the attacker's accent colour fires at the victim's head on every stomp — the kill confirm reads from across the stage.
 - **Debuffs are legible.** Every non-stun debuff shows a badge over the victim, distinct per source: a slash for Sai, a lightning kink for Kid's EMP, bars for Terra's fracture, a ring for a plain slow. A player who cannot tell *why* they are slowed cannot decide what to do about it — an EMP means wait, a slash means you still have a dash, a fracture means you are pinned. Shape carries the meaning so it survives colourblindness; colour is the fast read.
-- **Palette discipline**: shared 32-color master palette (`assets/palettes/`), each hero owns a 6–8 color slice with one signature neon accent (Deadeye = magenta, Skyla = cyan, Mason = amber, Nova = violet).
+- **Palette discipline**: shared 32-color master palette (`assets/palettes/`), each hero owns a 6–8 color slice with one signature accent. The full accent roster lives in `assets/STYLE_GUIDE.md`; the deliberate pairings: Cerebelle owns **dark** violet and Voodoo **bright** purple, Slip owns **deep** blue and Siku **ice** blue — same hue family, unmistakably different heroes.
 - **Silhouette before color.** Heroes must be distinguishable in one frame with the color stripped out: Deadeye is the slim coat and brimmed cowl, Skyla the finned helmet and streaming scarf, Mason the hard hat and slab shoulders, Nova the hooded ring-bearer. Color alone fails for colorblind players and in a screenshot full of neon.
 - **The accent always owns the head band.** The top 12px is the stomp hurtbox, and it is the one piece of information the whole game is built on — every hero marks it, standing or crouched.
 - Teams are distinguished by **outline/rim-light color** (blue vs. red rim), not by recoloring the hero.
@@ -245,12 +270,13 @@ Notes:
 - The stomp needs the best sound in the game: layered thump + pop + pitch-up per chain stomp.
 
 ## 10. UX / Meta screens
+- **Pause** is available from any seat while a stage is up: volume, restart the match, quit to lobby. Not available on the select screens, which are already waiting for somebody.
 - Lobby → format select (1v1/2v2/3v3, Bo1/3/5) → per-round: hero select (3 picks, simultaneous, timed) → stage select (coinflip/loser) → combat → round results → match results.
-- In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown radial, ultimate available marker (team-visible), enemy roster life state.
+- In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown bar + seconds, ultimate lamps (team-visible), enemy roster life state. Laid out **by team** - team 0 down the left edge, team 1 down the right - so which side of the screen a block is on always answers whose it is. Blocks scale down as the format grows; hero names are the first thing dropped, since the accent stripe already carries identity.
 
 ## 11. Out of scope for v0.x (explicitly)
 - Online netcode (design for it: fixed-tick simulation, input-driven, deterministic where cheap — see IMPLEMENTATION.md §Networking posture).
-- Ranked/progression, cosmetics, more than 8 heroes, more than 4 stages.
+- Ranked/progression, cosmetics, more than the 12 rostered heroes (8 live + the second wave of 4), more than 5 stages.
 
 ## 12. Tunables index
 All feel-critical numbers live in resources, not code:

@@ -20,7 +20,7 @@ Do not implement from memory of similar games; this game deviates from genre def
 ## Core invariants (echoed here because violations are the #1 failure mode)
 
 - Lives are removed by stomps **only**. No damage system exists.
-- Heroes differ **only** in ability + ultimate (+ cosmetics). **Two** ultimates per player per round, ~10 s apart.
+- Heroes differ **only** in ability + ultimate (+ cosmetics). **Two** ultimates per player per round, ~10 s apart. Twelve heroes are rostered.
 - All feel numbers live in `.tres` configs, never in scripts.
 - Movement logic lives in the state machine under `src/player/states/`.
 - Stages are sealed; players can't die to the environment.
@@ -28,6 +28,10 @@ Do not implement from memory of similar games; this game deviates from genre def
 ## Workflows
 
 ### Add a hero
+0. Twelve heroes ship today. If you are touching one of the second wave (Voodoo, Saint,
+   Vesper, Siku) or any of the systems they introduced — sleep, phasing, cleanse, the
+   stomp ward, debuff immunity, the impulse buff — read `docs/NEW_HEROES.md` first; it
+   holds the rulings and the interaction table those kits are built on.
 1. Read DESIGN.md §5 for constraints and the roster table.
 2. Create `src/heroes/resources/<hero>.tres` (HeroData: name, colors, ability scene, ult scene, cooldown).
 3. Implement ability + ultimate as `Ability` subclasses in `src/heroes/abilities/` using only the player's public API and scene-spawned effects.

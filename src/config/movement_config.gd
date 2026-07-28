@@ -95,3 +95,9 @@ class_name MovementConfig extends Resource
 ## run arrives exactly at the ceiling and a second one gains nothing. Without the
 ## cap the multiplier compounds and four slide jumps in a row leave the stage.
 @export var slide_jump_speed_mult: float = 1.75
+
+@export_group("Sleep (Vesper)")
+## Walking speed while asleep, as a fraction of run_speed_base. Deliberately a
+## crawl: sleep leaves you one control, and it must not feel like a slow rather
+## than a disable (docs/NEW_HEROES.md 1.6).
+@export var sleep_walk_mult: float = 0.35

@@ -15,7 +15,7 @@ var speed: float = 220.0
 var max_radius: float = 1600.0
 var stun_time: float = 1.0
 var team_id: int = -1
-var accent: Color = Color(0.62, 0.31, 0.87)
+var accent: Color = Color(0.35, 0.09, 0.60)
 
 var _radius: float = 0.0
 var _hit: Dictionary = {}

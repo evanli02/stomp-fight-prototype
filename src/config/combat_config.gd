@@ -26,7 +26,13 @@ class_name CombatConfig extends Resource
 @export var stun_line: float = 0.5
 @export var stun_explosion: float = 0.65
 @export var stun_nova_ult: float = 1.3
-@export var stun_mason_ult_block: float = 0.65
+## Per freeze, not total: the block re-freezes a falling body every
+## freeze + FALL_GAP seconds (see FreezeBlock), so the total time held is
+## several of these — a body falling straight through eats 3-4.
+@export var stun_mason_ult_block: float = 0.45
+## Terra's Fracture wave: long as ability stuns go — it is an ultimate, and the
+## victims have also just been thrown across the stage into a wall.
+@export var stun_terra_ult: float = 2.0
 
 @export_group("Spawn")
 @export var spawn_protection_time: float = 2.0  ## or until first action

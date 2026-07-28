@@ -104,19 +104,45 @@ Rebuilding later overwrites the same path, so this is a one-time step.
 6. Hero select (3 heroes each; **no timer** - it waits until everyone has picked, and names who it is waiting on) → stage select (round 1: coinflip winner;
    later rounds: whoever just lost) → fight.
 
-## Why guests need gamepads
+## Why guests need gamepads (and the one exception)
 
 Each guest's **controller** arrives as its own virtual pad with its own device
 id, which is what lets `InputConfig.claim_seat()` bind them to separate seats.
-Guest **keyboard and mouse** input is injected into your machine's single system
-keyboard and mouse - one cursor, one key stream, shared by everyone. Nothing
-downstream can tell two keyboard guests apart, and Godot has no multi-keyboard
-support to lean on even if the input were tagged. So one keyboard seat is the
-honest maximum, and it belongs to whoever is sitting at the host machine.
 
-You can also run an all-pad session: `claim_seat` fills the lowest free seat
-regardless of device, so if the host takes a controller too, seat 0 is simply a
-pad and nobody needs the keyboard.
+Guest **keyboard and mouse** input is injected into your machine's single system
+keyboard and mouse - one cursor, one key stream, shared by everyone. Two guests
+both pressing `W` are indistinguishable, and no amount of code fixes that: Godot
+reports every keyboard as device 0, and telling physical keyboards apart at all
+needs Windows Raw Input through a native extension. Even then, streamed input is
+synthesised rather than arriving from a real HID, so it would still not carry a
+device of its own.
+
+**What does survive the trip is the keycode.** Two people pressing *different*
+keys are distinguishable, which is why there is a second keyboard seat:
+
+| | Seat A | Seat B |
+|---|---|---|
+| Move | WASD | Arrow keys |
+| Aim | Mouse | Numpad 8 / 2 / 4 / 6 |
+| Jump | Space | Numpad 0 |
+| Dash | Shift | Numpad 9 |
+| Ability | Left click | Numpad 1 |
+| Swap | Right click | Numpad 3 |
+| Ultimate | E | Numpad Enter |
+| Join in lobby | Space | Numpad 0 |
+
+Two caveats, and they are why a pad is still the better answer for anyone who
+has one:
+
+- **Seat B aims in eight directions**, not freely. There is one cursor and it
+  belongs to seat A. That is a real downgrade for Deadeye and Kid.
+- **Two keyboard seats is the ceiling.** A third would need a third cluster of
+  keys that collides with neither, and there is not a comfortable one left.
+
+So the practical maximum without controllers is **two**; everyone past that
+needs a pad. You can also run an all-pad session: `claim_seat` fills the lowest
+free seat regardless of device, so if the host takes a controller too, seat 0 is
+simply a pad and nobody needs the keyboard.
 
 ## Controls to paste into the group chat
 
@@ -130,6 +156,9 @@ pad and nobody needs the keyboard.
 | Ability | L1 | Left click |
 | Swap hero | L2 | Right click |
 | Ultimate | **R2 + L2 together** | E |
+| Pause / options | **Start** | **Esc** |
+
+(Second keyboard seat: see "Why guests need gamepads" above.)
 
 The only way to take a life is to land on someone's head. Nothing else — no
 ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
@@ -154,13 +183,16 @@ ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
 
 Honest list, so feedback lands on real problems:
 
-- **No audio at all.** Not a bug.
-- The HUD is laid out for two players; 2v2 and 3v3 will look cramped.
-- Only two stages: Rooftop Rumble and Cryo Lab.
-- No rebinding, no options screen, no pause.
+- Sound effects are **procedurally generated placeholders** (chiptune blips from `assets/tools/generate_sfx.py`). They convey events, not atmosphere. No music.
+- Hero names drop off the HUD at 2v2 and 3v3 - blocks shrink to fit six
+  seats, and the accent stripe carries hero identity instead.
+- Three stages: Rooftop Rumble, Sunken Court, Cryo Lab. Two more are planned.
+- Pause (Esc / Start, from any seat) has volume, restart and quit-to-lobby.
+  **Volume does not persist** between runs. No rebinding beyond that.
 - **No timers on the select screens.** Nothing advances until every player has
   acted, so one person going to get a drink stalls the lobby. Say so before you
   start rather than after.
-- Feel has been verified by harness, not by humans. The jump height, Cryo Lab's
-  laser cadence, and Sai's reel are the three most likely to be wrong — those
-  are the ones worth asking about directly.
+- Feel has been verified by harness, not by humans. The things most likely to be
+  wrong: the jump height, how punishing Rooftop's channels feel, Sunken Court's
+  dash-gated roof platform, all-ice traversal on Cryo, and Sai's reel. Those are
+  the ones worth asking about directly.

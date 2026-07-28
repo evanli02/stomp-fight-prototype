@@ -9,6 +9,9 @@ signal stomped(attacker: Player)
 ## readout. The life is removed on the victim (IMPLEMENTATION.md 5).
 signal stomp_landed(victim: Player)
 signal stun_applied(duration: float)
+## A stomp that landed on a warded body (Saint's Benediction): the blessing was
+## spent instead of the life. Feeds the HUD/SFX — the attacker still bounces.
+signal stomp_warded(attacker: Player)
 ## Emitted when a perfect-timing window is converted (&"bhop" / &"walljump").
 ## Feeds the playground debug overlay now, VFX later.
 signal perfect_window_hit(kind: StringName)
@@ -54,6 +57,42 @@ var slow_remaining: float = 0.0
 var impair_mult: float = 1.0
 var impair_remaining: float = 0.0
 var disrupt_remaining: float = 0.0
+## Buff-side twin of impair_mult: scales every launch UP (Voodoo's empowerment,
+## Saint's blessing). The two multiply, so a buffed-then-slashed player resolves
+## without either system knowing about the other.
+var impulse_buff_mult: float = 1.0
+var impulse_buff_remaining: float = 0.0
+## Dash-only sibling of the impulse buff (Voodoo's Phantom buffs run and dash
+## but deliberately not the jump — a ghost that also out-jumped everyone had no
+## answer left).
+var dash_buff_mult: float = 1.0
+var dash_buff_remaining: float = 0.0
+## Sleep (Vesper). Stacks share ONE timer — adding a stack resets it for all of
+## them, and they expire together. The threshold and the sleep duration belong
+## to the ability, not here: this side owns the mechanism, not the numbers.
+var sleep_stacks: int = 0
+var sleep_stack_remaining: float = 0.0
+var sleep_remaining: float = 0.0
+## Saint's blessing: nothing may debuff or stun this player while it runs. The
+## stomp is deliberately outside it — see _apply_stomp_stun.
+var debuff_immune_remaining: float = 0.0
+## Saint's ward: the next stomp received costs the blessing instead of a life.
+var stomp_ward_remaining: float = 0.0
+## Voodoo's Phantom: passing through other bodies. Implemented as per-pair
+## physics exceptions rather than a layer edit, so terrain, Mason's blocks and
+## every Area2D that watches for players still see a phasing body.
+var phasing_remaining: float = 0.0
+var _phase_exceptions: Array = []
+## Voodoo's touch window: what a body contact does to an enemy while it runs,
+## and who is still exempt from the last one.
+var contact_window_remaining: float = 0.0
+var _contact_knockback: float = 0.0
+var _contact_slow: float = 1.0
+var _contact_impair: float = 1.0
+var _contact_stun: float = 0.0
+var _contact_debuff_time: float = 0.0
+var _contact_tag: StringName = &"ignite"
+var _contact_recent: Dictionary = {}
 ## What is currently debuffing this player: tag -> seconds remaining. Purely for
 ## the status readout, but it has to be tracked here — by the time a debuff is
 ## sitting on the player, the ability that applied it is long gone.
@@ -107,6 +146,11 @@ const LAND_ANIM_TIME: float = 0.12
 ## number: below it a diagonal run would drop into a crouch.
 const CROUCH_INPUT_THRESHOLD: float = 0.5
 
+## How long one enemy is exempt after Voodoo's ignited body touches them, on top
+## of the debuff's own length. Without a gap every physics frame of a held
+## contact would count as a fresh touch.
+const CONTACT_RETRIGGER_PAD: float = 0.15
+
 @onready var sprite: AnimatedSprite2D = %Sprite
 @onready var state_machine: StateMachine = %StateMachine
 @onready var head_hurtbox: Area2D = %HeadHurtbox
@@ -116,6 +160,11 @@ const CROUCH_INPUT_THRESHOLD: float = 0.5
 @onready var body_shape_crouch: CollisionShape2D = %BodyShapeCrouch
 @onready var head_shape: CollisionShape2D = %HeadShape
 @onready var head_shape_crouch: CollisionShape2D = %HeadShapeCrouch
+## Enemy-body sense, off unless a window that cares about touching is running
+## (Voodoo). Reaches a little past the body so contact registers while two
+## bodies are pressed together rather than overlapping — players are terrain to
+## each other, so they never actually interpenetrate.
+@onready var contact_sense: Area2D = %ContactSense
 
 func _ready() -> void:
 	# Above terrain, always. Terrain elements are add_child'd by the stage AFTER
@@ -141,20 +190,40 @@ func set_velocity_override(v: Vector2) -> void:
 
 func apply_slow(mult: float, dur: float, tag: StringName = &"slow") -> void:
 	## Speed-cap multiplier < 1. Takes the strongest slow and the longest timer.
+	if debuff_immune_remaining > 0.0:
+		return
+	_wake()
 	slow_mult = minf(slow_mult, clampf(mult, 0.1, 1.0))
 	slow_remaining = maxf(slow_remaining, dur)
 	mark_debuff(tag, dur)
 
 func apply_impairment(mult: float, dur: float, tag: StringName = &"impair") -> void:
 	## Scales jump, dash, and wall-jump strength. 0 disables them entirely.
+	if debuff_immune_remaining > 0.0:
+		return
+	_wake()
 	impair_mult = minf(impair_mult, clampf(mult, 0.0, 1.0))
 	impair_remaining = maxf(impair_remaining, dur)
 	mark_debuff(tag, dur)
 
 func apply_disrupt(dur: float, tag: StringName = &"emp") -> void:
 	## EMP: no dash, no ability, no ultimate until it expires.
+	if debuff_immune_remaining > 0.0:
+		return
+	_wake()
 	disrupt_remaining = maxf(disrupt_remaining, dur)
 	mark_debuff(tag, dur)
+
+## A fresh stun or debuff ENDS a sleep rather than stacking under it — hitting a
+## sleeper wakes them (docs/NEW_HEROES.md §1.6). Sleep is a setup, and the
+## moment somebody collects on the setup its job is done. The state hand-off is
+## left to whatever the caller does next (a stun takes the body to Stunned; a
+## bare slow leaves the Sleeping state to notice sleep_remaining hit zero).
+func _wake() -> void:
+	if sleep_remaining <= 0.0:
+		return
+	sleep_remaining = 0.0
+	debuff_tags.erase(&"sleep")
 
 func mark_debuff(tag: StringName, dur: float) -> void:
 	## Which SOURCE is on you, for the status icons. Longest timer wins, so a
@@ -164,19 +233,237 @@ func mark_debuff(tag: StringName, dur: float) -> void:
 func apply_freeze(duration: float) -> void:
 	## Stop dead in the air for a moment. Pairs with a stun so that when the
 	## freeze ends the player simply falls — no impulse, just gravity again.
+	if debuff_immune_remaining > 0.0:
+		return
+	_wake()
 	freeze_remaining = maxf(freeze_remaining, duration)
 	velocity = Vector2.ZERO
 
 func apply_stun(duration: float) -> void:
 	## Refresh rule: max(remaining, new). Never additive (CLAUDE.md checklist).
+	if debuff_immune_remaining > 0.0:
+		return
+	_stun(duration)
+
+## The stomp's own stun, which is NOT an ability and therefore ignores Saint's
+## immunity. A blessed player who is stomped is protected by the WARD (they lose
+## the blessing instead of the life) — but if they have no ward left, the stomp
+## resolves in full, immunity or not. The stomp is sacred (CLAUDE.md 1); nothing
+## gets to make a body unstompable.
+func _apply_stomp_stun(duration: float) -> void:
+	_stun(duration)
+
+func _stun(duration: float) -> void:
+	_wake()   # a stun ends a sleep; it does not run underneath it
 	stun_remaining = maxf(stun_remaining, duration)
 	stun_applied.emit(duration)
 	if state_machine != null and state_machine.state_name() != &"Stunned":
 		state_machine.change_state(&"Stunned")
 
+#region Second-wave systems (docs/NEW_HEROES.md §1)
+func grant_impulse_buff(mult: float, dur: float) -> void:
+	## Raises every launch — jump, dash, wall jump, slide jump. The buff-side
+	## twin of apply_impairment, and refreshed the same way: strongest
+	## multiplier, longest timer, never additive.
+	impulse_buff_mult = maxf(impulse_buff_mult, mult)
+	impulse_buff_remaining = maxf(impulse_buff_remaining, dur)
+
+## Drop every movement buff window at once. Used when one window supersedes
+## another (Voodoo's ultimate replacing his ability) — this takes back something
+## the player was GIVEN, so it is deliberately not part of clear_all_debuffs,
+## which only undoes what was done TO them.
+func clear_movement_buffs() -> void:
+	speed_buff_mult = 1.0
+	speed_buff_remaining = 0.0
+	impulse_buff_mult = 1.0
+	impulse_buff_remaining = 0.0
+	dash_buff_mult = 1.0
+	dash_buff_remaining = 0.0
+	_end_contact_window()
+
+func grant_dash_buff(mult: float, dur: float) -> void:
+	## Lengthens dashes only; jumps and wall jumps are untouched. Same refresh
+	## rule as every buff: strongest and longest, never additive.
+	dash_buff_mult = maxf(dash_buff_mult, mult)
+	dash_buff_remaining = maxf(dash_buff_remaining, dur)
+
+func grant_debuff_immunity(dur: float) -> void:
+	## Saint's blessing: every apply_* above becomes a no-op for the window.
+	debuff_immune_remaining = maxf(debuff_immune_remaining, dur)
+
+func grant_stomp_ward(dur: float) -> void:
+	## Saint's blessing again: the next stomp received spends this instead of a
+	## life. Consumed inside receive_stomp, which stays the only authority on
+	## whether a stomp lands (CLAUDE.md 1).
+	stomp_ward_remaining = maxf(stomp_ward_remaining, dur)
+
+## Add one of Vesper's dart stacks and report the new total. Stacks share one
+## timer: a new stack resets the whole set rather than tracking each separately,
+## because they are meant to be a countdown you can reset, not a queue.
+##
+## The threshold and what happens at it belong to the ability (its exports),
+## which reads this return value — the player owns the bookkeeping only.
+func add_sleep_stack(life: float) -> int:
+	if debuff_immune_remaining > 0.0:
+		return sleep_stacks
+	sleep_stacks += 1
+	sleep_stack_remaining = life
+	mark_debuff(&"dart", life)
+	return sleep_stacks
+
+func consume_sleep_stacks() -> void:
+	sleep_stacks = 0
+	sleep_stack_remaining = 0.0
+	debuff_tags.erase(&"dart")
+
+func apply_sleep(dur: float) -> void:
+	## Walk-only, crawling, no momentum, nothing else — and the head hurtbox
+	## stays live, which is the entire point of the debuff. Not a stun: a
+	## sleeping player still has a sliver of agency.
+	if debuff_immune_remaining > 0.0:
+		return
+	sleep_remaining = maxf(sleep_remaining, dur)
+	mark_debuff(&"sleep", dur)
+	if state_machine != null and state_machine.state_name() not in [&"Stunned", &"Sleeping"]:
+		state_machine.change_state(&"Sleeping")
+
+## Saint's verb: everything that is currently being done TO this player, undone.
+## Deliberately does not touch grace, spawn protection, lives, position,
+## velocity, cooldowns or the ult budget — those are not debuffs.
+func clear_all_debuffs() -> void:
+	stun_remaining = 0.0
+	freeze_remaining = 0.0
+	slow_mult = 1.0
+	slow_remaining = 0.0
+	impair_mult = 1.0
+	impair_remaining = 0.0
+	disrupt_remaining = 0.0
+	sleep_remaining = 0.0
+	consume_sleep_stacks()
+	debuff_tags.clear()
+	if state_machine != null and state_machine.state_name() in [&"Stunned", &"Sleeping"]:
+		state_machine.change_state(&"Idle" if is_on_floor() else &"Air")
+
+## Voodoo's Phantom: pass through every other body for the window. Per-pair
+## physics exceptions rather than a collision-layer edit — the layer is also how
+## terrain elements, Mason's blocks and every player-watching Area2D find this
+## body, and phasing is supposed to mean "not solid to people", not "invisible
+## to the stage". Symmetric on purpose: a one-sided exception would leave the
+## other player standing on a ghost.
+func begin_phasing(dur: float) -> void:
+	phasing_remaining = maxf(phasing_remaining, dur)
+	for other in get_tree().get_nodes_in_group(&"players"):
+		var p := other as Player
+		if p == null or p == self or _phase_exceptions.has(p):
+			continue
+		add_collision_exception_with(p)
+		p.add_collision_exception_with(self)
+		_phase_exceptions.append(p)
+
+## Wear a different SpriteFrames for a while (Voodoo's phantom negative). A
+## whole frames swap rather than a modulate, because the grace blink already
+## owns the sprite's alpha and a tint would be fighting it for the same channel.
+## Tied to the phasing window, and dropped by a hero swap for free — set_hero
+## assigns the incoming hero's frames over the top.
+func apply_skin_override(frames: SpriteFrames) -> void:
+	if frames == null or sprite == null:
+		return
+	var playing := sprite.animation
+	sprite.sprite_frames = frames
+	if frames.has_animation(playing):
+		sprite.play(playing)
+
+func clear_skin_override() -> void:
+	if sprite == null or hero == null or hero.sprite_frames == null:
+		return
+	var playing := sprite.animation
+	sprite.sprite_frames = hero.sprite_frames
+	if hero.sprite_frames.has_animation(playing):
+		sprite.play(playing)
+
+func end_phasing() -> void:
+	phasing_remaining = 0.0
+	clear_skin_override()
+	for other in _phase_exceptions:
+		var p := other as Player
+		if p == null or not is_instance_valid(p):
+			continue
+		remove_collision_exception_with(p)
+		p.remove_collision_exception_with(self)
+	_phase_exceptions.clear()
+
+## Voodoo's touch: for `window` seconds, enemy bodies this one meets are shoved
+## and slowed. Scanned per tick from an Area2D rather than driven by
+## body_entered, because a body already pressed against this one never "enters"
+## anything (CLAUDE.md checklist).
+func begin_contact_debuff(knockback: float, slow_mult_value: float,
+		impair_mult_value: float, debuff_time: float, window: float,
+		tag: StringName) -> void:
+	_contact_knockback = knockback
+	_contact_slow = slow_mult_value
+	_contact_impair = impair_mult_value
+	_contact_debuff_time = debuff_time
+	_contact_tag = tag
+	contact_window_remaining = maxf(contact_window_remaining, window)
+	if contact_sense != null:
+		contact_sense.monitoring = true
+
+## Stun enemies passed through while phasing (Voodoo's ultimate). Same scan, so
+## one press cannot produce two different ideas of what "touching" means.
+func begin_contact_stun(stun: float, window: float) -> void:
+	_contact_stun = stun
+	contact_window_remaining = maxf(contact_window_remaining, window)
+	if contact_sense != null:
+		contact_sense.monitoring = true
+
+func _scan_contacts() -> void:
+	var bodies := contact_sense.get_overlapping_bodies()
+	bodies.sort_custom(func(a: Node2D, b: Node2D) -> bool:
+		return (a as Player).player_id < (b as Player).player_id)
+	for body in bodies:
+		var victim := body as Player
+		if victim == null or victim == self or victim.team_id == team_id:
+			continue
+		var id := victim.get_instance_id()
+		if _contact_recent.has(id):
+			continue
+		_contact_recent[id] = maxf(_contact_debuff_time, _contact_stun) + CONTACT_RETRIGGER_PAD
+		if _contact_knockback > 0.0:
+			# Straight up for a body sitting exactly on this one, so the shove is
+			# never a zero vector (same guard as RadialBurst).
+			var offset := victim.global_position - global_position
+			var dir := offset.normalized() if offset.length() > 1.0 else Vector2.UP
+			victim.apply_impulse(dir * _contact_knockback)
+		if _contact_slow < 1.0:
+			victim.apply_slow(_contact_slow, _contact_debuff_time, _contact_tag)
+			victim.apply_impairment(_contact_impair, _contact_debuff_time, _contact_tag)
+		if _contact_stun > 0.0:
+			victim.apply_stun(_contact_stun)
+
+func _end_contact_window() -> void:
+	contact_window_remaining = 0.0
+	_contact_knockback = 0.0
+	_contact_slow = 1.0
+	_contact_impair = 1.0
+	_contact_stun = 0.0
+	_contact_recent.clear()
+	if contact_sense != null:
+		contact_sense.monitoring = false
+#endregion
+
 func request_state(state_name: StringName, params: Dictionary = {}) -> void:
 	## Abilities ask for a state (e.g. Skyla's double jump requests Air); they
 	## never reach into state internals.
+	##
+	## Sleep holds through these. Terrain launches (springs, Mason's block) ask
+	## for Air as part of their launch, and honouring that while asleep was a
+	## free wake-up — walk onto a spring and the sleep was gone. The velocity
+	## they set still applies, so a slept body still gets thrown; it just wakes
+	## up where it lands instead of mid-flight. Only expiry, a stun, or a fresh
+	## debuff end a sleep (docs/NEW_HEROES.md §1.6).
+	if sleep_remaining > 0.0 and state_name != &"Stunned":
+		state_name = &"Sleeping"
+		params = {}
 	state_machine.change_state(state_name, params)
 
 func apply_surface_slip(amount: float) -> void:
@@ -257,7 +544,7 @@ func _instance_ability(scene: PackedScene, hero_id: StringName,
 ## Cycle to the next living hero. No cooldown and no cost, but blocked while
 ## stunned — swapping must never be a way out of a stun (CLAUDE.md checklist).
 func try_swap() -> bool:
-	if stun_remaining > 0.0 or not MatchState.has_player(player_id):
+	if stun_remaining > 0.0 or sleep_remaining > 0.0 or not MatchState.has_player(player_id):
 		return false
 	var target := MatchState.next_living_hero(player_id)
 	if not MatchState.swap_to(player_id, target):
@@ -266,7 +553,7 @@ func try_swap() -> bool:
 	return true
 
 func try_ability() -> bool:
-	if stun_remaining > 0.0 or disrupt_remaining > 0.0 or _equipped_ability == null:
+	if _equipped_ability == null or not _can_cast(_equipped_ability):
 		return false
 	var ok := _equipped_ability.try_fire(input.aim)
 	if ok:
@@ -276,12 +563,23 @@ func try_ability() -> bool:
 func try_ultimate() -> bool:
 	## Also blocked while stunned (CLAUDE.md checklist). The spend happens inside
 	## Ability.try_fire via MatchState, so a blocked ult is never consumed.
-	if stun_remaining > 0.0 or disrupt_remaining > 0.0 or _equipped_ultimate == null:
+	if _equipped_ultimate == null or not _can_cast(_equipped_ultimate):
 		return false
 	var ok := _equipped_ultimate.try_fire(input.aim)
 	if ok:
 		play_cast()
 	return ok
+
+## Shared cast gate. Stun and sleep are the conditions an ability may opt out
+## of (Saint's, whose whole point is casting out of trouble — sleep included,
+## by owner ruling 2026-07-28). Disrupt is not negotiable for anybody: Kid's
+## EMP is the one sanctioned answer to a hero who can undo everything else.
+func _can_cast(ability: Ability) -> bool:
+	if disrupt_remaining > 0.0:
+		return false
+	if stun_remaining <= 0.0 and sleep_remaining <= 0.0:
+		return true
+	return ability.fires_while_stunned
 
 func play_cast() -> void:
 	## Short cast flourish on any successful ability or ultimate.
@@ -332,6 +630,18 @@ func respawn_at(spawn_position: Vector2) -> void:
 	impair_mult = 1.0
 	impair_remaining = 0.0
 	disrupt_remaining = 0.0
+	sleep_remaining = 0.0
+	consume_sleep_stacks()
+	impulse_buff_mult = 1.0
+	impulse_buff_remaining = 0.0
+	dash_buff_mult = 1.0
+	dash_buff_remaining = 0.0
+	debuff_immune_remaining = 0.0
+	stomp_ward_remaining = 0.0
+	# A ghost that outlived its window would be permanent: nothing else ever
+	# removes a physics exception.
+	end_phasing()
+	_end_contact_window()
 	debuff_tags.clear()
 	set_crouched(false)
 	_clear_duel_claim()
@@ -371,9 +681,19 @@ func _is_stomp_on(victim: Player) -> bool:
 func receive_stomp(attacker: Player) -> void:
 	if grace_remaining > 0.0:
 		return
+	# Saint's blessing absorbs the hit: no life, no stun, no grace — the ward and
+	# the whole blessing are spent instead. The attacker is still paid their
+	# bounce, so a good read is not punished, only charged in a different coin.
+	# This lives INSIDE receive_stomp, next to the grace early-out, precisely so
+	# the victim stays the single authority on whether a stomp lands.
+	if stomp_ward_remaining > 0.0:
+		_consume_stomp_ward()
+		stomp_warded.emit(attacker)
+		attacker.on_stomp_landed(self)
+		return
 	if MatchState.has_player(player_id):
 		MatchState.lose_life(player_id, active_hero)
-	apply_stun(combat.stomp_stun_time)
+	_apply_stomp_stun(combat.stomp_stun_time)
 	grace_remaining = combat.stomp_grace_time
 	spawn_protected = false
 	set_head_hurtbox_enabled(false)
@@ -382,6 +702,17 @@ func receive_stomp(attacker: Player) -> void:
 	apply_impulse(dir * combat.stomp_victim_bounce)
 	stomped.emit(attacker)
 	attacker.on_stomp_landed(self)
+
+## The blessing goes with the ward. Absorbing a stomp is meant to cost the whole
+## buff, not just the shield half of it — otherwise the immunity outlives the
+## thing that was supposed to be spent.
+func _consume_stomp_ward() -> void:
+	stomp_ward_remaining = 0.0
+	debuff_immune_remaining = 0.0
+	impulse_buff_mult = 1.0
+	impulse_buff_remaining = 0.0
+	speed_buff_mult = 1.0
+	speed_buff_remaining = 0.0
 
 func on_stomp_landed(victim: Player) -> void:
 	## Attacker bounce — roughly a jump, hold-extendable, so chaining stomps
@@ -447,6 +778,9 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_post_move(was_on_floor)
 	_scan_stomps()
+	# After the move, so a touch is judged on where the bodies actually ended up.
+	if contact_window_remaining > 0.0 and contact_sense != null:
+		_scan_contacts()
 
 ## Swap, ability, and ultimate all read from the same InputFrame the movement
 ## states do. The ultimate is checked first: on a controller it arrives as the
@@ -486,6 +820,36 @@ func _tick_timers(delta: float) -> void:
 			impair_mult = 1.0
 	if disrupt_remaining > 0.0:
 		disrupt_remaining -= delta
+	if sleep_remaining > 0.0:
+		sleep_remaining -= delta
+	if sleep_stack_remaining > 0.0:
+		sleep_stack_remaining -= delta
+		if sleep_stack_remaining <= 0.0:
+			consume_sleep_stacks()   # stacks live and die as one set
+	if impulse_buff_remaining > 0.0:
+		impulse_buff_remaining -= delta
+		if impulse_buff_remaining <= 0.0:
+			impulse_buff_mult = 1.0
+	if dash_buff_remaining > 0.0:
+		dash_buff_remaining -= delta
+		if dash_buff_remaining <= 0.0:
+			dash_buff_mult = 1.0
+	if debuff_immune_remaining > 0.0:
+		debuff_immune_remaining -= delta
+	if stomp_ward_remaining > 0.0:
+		stomp_ward_remaining -= delta
+	if phasing_remaining > 0.0:
+		phasing_remaining -= delta
+		if phasing_remaining <= 0.0:
+			end_phasing()
+	if contact_window_remaining > 0.0:
+		contact_window_remaining -= delta
+		for id in _contact_recent.keys():
+			_contact_recent[id] -= delta
+			if _contact_recent[id] <= 0.0:
+				_contact_recent.erase(id)
+		if contact_window_remaining <= 0.0:
+			_end_contact_window()
 	for tag in debuff_tags.keys():
 		debuff_tags[tag] -= delta
 		if debuff_tags[tag] <= 0.0:
@@ -636,6 +1000,13 @@ func speed_cap() -> float:
 	if dash_boost_remaining > 0.0:
 		cap *= movement.dash_boost_cap_mult
 	return cap * speed_buff_mult * slow_mult * lerpf(1.0, 1.08, surface_slip)
+
+## What every launch — jump, dash, wall jump, slide jump, stomp bounce — is
+## scaled by. Debuff and buff multiply rather than override, so a player who is
+## both empowered and impaired resolves without either side special-casing the
+## other (docs/NEW_HEROES.md §1.1).
+func launch_mult() -> float:
+	return impair_mult * impulse_buff_mult
 
 ## Getting moving: a standstill reaches run_speed_base in ground_accel_time.
 ## Ice cuts the grip you push against, so acceleration falls with it.

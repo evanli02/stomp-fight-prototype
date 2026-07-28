@@ -11,6 +11,13 @@ class_name FeiJump extends Ability
 
 func _execute(_aim: Vector2) -> void:
 	player.air_dash_locked = false
+	# The cloud she kicks off: pure visual, drawn at the point in the air the
+	# jump happened, so the wind she summoned is a place you can see.
+	var puff := WindPuff.new()
+	puff.global_position = player.global_position + Vector2(0.0, 14.0)
+	if player.hero != null:
+		puff.accent = player.hero.accent_color
+	player.spawn_effect(puff)
 	# Fixed height, not hold-extendable: it is already stronger than a real jump.
 	player.request_state(&"Air", {
 		"jump": true,

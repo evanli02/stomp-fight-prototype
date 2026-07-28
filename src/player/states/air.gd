@@ -16,9 +16,11 @@ func enter(params: Dictionary = {}) -> void:
 		# Stomp bounces come in through the same door as jumps so they inherit
 		# hold-extension for free (DESIGN 3.2); the slide jump opts out of it.
 		# Impairment (Sai's slash, Terra's fracture) weakens every launch that
-		# comes through here, jumps and bounces alike.
-		player.velocity.y = params.get("impulse_y", player.movement.jump_impulse_min) 			* player.impair_mult
+		# comes through here, jumps and bounces alike; empowerment (Voodoo,
+		# Saint's blessing) raises the same number.
+		player.velocity.y = params.get("impulse_y", player.movement.jump_impulse_min) 			* player.launch_mult()
 		_holding = params.get("extendable", true)
+		Audio.play(&"wall_jump" if _launch_anim == &"wall_jump" else &"jump", 0.8)
 		if params.get("perfect", false):
 			# B-hop: the landing never gets to charge friction, so 100% of the
 			# horizontal momentum survives (DESIGN 4.2).

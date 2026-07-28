@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/saint_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/saint_cleanse.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/saint_benediction.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Saint"
+accent_color = Color(0.94902, 0.94902, 0.980392, 1)
+ability_cooldown = 11.0
+ability_text = "Cleanse: strip every debuff and stun from yourself and your allies. Castable while stunned or slept - but never through Kid's EMP."
+ultimate_text = "Benediction: cleanse, then bless the team - empowered movement, immune to debuffs and stuns, and the first stomp on each blessed ally costs the blessing instead of a life."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

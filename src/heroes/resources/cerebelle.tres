@@ -8,7 +8,7 @@
 [resource]
 script = ExtResource("1")
 hero_name = "Cerebelle"
-accent_color = Color(0.615686, 0.305882, 0.866667, 1)
+accent_color = Color(0.352941, 0.094118, 0.603922, 1)
 ability_cooldown = 6.7
 ability_text = "Gravity Burst: heavy radial knockback, no stun. Displacement, not a setup."
 ultimate_text = "Supernova: one slow ring crosses the whole stage. Caught enemies are stunned and stripped of momentum."

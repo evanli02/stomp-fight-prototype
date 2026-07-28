@@ -11,3 +11,9 @@ func _execute(_aim: Vector2) -> void:
 	if basic != null:
 		basic.grant_cooldown_override(reduced_cooldown, duration)
 		basic.reset_cooldown()   # the window starts now, not after the current wait
+	# The aura is the on-body read for "the window is open" — for both players.
+	# Purely visual; the window itself lives in the cooldown override above.
+	var aura := HeroAura.new()
+	var colour: Color = player.hero.accent_color if player.hero != null else Color.WHITE
+	player.spawn_effect(aura)
+	aura.attach(player, duration, &"wind", colour)

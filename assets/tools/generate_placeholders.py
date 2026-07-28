@@ -76,8 +76,11 @@ def tile(name: str, painter) -> None:
 
 def make_tiles() -> None:
     def ground(c: Canvas) -> None:
-        c.rect(0, 0, 15, 15, "#2a1d4a")
-        c.rect(0, 0, 15, 3, "#3b2d63")
+        # Lighter than the dusk sky on purpose. At #2a1d4a the rooftop body was
+        # within a shade of the second sky band (#291c4a), so a platform high in
+        # the stage disappeared into the background it was drawn against.
+        c.rect(0, 0, 15, 15, "#4a4160")
+        c.rect(0, 0, 15, 3, "#5d5279")
         c.rect(0, 0, 15, 0, "#a03e78")
 
     def lab(c: Canvas) -> None:

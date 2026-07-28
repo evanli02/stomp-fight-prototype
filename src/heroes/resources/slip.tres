@@ -8,9 +8,9 @@
 [resource]
 script = ExtResource("1")
 hero_name = "Slip"
-accent_color = Color(0.176471, 0.886275, 0.901961, 1)
+accent_color = Color(0.109804, 0.427451, 0.815686, 1)
 ability_cooldown = 8.0
-ability_text = "Slip Back: drop an anchor, recast to rewind your exact path back to it at high speed."
+ability_text = "Slip Back: drop an anchor, recast to blink instantly back to it."
 ultimate_text = "Teleport: place two pads. Touch one, exit the other. Enemies arrive slowed, allies sped up."
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
