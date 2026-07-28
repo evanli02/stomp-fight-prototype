@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la \"/Users/evanli/Downloads/overstomp-skeleton.zip\")",
+      "Bash(unzip -l \"/Users/evanli/Downloads/overstomp-skeleton.zip\")",
+      "Bash(unzip -q \"/Users/evanli/Downloads/overstomp-skeleton.zip\" -d extracted)",
+      "Bash(rsync -a '--exclude={docs,src' /private/tmp/claude-501/-Users-evanli-Repos-summer-game-2026/81751b06-198e-4d37-b5e7-dc765e6b35b6/scratchpad/extracted/overstomp/ /Users/evanli/Repos/summer-game-2026/)",
+      "Bash(which godot *)"
+    ]
+  }
+}
