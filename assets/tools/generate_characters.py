@@ -24,7 +24,7 @@ import math
 from dataclasses import dataclass, replace
 from pathlib import Path
 
-from pixel import Canvas, mix, strip
+from pixel import Canvas, mix, rgba, strip
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "characters"
@@ -102,9 +102,16 @@ class Hero:
     cape_color: str = ""
     head_style: str = ""
     gear: str = ""
+    ## Which hero's chest mark to draw, when that is not this hero's own key.
+    ## Variants (Voodoo's phantom skin) keep the emblem of the hero they are a
+    ## variant OF — a phantom is still Voodoo, drawn in negative.
+    emblem: str = ""
 
     def cape_col(self) -> str:
         return self.cape_color or self.dark
+
+    def emblem_key(self) -> str:
+        return self.emblem or self.key
 
 
 HEROES = [
@@ -164,6 +171,26 @@ HEROES = [
          "#b98865", "#d4a37c", torso_w=6, limb=4, cape_style="none",
          head_style="fur_hood", gear="none"),
 ]
+
+
+def _negative(hex_str: str) -> str:
+    r, g, b, _a = rgba(hex_str)
+    return "#%02x%02x%02x" % (255 - r, 255 - g, 255 - b)
+
+
+def inverted(h: Hero, key: str, name: str) -> Hero:
+    """Same rig and same silhouette, photo-negative palette.
+
+    Voodoo's ultimate turns him inside out for its window (DESIGN 5.2), and the
+    swap is a whole SpriteFrames rather than a modulate: the grace blink already
+    drives the sprite's alpha, and a tint would be fighting it for the same
+    channel. Skin stays skin — inverting a face reads as a bug, not as menace —
+    so only the suit and accent ramps flip.
+    """
+    return replace(h, key=key, name=name, emblem=h.key,
+        dark=_negative(h.dark), mid=_negative(h.mid), light=_negative(h.light),
+        accent=_negative(h.accent), accent_hi=_negative(h.accent_hi),
+        cape_color=_negative(h.cape_color) if h.cape_color else "")
 
 
 def shade(h: Hero, level: str) -> str:
@@ -240,39 +267,40 @@ def draw_emblem(c: Canvas, h: Hero, p: Pose) -> None:
         return
     sx = p.neck[0] + p.lean
     y = p.neck[1] + 4
+    key = h.emblem_key()
     # One bold chest mark each — comic emblems, not gear clutter.
-    if h.key == "deadeye":
+    if key == "deadeye":
         c.line((sx - 4, y - 1), (sx + 3, y + 3), h.accent)      # sash
         c.put(sx, y + 1, h.accent_hi)
-    elif h.key == "fei":
+    elif key == "fei":
         c.ellipse(sx, y + 1, 2.4, 2.4, h.accent, filled=False)   # jade ring
         c.put(sx, y + 1, h.accent_hi)
-    elif h.key == "mason":
+    elif key == "mason":
         c.rect(sx - 2, y - 1, sx + 2, y + 2, h.accent)
         c.rect(sx - 2, y - 1, sx + 2, y - 1, h.accent_hi)        # gold plate
-    elif h.key == "cerebelle":
+    elif key == "cerebelle":
         c.ellipse(sx, y + 1, 2.6, 2.6, h.accent, filled=False)
         c.put(sx, y + 1, h.accent_hi)                            # gravity ring
-    elif h.key == "sai":
+    elif key == "sai":
         c.line((sx - 3, y + 2), (sx + 3, y - 1), h.accent)       # slash mark
         c.put(sx + 3, y - 1, h.accent_hi)
-    elif h.key == "slip":
+    elif key == "slip":
         c.rect(sx - 2, y, sx + 2, y, h.accent)
         c.rect(sx - 1, y + 2, sx + 1, y + 2, h.accent_hi)        # circuit dashes
-    elif h.key == "terra":
+    elif key == "terra":
         c.poly([(sx - 3, y + 2), (sx, y - 1), (sx + 3, y + 2)], h.accent)  # peak
-    elif h.key == "voodoo":
+    elif key == "voodoo":
         c.line((sx - 2, y - 1), (sx + 2, y + 3), h.accent)       # stitched X
         c.line((sx - 2, y + 3), (sx + 2, y - 1), h.accent)
         c.put(sx, y + 1, h.accent_hi)
-    elif h.key == "saint":
+    elif key == "saint":
         c.rect(sx, y - 1, sx, y + 3, h.accent)                   # cross
         c.rect(sx - 2, y, sx + 2, y, h.accent)
         c.put(sx, y, "#ffd23f")
-    elif h.key == "vesper":
+    elif key == "vesper":
         c.poly([(sx, y - 1), (sx + 2, y + 1), (sx, y + 3), (sx - 2, y + 1)], h.accent)  # diamond
         c.put(sx, y + 1, h.accent_hi)
-    elif h.key == "siku":
+    elif key == "siku":
         c.line((sx - 2, y + 1), (sx + 2, y + 1), h.accent_hi)    # snowflake
         c.line((sx - 1, y - 1), (sx + 1, y + 3), h.accent)
         c.line((sx - 1, y + 3), (sx + 1, y - 1), h.accent)
@@ -809,8 +837,20 @@ def write_sprite_frames(hero: Hero, counts: dict[str, int]) -> Path:
     return path
 
 
+def by_key(key: str) -> Hero:
+    for h in HEROES:
+        if h.key == key:
+            return h
+    raise KeyError(key)
+
+
+## Alternate skins: same rig, different palette, swapped in at runtime. Not
+## heroes — they have no HeroData and never appear in a roster.
+VARIANTS = [inverted(by_key("voodoo"), "voodoo_phantom", "Voodoo (Phantom)")]
+
+
 def main() -> None:
-    for hero in HEROES:
+    for hero in HEROES + VARIANTS:
         counts = build(hero)
         write_sprite_frames(hero, counts)
         total = sum(counts.values())

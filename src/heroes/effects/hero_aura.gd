@@ -20,6 +20,10 @@ var accent: Color = Color.WHITE
 var style: StringName = &"wind"
 ## 1.0 = ability-grade. An ultimate aura passes more and reads bigger/angrier.
 var intensity: float = 1.0
+## Optional early-out. Some windows can end before their clock does — Saint's
+## blessing is spent the moment a stomp is absorbed — and an aura still glowing
+## over an unprotected body is worse than no aura at all.
+var expire_when: Callable = Callable()
 
 var _age: float = 0.0
 
@@ -35,6 +39,9 @@ func attach(to: Player, for_seconds: float, aura_style: StringName,
 func _process(delta: float) -> void:
 	_age += delta
 	if _age >= duration or target == null or not is_instance_valid(target):
+		queue_free()
+		return
+	if expire_when.is_valid() and expire_when.call():
 		queue_free()
 		return
 	global_position = target.global_position

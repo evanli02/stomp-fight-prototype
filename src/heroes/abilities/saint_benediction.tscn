@@ -5,3 +5,4 @@
 [node name="SaintBenediction" type="Node"]
 script = ExtResource("1")
 is_ultimate = true
+fires_while_stunned = true

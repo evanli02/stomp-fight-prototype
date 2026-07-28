@@ -1,44 +1,94 @@
 class_name SikuPillar extends Ability
-## Siku — Pillar (docs/NEW_HEROES.md §Siku). SKELETON.
+## Siku — Pillar (docs/NEW_HEROES.md §Siku).
 ##
-## Ground only. A solid ice pillar builds very fast under Siku, bottom-up:
-## roughly 3 character widths wide and 3 character heights tall (PILLAR_SIZE),
-## its top surface icy (apply_surface_slip, like the Ice element), persisting
-## for PILLAR_LIFE and then melting. Everyone standing in its footprint when it
-## fires — Siku, allies, enemies alike; terrain does not take sides — is
-## launched up a medium distance, KEEPING their horizontal velocity (the launch
-## replaces velocity.y only, exactly a JumpSpring, including the
-## request_state(&"Air") that stops a grounded state erasing it).
+## Ground only. A solid ice pillar builds under her — about 3 body-widths across
+## and 3 body-heights tall — with an icy top, persisting for a few seconds
+## before melting. Everyone standing in its footprint when it fires (Siku,
+## allies and enemies alike; terrain does not take sides) is launched straight
+## up, KEEPING their horizontal velocity: the JumpSpring recipe, including the
+## request_state(&"Air") without which a grounded state erases the launch on the
+## next frame (CLAUDE.md checklist).
 ##
-## The headroom gate is the anti-stuck rule and it is part of _can_fire, not a
-## patch: the cast is REFUSED (nothing spent) unless there is clear space above
-## the footprint for the pillar PLUS a standing body. Refusing beats clamping —
-## a half-height pillar would be a different ability every low ceiling.
+## The headroom gate is the anti-stuck rule, and it lives in `_can_fire` rather
+## than in a clamp: refused costs nothing (the base class spends nothing on a
+## refusal), while a pillar that shortened itself to fit would be a different
+## ability under every low ceiling. If there is not room for the whole column
+## plus a standing body above the ground Siku is on, the cast simply does not
+## happen — which is what makes "nobody ends up inside terrain" true by
+## construction rather than by testing.
 
-## 3 body-widths x 3 body-heights (22x34 body -> 66x102, snapped to the grid).
+## 3 body-widths x 3 body-heights (the body is 22x34), snapped to the tile grid.
 @export var pillar_size: Vector2 = Vector2(64.0, 96.0)
 @export var pillar_life: float = 5.0
-## The launch: replace velocity.y, keep velocity.x. A medium distance — above a
-## held jump's apex, below a stage spring.
+## The launch: replaces velocity.y, keeps velocity.x. A medium distance — above
+## a held jump's apex, well below a stage spring's 760-820.
 @export var launch_velocity: float = -640.0
-## Clearance above the ground the pillar needs: its height + a standing body.
+## Clearance the cast needs above the ground: the pillar, plus a standing body
+## on top of it, plus a little slack.
 @export var required_headroom: float = 140.0
 
+## Half the body width, used to find the ground under her and to size the
+## footprint scan. Not a feel number — it is the body.
+const BODY_HALF_HEIGHT: float = 17.0
+const GROUND_PROBE: float = 64.0
+
 func _can_fire() -> bool:
-	# TODO(opus): ground check + headroom check per docs/NEW_HEROES.md §Siku:
-	#  refuse unless player.is_on_floor(), and refuse unless a shape query
-	#  (pillar footprint x required_headroom, upward from the ground under
-	#  Siku) finds no terrain. Refused = nothing spent (base class behaviour).
-	return player.is_on_floor()
+	if not player.is_on_floor():
+		return false
+	var ground := _ground_point()
+	if ground == Vector2.ZERO:
+		return false
+	return _has_headroom(ground)
 
 func _execute(_aim: Vector2) -> void:
-	# TODO(opus): implement per docs/NEW_HEROES.md §Siku —
-	#  1. An IcePillar effect: StaticBody2D core (layer 1) + icy top via the
-	#     Ice element's slip rule, built bottom-up over ~4 frames (visual;
-	#     collision can arrive complete), melting out after pillar_life.
-	#  2. Launch every body overlapping the footprint at cast: velocity.y
-	#     replaced with launch_velocity, velocity.x untouched,
-	#     request_state(&"Air") — the JumpSpring recipe, Siku included.
-	#  3. Melt = shrink + free; bodies standing on top just fall (never
-	#     teleported — see the depenetration trap in handoff.md).
-	push_warning("Pillar is a skeleton — see docs/NEW_HEROES.md")
+	var ground := _ground_point()
+	# Launch FIRST, collision second. Everyone in the footprint is already in
+	# Air by the time the solid column exists, so the pillar can never appear
+	# around a body that was standing in it.
+	for t in all_players():
+		var body := t as Player
+		if not _in_footprint(body, ground):
+			continue
+		body.velocity.y = launch_velocity          # velocity.x deliberately kept
+		body.request_state(&"Air", {"anim": &"rise"})
+		body.air_dash_locked = false
+
+	var pillar := IcePillar.new()
+	pillar.pillar_size = pillar_size
+	pillar.lifetime = pillar_life
+	# The node's origin is the pillar's CAP, which is one pillar-height above
+	# the ground it is built on.
+	pillar.global_position = ground - Vector2(0.0, pillar_size.y)
+	if player.hero != null:
+		pillar.accent = player.hero.accent_color
+	player.spawn_effect(pillar)
+
+## The floor directly under Siku's feet. Vector2.ZERO if there is none within
+## reach, which only happens if she left the ground between the gate and here.
+func _ground_point() -> Vector2:
+	var feet := player.global_position + Vector2(0.0, BODY_HALF_HEIGHT)
+	var space := player.get_world_2d().direct_space_state
+	var query := PhysicsRayQueryParameters2D.create(feet, feet + Vector2(0.0, GROUND_PROBE))
+	query.collision_mask = 1
+	var hit := space.intersect_ray(query)
+	return hit.position if not hit.is_empty() else Vector2.ZERO
+
+## Is the column plus a standing body clear of terrain above this ground point?
+func _has_headroom(ground: Vector2) -> bool:
+	var box := RectangleShape2D.new()
+	# A shade narrower than the pillar, so a column built flush against a wall is
+	# not refused over a pixel of contact with it.
+	box.size = Vector2(pillar_size.x - 4.0, required_headroom)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = box
+	query.transform = Transform2D(0.0, ground - Vector2(0.0, required_headroom * 0.5))
+	query.collision_mask = 1
+	return player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+## Standing in the column's footprint at cast time. Horizontal overlap with the
+## pillar's width, and within a body's height of the same ground.
+func _in_footprint(body: Player, ground: Vector2) -> bool:
+	if absf(body.global_position.x - ground.x) > pillar_size.x * 0.5:
+		return false
+	var feet := body.global_position.y + BODY_HALF_HEIGHT
+	return absf(feet - ground.y) <= BODY_HALF_HEIGHT * 2.0

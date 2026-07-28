@@ -4,3 +4,4 @@
 
 [node name="SaintCleanse" type="Node"]
 script = ExtResource("1")
+fires_while_stunned = true

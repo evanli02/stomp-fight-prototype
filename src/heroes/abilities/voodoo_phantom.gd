@@ -1,19 +1,17 @@
 class_name VoodooPhantom extends Ability
-## Voodoo's ultimate — Phantom (docs/NEW_HEROES.md §Voodoo). SKELETON.
+## Voodoo's ultimate — Phantom (docs/NEW_HEROES.md §Voodoo).
 ##
 ## Soul Ignition, turned all the way up, plus a ghost rule: for the window
 ## Voodoo passes THROUGH every other body, ally and enemy — no side-on
 ## collision, no being terrain to anyone, no wall-jumping off him. Passing
-## through an enemy stuns them for PASS_STUN_TIME (refresh on re-pass, never
-## stack). The one thing phasing must NOT change is the stomp: his stompbox and
-## their head hurtbox stay live, and falling through an enemy's head from above
-## is still resolved by the ordinary stomp system — receive_stomp, grace,
-## anti-chain, victim authority, untouched.
+## through an enemy stuns them for `pass_stun_time` (refreshed on a re-pass,
+## never stacked).
 ##
-## Visuals: the &"surge" aura at full menace, and the sprite runs the INVERTED
-## palette for the window (SpriteFrames swap, not a modulate — a tint would
-## fight the grace blink). The inverted frames ship as voodoo_phantom_frames
-## once the generator gains the variant.
+## The one thing phasing does NOT change is the stomp. Head hurtboxes and
+## stompboxes are Area2Ds on their own layers; phasing only lifts body-vs-body
+## collision, so falling through an enemy's head still resolves through the
+## ordinary stomp system — victim authority, grace, anti-chain — exactly like
+## Terra's slam. The combat harness asserts both halves.
 
 ## Noticeably longer than the ability's window.
 @export var duration: float = 9.0
@@ -23,15 +21,21 @@ class_name VoodooPhantom extends Ability
 ## The pass-through stun. Refreshes, never stacks.
 @export var pass_stun_time: float = 3.0
 
+## The negative skin, loaded once. Generated beside the ordinary frames by
+## assets/tools/generate_characters.py (see `VARIANTS` there).
+const PHANTOM_FRAMES: String = "res://src/heroes/resources/frames/voodoo_phantom_frames.tres"
+
 func _execute(_aim: Vector2) -> void:
-	# TODO(opus): implement per docs/NEW_HEROES.md §Voodoo —
-	#  1. Empowerment as Soul Ignition, with these bigger numbers.
-	#  2. player.begin_phasing(duration) [new API: drops the body <-> body
-	#     collision bit both ways; head hurtbox + stompbox stay live; per-tick
-	#     enemy-overlap scan applies apply_stun(pass_stun_time) with a
-	#     re-trigger gap so one pass = one stun and a re-pass RESETS it]
-	#  3. HeroAura.attach(player, duration, &"surge", accent, 2.0) — the
-	#     intensity is what makes the ult read angrier than the ability.
-	#  4. Inverted-palette frames for the window; restore on expiry AND on
-	#     elimination/round end (never leave the swap dangling).
-	push_warning("Phantom is a skeleton — see docs/NEW_HEROES.md")
+	player.grant_speed_buff(speed_mult, duration)
+	player.grant_impulse_buff(impulse_mult, duration)
+	player.begin_phasing(duration)
+	player.begin_contact_stun(pass_stun_time, duration)
+	player.apply_skin_override(load(PHANTOM_FRAMES) as SpriteFrames)
+	var aura := HeroAura.new()
+	player.spawn_effect(aura)
+	# Intensity 2 is what makes the ultimate read angrier than the ability —
+	# same aura, more of it, taller and denser.
+	aura.attach(player, duration, &"surge", _accent(), 2.0)
+
+func _accent() -> Color:
+	return player.hero.accent_color if player.hero != null else Color(0.75, 0.37, 1.0)
