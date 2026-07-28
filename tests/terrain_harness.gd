@@ -322,12 +322,12 @@ func _check_nothing_took_a_life() -> void:
 	check("no terrain element removed a life",
 		lives() == MatchState.LIVES_PER_HERO, "lives=%d" % lives())
 
-## Cryo Lab, as a whole stage rather than element by element: it is the first
-## stage assembled from terrain rather than decorated with it, so the thing worth
-## asserting is that living in it for several grid cycles is survivable and
-## sealed.
+## Cryo Lab as a whole stage. The claims worth asserting are the ones the rebuild
+## rests on: every surface is ice with no patch of grip left behind, the three
+## portal pairs are linked to the right partners, and the lower chamber has a way
+## up that is not a portal.
 ##
-## Rooftop Rumble comes down first — two stages in one physics world would have
+## Rooftop Rumble comes down first - two stages in one physics world would have
 ## their geometry overlapping, and every measurement after that is fiction.
 func _check_cryo_lab() -> void:
 	_stage.queue_free()
@@ -336,45 +336,67 @@ func _check_cryo_lab() -> void:
 	add_child(lab)
 	await step(2)
 
-	var ice := 0
-	var lines: Array[StunLine] = []
+	var ice: Array[Ice] = []
+	var poles := 0
 	var portals: Array[Portal] = []
+	var lines := 0
 	for child in lab.get_children():
 		if child is Ice:
-			ice += 1
-		elif child is StunLine:
-			lines.append(child)
+			ice.append(child)
+		elif child is Pole:
+			poles += 1
 		elif child is Portal:
 			portals.append(child)
-	check("cryo lab lays down ice", ice >= 2, "sheets=%d" % ice)
-	check("cryo lab lays down a laser grid", lines.size() >= 3, "lines=%d" % lines.size())
-	check("cryo lab places exactly one portal pair", portals.size() == 2,
+		elif child is StunLine:
+			lines += 1
+	check("cryo lab has no stun lines left", lines == 0, "lines=%d" % lines)
+	check("cryo lab hangs three poles", poles == 3, "poles=%d" % poles)
+	check("cryo lab places three portal pairs", portals.size() == 6,
 		"portals=%d" % portals.size())
-	if portals.size() == 2:
-		check("the portal pair points at each other",
-			portals[0].get_node_or_null(portals[0].linked_portal) == portals[1]
-				and portals[1].get_node_or_null(portals[1].linked_portal) == portals[0])
 
-	# The grid has to actually toggle, or it is just walls with extra steps.
-	var seen_live := false
-	var seen_dark := false
+	# Every walkable surface iced, floor included. One un-iced platform would be
+	# the single patch of grip in an ice level, which is worse than either choice.
+	var surfaces: Array[Rect2] = lab.platforms()
+	var bare := ""
+	for block: Rect2 in surfaces:
+		var covered := false
+		for sheet: Ice in ice:
+			var left: float = sheet.position.x - sheet.size.x * 0.5
+			var right: float = sheet.position.x + sheet.size.x * 0.5
+			if left <= block.position.x + 1.0 					and right >= block.position.x + block.size.x - 1.0 					and absf(sheet.position.y - (block.position.y - 24.0)) < 4.0:
+				covered = true
+				break
+		if not covered:
+			bare += " %s" % block
+	check("every platform is iced", bare.is_empty(), bare)
+	check("the floor is iced too", ice.size() == surfaces.size() + 1,
+		"sheets=%d surfaces=%d" % [ice.size(), surfaces.size()])
+
+	# Pairs point at their own partner, and partners share a colour. A pair wired
+	# to the wrong end would still teleport, just not where the colour promised.
+	var wired := true
+	var mismatched := ""
+	for portal: Portal in portals:
+		var other := portal.get_node_or_null(portal.linked_portal) as Portal
+		if other == null or other.get_node_or_null(other.linked_portal) != portal:
+			wired = false
+			continue
+		if not portal.accent.is_equal_approx(other.accent):
+			mismatched += " %s" % portal.position
+	check("every portal is linked back to its own partner", wired)
+	check("both ends of a pair share a colour", mismatched.is_empty(), mismatched)
+
+	# The stage has to be survivable and sealed with all of that in it.
 	var bounds := Vector2(lab.arena_size()) * float(Arena.TILE)
 	var lives_before := lives()
 	var escaped := ""
-	for i in 240:
+	for i in 180:
 		await get_tree().physics_frame
-		if not lines.is_empty():
-			if lines[0].is_live():
-				seen_live = true
-			else:
-				seen_dark = true
 		for p: Player in lab.players:
 			var at := p.global_position
 			if at.x < 0.0 or at.y < 0.0 or at.x > bounds.x or at.y > bounds.y:
 				escaped = "%s outside %s" % [at, bounds]
-	check("the laser grid cycles", seen_live and seen_dark,
-		"live=%s dark=%s" % [seen_live, seen_dark])
-	check("cryo lab is sealed — nobody leaves the box", escaped.is_empty(), escaped)
+	check("cryo lab is sealed - nobody leaves the box", escaped.is_empty(), escaped)
 	check("nothing in cryo lab removed a life", lives() == lives_before,
 		"lives=%d" % lives())
 	lab.queue_free()

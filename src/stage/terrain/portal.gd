@@ -10,6 +10,9 @@ class_name Portal extends TerrainElement
 ## Direction this portal faces. The exit's facing is what incoming velocity gets
 ## rotated onto.
 @export var facing: Vector2 = Vector2.RIGHT
+## Ring colour. A stage with more than one pair has to say which end goes where,
+## and colour is the only thing readable at a glance mid-run.
+@export var accent: Color = Color(0.62, 0.31, 0.87)
 
 var _lock: float = 0.0
 
@@ -43,6 +46,9 @@ func _draw() -> void:
 	for i in 3:
 		var scale := 1.0 - i * 0.22 - 0.05 * sin(t + i)
 		draw_arc(Vector2.ZERO, minf(rx, ry) * scale, 0.0, TAU, 28,
-			Color(0.62, 0.31, 0.87, dim * (1.0 - i * 0.2)), 2.0)
+			Color(accent.r, accent.g, accent.b, dim * (1.0 - i * 0.2)), 2.0)
+	# Pale core of the same hue, so the pair reads as one colour from across the
+	# stage rather than as a ring and an unrelated dot.
+	var core := accent.lerp(Color.WHITE, 0.45)
 	draw_arc(Vector2.ZERO, minf(rx, ry) * 0.25, 0.0, TAU, 20,
-		Color(0.78, 0.49, 1.0, dim), 3.0)
+		Color(core.r, core.g, core.b, dim), 3.0)

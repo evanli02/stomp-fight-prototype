@@ -50,8 +50,8 @@ const STAGE_ROSTER: Dictionary = {
 	&"cryo_lab": {
 		"scene": "res://src/stage/cryo_lab.tscn",
 		"name": "Cryo Lab",
-		"blurb": "Ice underfoot and a laser grid on a clock.",
-		"features": "ice · timed lasers · portal pair",
+		"blurb": "Every surface is ice. Three portals, no hazards.",
+		"features": "all ice - 3 portal pairs - poles",
 		"accent": Color(0.18, 0.89, 0.90),
 	},
 }
