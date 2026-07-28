@@ -8,10 +8,10 @@
 [resource]
 script = ExtResource("1")
 hero_name = "Voodoo"
-accent_color = Color(0.74902, 0.372549, 1, 1)
+accent_color = Color(0.792157, 0.360784, 1, 1)
 ability_cooldown = 18.0
-ability_text = "Soul Ignition: ignite for a long window - much faster run, bigger jump, dash and slide jump. Touching an enemy knocks them back and slows their whole kit for 3s."
-ultimate_text = "Phantom: ignite completely - fastest run and dash in the game (jump untouched) - and become a ghost who passes through bodies, stunning enemies passed through for 2s. A head is still a head: falling through one is a stomp."
+ability_text = "Soul Ignition: ignite for 8s - faster run, bigger jump, dash and slide jump, purple flames. Touching an enemy knocks them back and slows their whole kit for 3s."
+ultimate_text = "Phantom: ignite completely in green - fastest run and dash in the game (jump untouched) - and become a ghost who passes through bodies, stunning enemies passed through for 2s. Ends Soul Ignition and locks it out. A head is still a head: falling through one is a stomp."
 sprite_frames = ExtResource("2")
 ability_scene = ExtResource("3")
 ultimate_scene = ExtResource("4")

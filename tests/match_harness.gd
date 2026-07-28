@@ -637,12 +637,22 @@ func _check_sleep_system() -> void:
 	# Terrain launches must not be a free wake-up: a spring's launch asks for
 	# Air, and while asleep that request is redirected back to Sleeping — the
 	# velocity still applies, so a slept body still gets thrown, just asleep.
-	_p2.set_velocity_override(Vector2(0.0, -400.0))
+	# The launch is applied while GROUNDED, which is the whole trap: a state
+	# that pins velocity.y on the floor eats it before it moves anyone, and a
+	# sleeper in Sunken Court's spring pit just stood on the springs.
+	_p2.global_position = Vector2(820, 344)
+	await step(8)
+	var launched_from := _p2.global_position.y
+	check("the sleeper is grounded before the launch", _p2.is_on_floor())
+	_p2.set_velocity_override(Vector2(0.0, -600.0))
 	_p2.request_state(&"Air")
-	await step(2)
+	await step(6)
 	check("a spring-style launch does not break the sleep",
 		_p2.state_machine.state_name() == &"Sleeping" and _p2.sleep_remaining > 0.0,
 		"state=%s" % _p2.state_machine.state_name())
+	check("...and the sleeper is actually thrown by it",
+		_p2.global_position.y < launched_from - 40.0,
+		"y %.1f -> %.1f" % [launched_from, _p2.global_position.y])
 
 	# What DOES end a sleep early (owner ruling 2026-07-28): a stun, or any
 	# fresh debuff. Sleep is a setup, and collecting on it finishes it.
@@ -772,6 +782,10 @@ func _check_voodoo() -> void:
 	check("phantom buffs the dash but not the jump",
 		_p1.dash_buff_mult > 1.0 and is_equal_approx(_p1.launch_mult(), 1.0),
 		"dash=%.2f launch=%.2f" % [_p1.dash_buff_mult, _p1.launch_mult()])
+	# The two windows are exclusive: the ultimate IS the ability turned up, and
+	# running both would stack two speed buffs and put two auras on one body.
+	check("the ability is locked out while phantom runs", not _p1.try_ability(),
+		"phasing=%.2f" % _p1.phasing_remaining)
 	check("phasing is symmetric",
 		_p1.get_collision_exceptions().has(_p2)
 		and _p2.get_collision_exceptions().has(_p1),
@@ -785,7 +799,32 @@ func _check_voodoo() -> void:
 		and not _p2.get_collision_exceptions().has(_p1))
 	check("ending the phase restores the normal skin",
 		_p1.sprite.sprite_frames == _p1.hero.sprite_frames)
-	_p1.respawn_at(Vector2(400, 344))
+
+	# Casting the ultimate over a live ignition puts the ignition out and sends
+	# it back to a full cooldown rather than banking it.
+	MatchState.reset_round()
+	_p1.clear_movement_buffs()
+	await step(2)
+	check("soul ignition fires again once phasing ended", _p1.try_ability())
+	await step(2)
+	check("the ignition is running", _p1.speed_buff_mult > 1.0,
+		"speed=%.2f" % _p1.speed_buff_mult)
+	check("phantom fires over it", _p1.try_ultimate())
+	await step(2)
+	# The ignition's jump buff is the clean witness that it was revoked rather
+	# than left running: Phantom never grants an impulse buff (run and dash
+	# only), so a launch multiplier back at 1.0 can only mean the ability's was
+	# taken away. Its contact window cannot be used for this — the ultimate
+	# opens one of its own, for the pass-through stun.
+	check("casting phantom revokes the ignition's buffs",
+		is_equal_approx(_p1.launch_mult(), 1.0),
+		"launch=%.2f" % _p1.launch_mult())
+	check("the superseded ability is left on cooldown",
+		not MatchState.is_ability_ready(0, &"voodoo"),
+		"cd=%.2f" % MatchState.cooldown_remaining(0, &"voodoo"))
+	_p1.end_phasing()
+	_p1.clear_movement_buffs()
+	_p1.respawn_at(Vector2(360, 344))
 	_p2.clear_all_debuffs()
 	await step(2)
 

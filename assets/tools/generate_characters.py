@@ -109,6 +109,14 @@ class Hero:
     ## Negative variants flip prop colours that are normally hardcoded (the
     ## doll mask's bone white). Skin stays skin either way.
     invert_props: bool = False
+    ## Which eyes this hero wears. Both eyes are always drawn (a one-eyed 3/4
+    ## face reads as a profile at 32px and made every hero's expression
+    ## identical); the style is what tells a squint from a stare.
+    eye_style: str = "round"
+    ## How far the suit ramp is tinted toward the accent. 1.0 is the house
+    ## default; Vesper runs near zero because her costume is BLACK and the
+    ## pink is meant to be a secondary, not a wash over the whole model.
+    accent_tint: float = 1.0
 
     def cape_col(self) -> str:
         return self.cape_color or self.dark
@@ -121,58 +129,76 @@ HEROES = [
     # Cyberpunk cowboy: brimmed hat, augmented eye glowing red, long split coat.
     Hero("deadeye", "Deadeye", "#2a0f14", "#5a1e24", "#8a3040", "#e63946", "#ff8080",
          "#d9a066", "#f2cf9e", torso_w=6, limb=4, cape_style="coat",
-         cape_color="#3d1620", head_style="cowboy", gear="pistol"),
+         cape_color="#3d1620", head_style="cowboy", gear="pistol",
+         eye_style="sharp"),
     # Jade dancer: hair bun with an ornament, long streaming ribbon, clean lines.
+    # Pale skin, so the jade reads as the loud thing on her rather than the tan.
     Hero("fei", "Fei", "#0f2a1e", "#1e4a36", "#2f6b4e", "#3ddc84", "#a4f9c8",
-         "#e8c39e", "#f7dfc0", torso_w=5, limb=3, cape_style="scarf",
-         cape_color="#3ddc84", head_style="bun", gear="none"),
+         "#f6e2cc", "#fdf3e6", torso_w=5, limb=3, cape_style="scarf",
+         cape_color="#3ddc84", head_style="bun", gear="none",
+         eye_style="almond"),
     # Gold engineer: fur crown and heavy shoulders over tech, huge gauntlets.
     Hero("mason", "Mason", "#241a10", "#4a3a20", "#6b5530", "#ffd23f", "#fff3b0",
          "#6b3f2a", "#8a5a3b", torso_w=8, limb=5, cape_style="none",
-         head_style="crown", gear="gauntlets"),
+         head_style="crown", gear="gauntlets", eye_style="sharp"),
     # Gravity valkyrie: crested helm, sleeveless armour, tattooed arms, war cape.
-    # DARK violet on purpose — the bright end of purple belongs to Voodoo now.
-    Hero("cerebelle", "Cerebelle", "#1c1030", "#33244d", "#4a3a66", "#5a189a", "#9d4edd",
-         "#8a5a3b", "#a87450", torso_w=6, limb=4, cape_style="cape",
-         cape_color="#2a3d63", head_style="crest", gear="tattoos"),
+    # WHITE armour with a DARK violet accent, and built slimmer than the men —
+    # the bright end of purple belongs to Voodoo, and the pale plate is what
+    # keeps a dark accent readable on a night stage.
+    # accent_tint is held down so the plate stays WHITE: at the house default a
+    # dark violet accent washes the whole ramp lavender, which is the one thing
+    # this design is not allowed to be (Voodoo owns purple-as-a-body).
+    Hero("cerebelle", "Cerebelle", "#5e5a68", "#cac7d6", "#f4f2fa", "#4c1076", "#a855f7",
+         "#e8c9ac", "#f8e6d4", torso_w=5, limb=3, cape_style="cape",
+         cape_color="#3a2a5c", head_style="crest", gear="tattoos",
+         eye_style="almond", accent_tint=0.3),
     # Stylish grappler: sleek visor, swept hair, hook at the hip, short scarf.
     Hero("sai", "Sai", "#241019", "#4a2033", "#6b3049", "#ff6ec7", "#ffb3e2",
          "#e8c39e", "#f7dfc0", torso_w=5, limb=3, cape_style="scarf",
-         cape_color="#ff6ec7", head_style="visor", gear="hook"),
+         cape_color="#ff6ec7", head_style="visor", gear="hook",
+         eye_style="visor"),
     # Streetpunk tinkerer: tall spiked hair, goggles pushed up, belt gadgets.
     # DEEP blue on purpose — the pale icy end of blue belongs to Siku now.
     Hero("slip", "Slip", "#0e1a30", "#1c3a5e", "#2b567e", "#1c6dd0", "#5aa9f0",
          "#b98865", "#d4a37c", torso_w=5, limb=3, cape_style="none",
-         head_style="spikes", gear="pack"),
+         head_style="spikes", gear="pack", eye_style="wide"),
     # Warrior-builder: hard hat, heavy shoulders, wraps and plate mixed.
-    Hero("terra", "Terra", "#26160c", "#4a2d18", "#6b4426", "#b5651d", "#e8965a",
+    # Proper dark BROWN, not the orange-brown it started as — Kid owns orange.
+    Hero("terra", "Terra", "#1d1109", "#3a2415", "#553622", "#6b4526", "#a9764a",
          "#a05c3b", "#c07850", torso_w=8, limb=5, cape_style="none",
-         head_style="hardhat", gear="gauntlets"),
+         head_style="hardhat", gear="gauntlets", eye_style="sharp"),
     # Nerdy gadgeteer: big round glasses, messy hair, satchel of tech.
-    Hero("kid", "Kid", "#26150a", "#4a2c12", "#6b431e", "#ff8b2e", "#ffc48a",
+    # Brighter orange, now that Terra has vacated the warm-brown end of it.
+    Hero("kid", "Kid", "#26150a", "#4a2c12", "#6b431e", "#ffa521", "#ffd08a",
          "#f2cf9e", "#f7dfc0", torso_w=5, limb=3, cape_style="none",
-         head_style="glasses", gear="pack"),
+         head_style="glasses", gear="pack", eye_style="wide"),
     # --- The second wave (kits designed, implementation pending — docs/NEW_HEROES.md) ---
     # Spirit brawler: white voodoo-doll mask with X eyes, bright purple flames
     # off the skull, long stylish coat. BRIGHT purple — Cerebelle went dark.
-    Hero("voodoo", "Voodoo", "#1b1226", "#332347", "#4b3566", "#bf5fff", "#e2b3ff",
+    Hero("voodoo", "Voodoo", "#1b1226", "#332347", "#4b3566", "#ca5cff", "#eab8ff",
          "#d9a066", "#f2cf9e", torso_w=6, limb=4, cape_style="coat",
-         cape_color="#241733", head_style="doll_mask", gear="none"),
+         cape_color="#241733", head_style="doll_mask", gear="none",
+         eye_style="masked"),
     # Battle priest crossed with a monk: white and grey robes, a halo circlet,
     # a war cape that reads as a vestment. The one white hero.
-    Hero("saint", "Saint", "#4a4a55", "#8f8f9e", "#c9c9d4", "#f2f2fa", "#ffffff",
+    Hero("saint", "Saint", "#5a5348", "#9c9384", "#d8cfbb", "#f2f2fa", "#ffffff",
          "#c99b6a", "#e8bd8f", torso_w=6, limb=4, cape_style="cape",
-         cape_color="#8f8f9e", head_style="monk", gear="none"),
-    # Shinobi assassin: hood, half-face mask, neon pink eyes. Costume is BLACK
-    # (the suit ramp); the accent slots carry her neon pink because a pure black
-    # accent would erase the head band, the boots, and every effect she owns.
-    Hero("vesper", "Vesper", "#0b0b12", "#191926", "#2a2a3a", "#ff2ec4", "#ff9ce4",
+         cape_color="#9c9384", head_style="monk", gear="none",
+         eye_style="calm"),
+    # Shinobi assassin: hood, half-face mask, neon pink eyes. Her primary colour
+    # is BLACK and the pink is a secondary — accent_tint near zero keeps the
+    # accent out of the suit ramp, so she stays black instead of washing pink
+    # the way every other hero's ramp does. The accent slots still hold the pink
+    # because they drive the head band, the eyes, the trim and every effect she
+    # owns, and a black accent would erase all of them on a night stage.
+    Hero("vesper", "Vesper", "#08080d", "#131320", "#20202e", "#ff2ec4", "#ff9ce4",
          "#e8c39e", "#f7dfc0", torso_w=5, limb=3, cape_style="scarf",
-         cape_color="#191926", head_style="shinobi", gear="none"),
+         cape_color="#131320", head_style="shinobi", gear="none",
+         eye_style="masked", accent_tint=0.12),
     # Arctic hunter in an ice-blue parka: fur-ringed hood, mitten-heavy build.
     Hero("siku", "Siku", "#12303e", "#1f5468", "#2f7d95", "#9edfff", "#e2f7ff",
          "#b98865", "#d4a37c", torso_w=6, limb=4, cape_style="none",
-         head_style="fur_hood", gear="none"),
+         head_style="fur_hood", gear="none", eye_style="wide"),
 ]
 
 
@@ -198,11 +224,12 @@ def inverted(h: Hero, key: str, name: str) -> Hero:
 
 
 def shade(h: Hero, level: str) -> str:
+    t = h.accent_tint
     return {
         "shadow": mix(h.dark, "#000000", 0.3),
-        "dark": mix(h.dark, h.accent, 0.10),
-        "mid": mix(h.mid, h.accent, 0.22),
-        "light": mix(h.light, h.accent_hi, 0.32),
+        "dark": mix(h.dark, h.accent, 0.10 * t),
+        "mid": mix(h.mid, h.accent, 0.22 * t),
+        "light": mix(h.light, h.accent_hi, 0.32 * t),
         "edge": mix(h.light, "#ffffff", 0.35),
     }[level]
 
@@ -357,6 +384,72 @@ def draw_arms(c: Canvas, h: Hero, p: Pose, front: bool) -> None:
         c.rect(hx - 1, hy - 2, hx + 1, hy - 2, h.accent)
 
 
+def draw_eyes(c: Canvas, h: Hero, cx: int, cy: int) -> None:
+    """Both eyes, on every hero, in the hero's own style.
+
+    A single eye on a 3/4 face reads as a pure profile at this size, and it made
+    every hero's expression identical — the only thing telling them apart was
+    the hat. Two eyes plus a per-hero shape is what lets a squint, a stare and a
+    serene half-lid be three different characters (STYLE_GUIDE: silhouette
+    first, but the face is where personality lives once you are close).
+
+    Layout: the far eye sits at cx..cx+1 against the hairline, the near one at
+    cx+3..cx+4 just inside the nose. Two pixels each, one apart. The far eye is
+    always dimmer — it is further away, and the falloff is what keeps the head
+    from reading as flat-on.
+    """
+    if h.eye_style == "visor":
+        return                       # the visor band IS the eyes (see draw_head)
+
+    near, far = (cx + 3, cx)
+    white = "#ffffff"
+    dim = "#c8c8d8"
+    iris = shade(h, "dark") if h.eye_style != "masked" else h.accent
+    iris_far = mix(iris, "#000000", 0.25)
+
+    if h.eye_style == "masked":
+        # Glowing slits behind a mask: no whites at all, just the light.
+        for x, col in ((near, h.accent_hi), (far, h.accent)):
+            c.rect(x, cy + 1, x + 1, cy + 2, col)
+            c.put(x + 1, cy + 1, "#ffffff")
+        return
+
+    if h.eye_style == "sharp":
+        # Squint: one row of white under a heavy lid, pupil pushed forward.
+        c.rect(near, cy + 1, near + 1, cy + 1, white)
+        c.put(near + 1, cy + 1, iris)
+        c.rect(far, cy + 1, far + 1, cy + 1, dim)
+        c.put(far + 1, cy + 1, iris_far)
+        c.rect(far, cy, near + 1, cy, mix(face_skin(h), "#000000", 0.55))  # brow
+        return
+
+    if h.eye_style == "calm":
+        # Serene: half-lidded, lids drawn as a line over a thin eye.
+        c.rect(near, cy + 2, near + 1, cy + 2, white)
+        c.put(near + 1, cy + 2, iris)
+        c.rect(far, cy + 2, far + 1, cy + 2, dim)
+        c.rect(far, cy + 1, near + 1, cy + 1, mix(face_skin(h), "#000000", 0.35))
+        return
+
+    # "round"/"wide"/"almond": full two-pixel eyes with a pupil and a glint.
+    c.rect(near, cy + 1, near + 1, cy + 2, white)
+    c.rect(far, cy + 1, far + 1, cy + 2, dim)
+    if h.eye_style == "wide":
+        # Big innocent pupils filling most of the eye, glint top-left.
+        c.rect(near, cy + 2, near + 1, cy + 2, iris)
+        c.put(near, cy + 1, white)
+        c.rect(far, cy + 2, far + 1, cy + 2, iris_far)
+    else:
+        c.put(near + 1, cy + 2, iris)
+        c.put(far + 1, cy + 2, iris_far)
+    if h.eye_style == "almond":
+        # Lashes off the outer corner, and a softer lid line than the brow.
+        c.put(near + 2, cy, KEYLINE)
+        c.put(near + 2, cy + 1, KEYLINE)
+        c.put(far - 1, cy, KEYLINE)
+        c.rect(far, cy, near + 1, cy, mix(face_skin(h), "#000000", 0.3))
+
+
 def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
     """Oversized comic head — roughly 40% of the body. It is also the stomp
     hurtbox, so the accent owns the top of it on every style, no exceptions."""
@@ -372,12 +465,12 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
     c.put(cx + 6, cy + 1, skin)
     c.put(cx + 6, cy + 2, h.skin_hi)
     c.put(cx + 3, cy + 5, mix(skin, "#000000", 0.5))             # mouth
-    # One big comic eye.
-    c.rect(cx + 1, cy + 1, cx + 3, cy + 2, "#ffffff")
-    c.put(cx + 2, cy + 2, KEYLINE)
-    # Back of the skull is never skin.
+    # Back of the skull is never skin. Drawn BEFORE the eyes: it ends at cx-2 to
+    # leave a face wide enough for two of them, and the far eye sits right
+    # against that hairline.
     back = h.accent if h.head_style in ("bun", "spikes") else shade(h, "dark")
-    c.poly([(cx - 6, cy - 3), (cx - 1, cy - 6), (cx - 1, cy + 5), (cx - 5, cy + 4)], back)
+    c.poly([(cx - 6, cy - 3), (cx - 2, cy - 6), (cx - 2, cy + 5), (cx - 5, cy + 4)], back)
+    draw_eyes(c, h, cx, cy)
 
     s = h.head_style
     if s == "cowboy":       # brim forward, red augmented eye
@@ -387,9 +480,12 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.poly([(cx - 5, cy - 3), (cx - 4, cy - 7), (cx + 4, cy - 7), (cx + 5, cy - 3)], KEYLINE)
         c.poly([(cx - 4, cy - 3), (cx - 3, cy - 6), (cx + 3, cy - 6), (cx + 4, cy - 3)], h.accent)
         c.rect(cx - 3, cy - 6, cx + 2, cy - 6, h.accent_hi)
-        c.rect(cx + 1, cy + 1, cx + 4, cy + 2, h.accent)          # augmented eye
-        c.rect(cx + 2, cy + 1, cx + 4, cy + 1, h.accent_hi)
-        c.put(cx + 4, cy + 1, "#ffffff")
+        # The augment replaces the NEAR eye only — the far one stays a human
+        # squint, which is what makes it read as an implant rather than a visor.
+        c.rect(cx + 3, cy + 1, cx + 4, cy + 2, h.accent)
+        c.put(cx + 4, cy + 1, h.accent_hi)
+        c.put(cx + 3, cy + 2, "#ffffff")
+        c.put(cx + 5, cy + 1, mix(h.accent, "#000000", 0.4))      # lens rim
     elif s == "bun":        # hair with a top bun + jade pin
         c.ellipse(cx - 1, cy - 5, 5.6, 3.4, h.dark)
         c.ellipse(cx, cy - 8, 2.6, 2.4, KEYLINE)
@@ -404,7 +500,17 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         for i in range(-5, 6, 2):
             c.put(cx + i, cy - 5, h.accent_hi if i % 4 == 1 else h.accent)
         c.rect(cx - 5, cy - 2, cx + 5, cy - 2, h.accent)
-    elif s == "crest":      # magneto-style helm with a centre fin
+    elif s == "crest":      # magneto-style helm with a centre fin, over long hair
+        # Long hair swept back and past the shoulder. At 32px the face is only a
+        # few pixels, so the read for "she" has to come from the silhouette —
+        # this plus the narrower build is what carries it.
+        hair = mix(h.light, "#ffffff", 0.5)
+        c.poly([(cx - 7, cy - 4), (cx - 1, cy - 6), (cx - 1, cy + 9),
+                (cx - 6, cy + 8), (cx - 8, cy + 2)], KEYLINE)
+        c.poly([(cx - 6, cy - 3), (cx - 2, cy - 5), (cx - 2, cy + 8),
+                (cx - 6, cy + 6), (cx - 7, cy + 2)], hair)
+        c.poly([(cx - 6, cy - 3), (cx - 4, cy - 4), (cx - 4, cy + 5),
+                (cx - 6, cy + 4)], mix(hair, h.accent, 0.35))   # strand shadow
         c.poly([(cx - 6, cy + 1), (cx - 5, cy - 5), (cx + 5, cy - 5), (cx + 6, cy + 1)], KEYLINE)
         c.poly([(cx - 5, cy), (cx - 4, cy - 4), (cx + 4, cy - 4), (cx + 5, cy)], h.accent)
         c.rect(cx - 1, cy - 8, cx + 1, cy - 4, KEYLINE)           # fin
@@ -418,6 +524,10 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.rect(cx - 4, cy + 1, cx + 5, cy + 2, h.accent)
         c.rect(cx + 1, cy + 1, cx + 5, cy + 1, h.accent_hi)
         c.put(cx + 5, cy + 1, "#ffffff")
+        # Two brighter slits where the eyes are behind it, so the visor reads as
+        # covering a face rather than as a stripe of paint.
+        for sx in (cx, cx + 3):
+            c.rect(sx, cy + 2, sx + 1, cy + 2, mix(h.accent_hi, "#ffffff", 0.5))
     elif s == "spikes":     # tall aqua spikes + goggles pushed up
         for dx, hgt in ((-4, 4), (-1, 6), (2, 5), (4, 3)):
             c.poly([(cx + dx - 1, cy - 4), (cx + dx, cy - 6 - hgt), (cx + dx + 2, cy - 4)], KEYLINE)
@@ -477,10 +587,12 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.rect(cx - 1, cy + 3, cx + 6, cy + 6, KEYLINE)
         c.rect(cx - 1, cy + 3, cx + 5, cy + 5, h.dark)
         c.rect(cx, cy + 3, cx + 4, cy + 3, h.mid)
-        # The neon pink eye is the only bright thing on her.
-        c.rect(cx + 1, cy + 1, cx + 4, cy + 2, h.accent)
-        c.rect(cx + 2, cy + 1, cx + 4, cy + 1, h.accent_hi)
-        c.put(cx + 4, cy + 1, "#ffffff")
+        # Both eyes glow — the only bright thing on an otherwise black hero, and
+        # the whole reason her accent stays pink while her costume does not.
+        # draw_eyes already placed them ("masked"); this adds the angry lids
+        # that make a shinobi's stare different from Voodoo's dead mask.
+        c.rect(cx - 1, cy, cx + 5, cy, KEYLINE)
+        c.put(cx + 5, cy + 1, mix(h.accent, "#000000", 0.5))
         c.rect(cx - 5, cy - 4, cx + 3, cy - 4, h.accent)       # thin accent band on the hood
     elif s == "fur_hood":   # Siku: parka hood ringed in fur
         # Fur ring around the face — pale, chunky, unmistakable at zoom.

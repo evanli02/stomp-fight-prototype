@@ -28,6 +28,13 @@ class_name VoodooPhantom extends Ability
 const PHANTOM_FRAMES: String = "res://src/heroes/resources/frames/voodoo_phantom_frames.tres"
 
 func _execute(_aim: Vector2) -> void:
+	# Phantom supersedes Soul Ignition rather than stacking with it: an active
+	# ignition is put out on the spot and sent back to a full cooldown, so the
+	# two windows can never overlap and there is only ever one aura on him.
+	var basic := player.equipped_ability()
+	if basic is VoodooSoulIgnition:
+		(basic as VoodooSoulIgnition).extinguish()
+
 	player.grant_speed_buff(speed_mult, duration)
 	player.grant_dash_buff(dash_mult, duration)
 	player.begin_phasing(duration)
@@ -37,7 +44,14 @@ func _execute(_aim: Vector2) -> void:
 	player.spawn_effect(aura)
 	# Intensity 2 is what makes the ultimate read angrier than the ability —
 	# same aura, more of it, taller and denser.
-	aura.attach(player, duration, &"surge", _accent(), 2.0)
+	aura.attach(player, duration, &"surge", _phantom_accent(), 2.0)
 
 func _accent() -> Color:
 	return player.hero.accent_color if player.hero != null else Color(0.75, 0.37, 1.0)
+
+## The ultimate's aura is the INVERSE of his accent — green, matching the
+## negative skin he is wearing for the window. His ability keeps the ordinary
+## purple, so at a glance the colour alone says which of the two is running.
+func _phantom_accent() -> Color:
+	var base := _accent()
+	return Color(1.0 - base.r, 1.0 - base.g, 1.0 - base.b).lightened(0.3)

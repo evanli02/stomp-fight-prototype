@@ -21,7 +21,15 @@ func enter(_params: Dictionary = {}) -> void:
 	player.momentum_charge = 0.0
 
 func physics_update(delta: float) -> void:
-	if player.is_on_floor():
+	# A launch survives the sleep. Springs, Mason's block and Siku's pillar all
+	# set an upward velocity and then ask for Air — and while asleep that
+	# request is redirected back here (Player.request_state), so this state
+	# inherits the grounded-launch trap from CLAUDE.md's checklist: pinning
+	# velocity.y on the floor the way Idle and Run do would erase the launch
+	# before it ever moved anyone, and a sleeper in Sunken Court's spring pit
+	# would just stand on the springs. Only a body that is resting or already
+	# falling gets pinned; a launched one keeps its rise and arcs under gravity.
+	if player.is_on_floor() and player.velocity.y >= 0.0:
 		player.velocity.y = 0.0
 	else:
 		player.velocity.y = minf(

@@ -268,6 +268,19 @@ func grant_impulse_buff(mult: float, dur: float) -> void:
 	impulse_buff_mult = maxf(impulse_buff_mult, mult)
 	impulse_buff_remaining = maxf(impulse_buff_remaining, dur)
 
+## Drop every movement buff window at once. Used when one window supersedes
+## another (Voodoo's ultimate replacing his ability) — this takes back something
+## the player was GIVEN, so it is deliberately not part of clear_all_debuffs,
+## which only undoes what was done TO them.
+func clear_movement_buffs() -> void:
+	speed_buff_mult = 1.0
+	speed_buff_remaining = 0.0
+	impulse_buff_mult = 1.0
+	impulse_buff_remaining = 0.0
+	dash_buff_mult = 1.0
+	dash_buff_remaining = 0.0
+	_end_contact_window()
+
 func grant_dash_buff(mult: float, dur: float) -> void:
 	## Lengthens dashes only; jumps and wall jumps are untouched. Same refresh
 	## rule as every buff: strongest and longest, never additive.
