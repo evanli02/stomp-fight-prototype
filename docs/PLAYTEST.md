@@ -184,7 +184,8 @@ ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
 Honest list, so feedback lands on real problems:
 
 - Sound effects are **procedurally generated placeholders** (chiptune blips from `assets/tools/generate_sfx.py`). They convey events, not atmosphere. No music.
-- The HUD is laid out for two players; 2v2 and 3v3 will look cramped.
+- Hero names drop off the HUD at 2v2 and 3v3 - blocks shrink to fit six
+  seats, and the accent stripe carries hero identity instead.
 - Only two stages: Rooftop Rumble and Cryo Lab.
 - Pause (Esc / Start, from any seat) has volume, restart and quit-to-lobby.
   **Volume does not persist** between runs. No rebinding beyond that.

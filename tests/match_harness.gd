@@ -61,6 +61,7 @@ func _run() -> void:
 	await _check_team_formats()
 	await _check_lobby_seating()
 	await _check_pause_actions()
+	await _check_hud_layout()
 
 ## Hero select's rules, driven directly rather than through synthetic button
 ## presses — the screen is a thin shell over these and the rules are the part
@@ -941,3 +942,62 @@ func _check_audio() -> void:
 	Audio.play(&"stomp")
 	Audio.master_volume = 1.0
 	check("muting is honoured without erroring", true)
+
+## The HUD's layout is pure arithmetic over the roster and the format, so it can
+## be checked without drawing anything. What matters is that no two seats land in
+## the same place and nothing runs off the screen - the old version put seat 0 on
+## the left and every other seat at the same spot on the right, which was invisible
+## at 1v1 and drew three blocks on top of each other at 3v3.
+func _check_hud_layout() -> void:
+	var hud := load("res://src/ui/hud.gd").new() as CanvasLayer
+	add_child(hud)
+	await step(2)
+
+	for size: int in [1, 2, 3]:
+		GameManager.team_size = size
+		var rosters := {}
+		var teams := {}
+		for seat in GameManager.seat_count():
+			rosters[seat] = [&"deadeye", &"fei", &"terra"] as Array[StringName]
+			teams[seat] = GameManager.team_of_seat(seat)
+		GameManager.start_match(rosters, teams)
+		await step(2)
+
+		# Recompute the block origins the same way the HUD does, and look for
+		# collisions. Two seats sharing an origin is the exact bug this replaced.
+		var origins: Array[Vector2] = []
+		var s: float = hud._scale()
+		var width := 1280.0
+		var grouped: Dictionary = hud._teams()
+		for team in grouped:
+			var seats: Array = grouped[team]
+			for row in seats.size():
+				var block_w: float = 3.0 * hud.CARD_W * s + 2.0 * hud.CARD_GAP * s
+				var mirrored: bool = team != 0
+				origins.append(Vector2(
+					width - hud.MARGIN.x - block_w if mirrored else hud.MARGIN.x,
+					hud.MARGIN.y + row * (hud._block_h(s) + hud.ROW_GAP * s)))
+
+		check("%dv%d draws one block per seat" % [size, size],
+			origins.size() == GameManager.seat_count(),
+			"blocks=%d seats=%d" % [origins.size(), GameManager.seat_count()])
+
+		var overlap := ""
+		for i in origins.size():
+			for j in range(i + 1, origins.size()):
+				if origins[i].distance_to(origins[j]) < 4.0:
+					overlap += " %s" % origins[i]
+		check("%dv%d puts no two seats in the same place" % [size, size],
+			overlap.is_empty(), overlap)
+
+		# The whole stack has to stay clear of the play area. Anything past a
+		# third of a 720px screen is a HUD covering the fight.
+		var lowest: float = 0.0
+		for at: Vector2 in origins:
+			lowest = maxf(lowest, at.y + hud._block_h(s))
+		check("%dv%d keeps the HUD out of the play area" % [size, size], lowest < 240.0,
+			"reaches y=%.0f" % lowest)
+
+	GameManager.team_size = 1
+	hud.queue_free()
+	await step(2)

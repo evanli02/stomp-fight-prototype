@@ -30,7 +30,7 @@ length, who is sitting where) → hero select → stage select → rounds → re
 no audio, the HUD is laid out for two players, and netcode is out of scope by design — remote
 play is covered by streaming instead (`docs/PLAYTEST.md`).
 
-All four harnesses are green — **movement 78, combat 41, match 213, terrain 74 = 406 checks**,
+All four harnesses are green — **movement 78, combat 41, match 226, terrain 74 = 419 checks**,
 zero script errors. (This line goes stale easily; re-count it rather than trusting it.)
 
 ---
@@ -348,7 +348,7 @@ makes sense:
    debuff buffs, the dive-dash nerf and Sai's swing speed all pass their harness checks, but
    only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
    is the single most likely thing to be wrong by feel.
-2. **HUD for more than two players.** 2v2 and 3v3 run, but the readout was laid out for two.
+2. **Settings persistence** (`user://`). Volume resets every run, and rebinding has nowhere to live.
 3. Rebind UI + `user://input.cfg` persistence (volume belongs in the same file); per-match RNG seeding (`GameManager._ready`);
    the two remaining launch stages (Powerplant, Skyline Gardens).
 4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or

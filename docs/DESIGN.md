@@ -249,7 +249,7 @@ Notes:
 ## 10. UX / Meta screens
 - **Pause** is available from any seat while a stage is up: volume, restart the match, quit to lobby. Not available on the select screens, which are already waiting for somebody.
 - Lobby → format select (1v1/2v2/3v3, Bo1/3/5) → per-round: hero select (3 picks, simultaneous, timed) → stage select (coinflip/loser) → combat → round results → match results.
-- In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown radial, ultimate available marker (team-visible), enemy roster life state.
+- In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown bar + seconds, ultimate lamps (team-visible), enemy roster life state. Laid out **by team** - team 0 down the left edge, team 1 down the right - so which side of the screen a block is on always answers whose it is. Blocks scale down as the format grows; hero names are the first thing dropped, since the accent stripe already carries identity.
 
 ## 11. Out of scope for v0.x (explicitly)
 - Online netcode (design for it: fixed-tick simulation, input-driven, deterministic where cheap — see IMPLEMENTATION.md §Networking posture).
