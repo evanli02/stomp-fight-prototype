@@ -10,6 +10,12 @@ extends Node
 
 enum Device { KBM, PAD }
 
+## Pause is the one action that is NOT per seat. Six people share one screen, so
+## whoever reaches a button first stops the game for everybody — namespacing it
+## would mean only seat 3 could pause a fight seat 3 is losing. Bound to Escape
+## and to Start on every pad at once (device -1).
+const PAUSE: StringName = &"ui_pause_game"
+
 ## Local seats. Enough for 3v3 on one machine: one keyboard seat plus five pads.
 ## How many are actually in play is GameManager.seat_count(); this is only how
 ## many have bindings registered, and registering unused ones costs nothing.
@@ -38,6 +44,7 @@ var _chord_pending: Dictionary = {}
 var _poll_cache: Dictionary = {}
 
 func _ready() -> void:
+	_register_pause()
 	for slot in MAX_LOCAL_PLAYERS:
 		# Seat 0 is mouse and keyboard; every later seat takes the next controller
 		# in order. Rebinding UI (and user://input.cfg persistence, DESIGN 7)
@@ -46,6 +53,24 @@ func _ready() -> void:
 			assign_device(slot, Device.KBM)
 		else:
 			assign_device(slot, Device.PAD, slot - 1)
+
+## Escape, and Start on any controller. Registered once and never rebuilt, since
+## it belongs to no seat.
+func _register_pause() -> void:
+	if InputMap.has_action(PAUSE):
+		InputMap.erase_action(PAUSE)
+	InputMap.add_action(PAUSE)
+	InputMap.action_add_event(PAUSE, _key(KEY_ESCAPE))
+	# device -1 is "any joypad", which is what makes one binding serve six pads.
+	var start := _joy(JOY_BUTTON_START)
+	start.device = -1
+	InputMap.action_add_event(PAUSE, start)
+
+## Edge-triggered pause. Read from a node that runs while the tree is paused —
+## everything else here is polled per physics tick, and a paused tree stops that
+## for anything not marked PROCESS_MODE_ALWAYS.
+func pause_pressed() -> bool:
+	return Input.is_action_just_pressed(PAUSE)
 
 #region Lobby seat claiming
 ## Forget who is sitting where. Called when a lobby opens, so a device that

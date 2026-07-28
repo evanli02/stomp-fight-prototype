@@ -174,6 +174,35 @@ func start_match(rosters: Dictionary, teams: Dictionary,
 	else:
 		start_round()
 
+## Run the same match again from round one: same rosters, same teams, same stage,
+## score wiped. Used by the pause menu, and deliberately NOT a fresh start_match
+## call from the caller's side — that would drop _stage_select_enabled and
+## quietly stop routing later rounds through stage select.
+func restart_match() -> void:
+	var rosters := {}
+	var teams := {}
+	for pid in MatchState.players:
+		var ids: Array[StringName] = []
+		for hero in MatchState.roster(pid):
+			ids.append(hero)
+		rosters[pid] = ids
+		teams[pid] = MatchState.team_of(pid)
+	if rosters.is_empty():
+		return
+	var routed := _stage_select_enabled
+	start_match(rosters, teams, false)   # straight back in, on the stage we are on
+	_stage_select_enabled = routed
+
+## Back to the front of the session. Rosters go with it: the lobby is where seats
+## are claimed, and a stale roster would seat players who never sat down.
+func return_to_lobby() -> void:
+	MatchState.clear_players()
+	MatchState.round_wins.clear()
+	MatchState.last_round_loser_team = -1
+	round_index = 0
+	_stage_select_enabled = false
+	set_phase(Phase.LOBBY)
+
 func begin_stage_select() -> void:
 	set_phase(Phase.STAGE_SELECT)
 

@@ -10,6 +10,7 @@ extends Node
 const LOBBY := preload("res://src/ui/lobby.tscn")
 const HERO_SELECT := preload("res://src/ui/hero_select.tscn")
 const STAGE_SELECT := preload("res://src/ui/stage_select.tscn")
+const PAUSE_MENU := preload("res://src/ui/pause_menu.tscn")
 
 var _current: Node = null
 
@@ -21,6 +22,10 @@ func _ready() -> void:
 	# the tree just early enough to spawn twice.
 	GameManager.phase_changed.connect(_on_phase_changed)
 	GameManager.round_started.connect(_on_round_started)
+	# Added once and never swapped out: the pause menu outlives every screen and
+	# must not be the thing _show() frees. It runs while the tree is paused, so
+	# it can undo the pause it caused.
+	add_child(PAUSE_MENU.instantiate())
 	# Lobby first: it is the only screen that decides how many seats exist, and
 	# every screen after it sizes itself from GameManager.team_size.
 	_show_lobby()
@@ -30,6 +35,8 @@ func _on_phase_changed(phase: GameManager.Phase) -> void:
 		_show_stage_select()
 	elif phase == GameManager.Phase.HERO_SELECT:
 		_show_hero_select()
+	elif phase == GameManager.Phase.LOBBY:
+		_show_lobby()
 
 ## Every round gets a fresh stage instance, because every round can be on a
 ## different stage. Rebuilding one that did not change costs a frame and keeps

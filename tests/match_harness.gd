@@ -60,6 +60,7 @@ func _run() -> void:
 	await _check_stage_select_flow()
 	await _check_team_formats()
 	await _check_lobby_seating()
+	await _check_pause_actions()
 
 ## Hero select's rules, driven directly rather than through synthetic button
 ## presses — the screen is a thin shell over these and the rules are the part
@@ -798,6 +799,68 @@ func _check_lobby_seating() -> void:
 	InputConfig.assign_device(0, InputConfig.Device.KBM)
 	for seat in range(1, InputConfig.MAX_LOCAL_PLAYERS):
 		InputConfig.assign_device(seat, InputConfig.Device.PAD, seat - 1)
+
+## What the pause menu can do to a match. The menu itself is a thin shell over
+## two GameManager calls; what can go wrong is what they leave behind.
+##
+## Runs LAST, once no stage is alive. Clearing rosters while a stage is still
+## listening leaves its respawn loop asking MatchState about players that no
+## longer exist, once per frame.
+func _check_pause_actions() -> void:
+	check("pause is bound to something", InputMap.has_action(InputConfig.PAUSE))
+	var binds := InputMap.action_get_events(InputConfig.PAUSE)
+	var has_key := false
+	var has_pad := false
+	for event in binds:
+		has_key = has_key or event is InputEventKey
+		# device -1 is "any joypad": one binding has to serve six pads, because
+		# whoever reaches a Start button first stops the game for everybody.
+		has_pad = has_pad or (event is InputEventJoypadButton and event.device == -1)
+	check("Escape pauses", has_key)
+	check("Start on any pad pauses", has_pad, "binds=%d" % binds.size())
+
+	# Restart: same rosters and teams, score wiped, back at round one.
+	var rosters := {
+		0: [&"deadeye", &"fei", &"terra"] as Array[StringName],
+		1: [&"cerebelle", &"sai", &"slip"] as Array[StringName],
+	}
+	GameManager.start_match(rosters, {0: 0, 1: 1}, true)
+	GameManager.choose_stage(&"cryo_lab")
+	MatchState.round_wins[0] = 2
+	var roster_before: Array = MatchState.roster(0).duplicate()
+	GameManager.restart_match()
+	check("restart keeps the same rosters", MatchState.roster(0) == roster_before,
+		"%s -> %s" % [roster_before, MatchState.roster(0)])
+	check("restart wipes the score", MatchState.wins_for(0) == 0,
+		"wins=%d" % MatchState.wins_for(0))
+	check("restart drops you back into a round",
+		GameManager.phase == GameManager.Phase.ROUND_ACTIVE, "phase=%d" % GameManager.phase)
+	check("restart stays on the stage you were on",
+		GameManager.current_stage == &"cryo_lab", "stage=%s" % GameManager.current_stage)
+
+	# ...and later rounds still route through stage select. A plain start_match
+	# call from the menu would have silently turned that off for the rest of the
+	# session, which is exactly why restart_match exists.
+	for hero: StringName in MatchState.roster(1).duplicate():
+		kill_hero(1, hero)
+	GameManager.end_round()
+	var routed := false
+	for i in 400:
+		await get_tree().physics_frame
+		if GameManager.phase == GameManager.Phase.STAGE_SELECT:
+			routed = true
+			break
+	check("restart preserves stage-select routing", routed,
+		"phase=%d" % GameManager.phase)
+
+	# Quit to lobby takes the rosters with it: the lobby is where seats are
+	# claimed, and a stale roster would seat players who never sat down.
+	GameManager.return_to_lobby()
+	check("quitting to the lobby clears the rosters", MatchState.players.is_empty(),
+		"players=%d" % MatchState.players.size())
+	check("and lands in the LOBBY phase",
+		GameManager.phase == GameManager.Phase.LOBBY, "phase=%d" % GameManager.phase)
+	check("and wipes the score with it", MatchState.wins_for(0) == 0)
 
 ## Audio. Two things matter and neither is audible in a harness: the cue table
 ## and the generated files agree, and playing a sound can never change the game.
