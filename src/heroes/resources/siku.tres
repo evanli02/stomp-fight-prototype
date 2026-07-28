@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/siku_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/siku_pillar.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/siku_frostbite.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Siku"
+accent_color = Color(0.619608, 0.87451, 1, 1)
+ability_cooldown = 10.0
+ability_text = "Pillar (ground only): an ice pillar erupts under you, launching everyone standing there - you included - straight up with their run speed kept. Melts after 5s. Refused under a low ceiling."
+ultimate_text = "Frostbite: six fast ice pulses ripple out of you, one every few seconds. Each catch is a 1.5s stun and a dead drop."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

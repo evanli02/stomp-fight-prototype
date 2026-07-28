@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/voodoo_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/voodoo_soul_ignition.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/voodoo_phantom.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Voodoo"
+accent_color = Color(0.74902, 0.372549, 1, 1)
+ability_cooldown = 9.0
+ability_text = "Soul Ignition: ignite for a window - faster run, bigger jump, dash and slide jump. Touching an enemy knocks them back and slows their whole kit for 3s."
+ultimate_text = "Phantom: the ignition, turned up, for far longer - and Voodoo becomes a ghost who passes through bodies. Passing through an enemy stuns them 3s. A head is still a head: falling through one is a stomp."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")

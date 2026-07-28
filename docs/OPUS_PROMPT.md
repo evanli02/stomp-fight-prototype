@@ -60,6 +60,7 @@ Reuse the prompt with the last paragraph swapped:
 - **M4**: "implement Milestone M4: the four vertical-slice heroes (Deadeye, Skyla, Mason, Nova) per DESIGN §5.2, as Ability components."
 - **M5**: "implement Milestone M5: the TerrainElement roster (pole, ice, stun line, spring, speed pad, portals, wind, explosion) and the Rooftop Rumble + Cryo Lab stages."
 - **M6**: "implement Milestone M6: 2v2/3v3, stage select flow with coinflip/loser-picks, Bo1/3/5, and a first VFX/SFX readability pass."
+- **M7 (the second hero wave)**: "implement the four designed heroes — Voodoo, Saint, Vesper, Siku — from docs/NEW_HEROES.md. That file is the authoritative spec: read it fully first, alongside CLAUDE.md. Art, HeroData resources, and ability skeletons with final tunables already exist; your job is §1's shared systems (impulse buff, contact debuff, phasing, cleanse, stomp ward, the sleep system + Sleeping state), then the kits in the skeleton files, then the harness cases in §4 — registration in GameManager.HERO_ROSTER is the LAST step, after everything passes. The interaction table in §3 is a list of assertions to write, not trivia. Rule 1 note: Voodoo's phantom stomp resolves through receive_stomp like Terra's slam, and Saint's ward consumes INSIDE receive_stomp — no new life-touching paths exist anywhere in this wave."
 
 ## Tips for driving the sessions
 

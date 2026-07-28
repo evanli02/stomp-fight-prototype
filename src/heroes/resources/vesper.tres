@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="HeroData" load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://src/heroes/hero_data.gd" id="1"]
+[ext_resource type="SpriteFrames" path="res://src/heroes/resources/frames/vesper_frames.tres" id="2"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/vesper_sleep_dart.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://src/heroes/abilities/vesper_deep_sleep.tscn" id="4"]
+
+[resource]
+script = ExtResource("1")
+hero_name = "Vesper"
+accent_color = Color(1, 0.180392, 0.768627, 1)
+ability_cooldown = 5.0
+ability_text = "Sleep Dart: a quick dart that briefly slows and adds a stack. Three stacks and the target falls asleep - walk-only, crawling pace, no momentum, for ~6.5s."
+ultimate_text = "Deep Sleep: a huge slow sphere that drifts through walls, floors and bodies. Enemies it touches drop from the air and sleep half again as long as the dart's sleep."
+sprite_frames = ExtResource("2")
+ability_scene = ExtResource("3")
+ultimate_scene = ExtResource("4")
