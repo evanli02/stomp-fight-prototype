@@ -1,99 +1,98 @@
-class_name FractureShot extends Node2D
-## Terra's ultimate (DESIGN 5.2): a wide slab of force that drags whoever it
-## catches along with it, then detonates against the first terrain it meets.
-## The caught fall to the ground slowed and unable to dash or jump for a beat —
-## grounded, in both senses. It cannot take a life (CLAUDE.md 1).
+class_name FractureWave extends Node2D
+## Terra's ultimate (DESIGN 5.2): an instantaneous wall of force along the aim —
+## the same shape of thing as Kid's wind cannon, but much wider, and it does NOT
+## pass through terrain: the wave crosses the stage in one frame and dies on the
+## first surface it meets. Bodies never stop it; only the stage does.
+##
+## Everyone caught in the corridor is stunned and hurled toward the surface the
+## wave stopped at. The hurl is a velocity override, not a teleport — the body
+## flies there under move_and_slide, so it lands pinned against whatever is
+## actually in its own path and can never be pushed inside terrain. They arrive
+## slowed and with jump/dash gutted for a long window: grounded, in both senses.
+## It cannot take a life (CLAUDE.md 1).
 
-const SIZE: Vector2 = Vector2(64, 76)
-const SPEED: float = 720.0
-const RANGE: float = 900.0
-const BLAST_RADIUS: float = 230.0
+## Wider than Kid's cannon (44) by a lot: this is the ultimate version of the
+## shape, and dodging it should mean not being in the half of the stage it
+## crossed, not stepping one body-width aside.
+const HALF_WIDTH: float = 90.0
+## Longer than any stage dimension — in a sealed arena the wave always ends on
+## terrain, which is the point: there is always a wall to be thrown against.
+const MAX_RANGE: float = 2400.0
+## The hurl. Fast enough that "instantly pushed to the wall" is what it looks
+## like — most of the stage is crossed inside a couple of tenths of a second —
+## while still being real velocity that terrain resolves honestly.
+const PUSH_SPEED: float = 2600.0
 const SLOW_MULT: float = 0.805
-const SLOW_TIME: float = 6.5
-const IMPAIR_TIME: float = 5.0
+const SLOW_TIME: float = 11.0
+const IMPAIR_TIME: float = 8.5
+const LIFE: float = 0.45
 
-var owner_team: int = -1
 var accent: Color = Color(0.71, 0.40, 0.11)
-var _direction: Vector2 = Vector2.RIGHT
-var _travelled: float = 0.0
-var _area: Area2D
-var _dragged: Dictionary = {}
-## Where the slab has been, so the path it carved stays readable after it passes.
-var _trail: Array = []
+var from_point: Vector2 = Vector2.ZERO
+var direction: Vector2 = Vector2.RIGHT
+var _reach: float = 0.0
+var _age: float = 0.0
 
-func launch(from: Player, dir: Vector2) -> void:
-	owner_team = from.team_id
-	_direction = dir.normalized()
-	global_position = from.global_position + _direction * 30.0
-	if from.hero != null:
-		accent = from.hero.accent_color
+func launch(caster: Player, dir: Vector2) -> void:
+	from_point = caster.global_position
+	direction = dir.normalized()
+	global_position = from_point
+	if caster.hero != null:
+		accent = caster.hero.accent_color
 
-func _ready() -> void:
-	_area = Area2D.new()
-	_area.collision_layer = 0
-	_area.collision_mask = 2
-	var shape := CollisionShape2D.new()
-	var rect := RectangleShape2D.new()
-	rect.size = SIZE
-	shape.shape = rect
-	_area.add_child(shape)
-	add_child(_area)
-	rotation = _direction.angle()
-
-func _physics_process(delta: float) -> void:
-	var motion := _direction * SPEED * delta
-	# Terrain ends it — raycast so the slab cannot skip a thin wall.
-	var space := get_world_2d().direct_space_state
-	var query := PhysicsRayQueryParameters2D.create(global_position, global_position + motion
-		+ _direction * SIZE.x * 0.5)
+	# Where the wave stops: the first terrain along the centre line.
+	var space := caster.get_world_2d().direct_space_state
+	var query := PhysicsRayQueryParameters2D.create(
+		from_point, from_point + direction * MAX_RANGE)
 	query.collision_mask = 1
 	var hit := space.intersect_ray(query)
-	global_position += motion
-	_travelled += motion.length()
-	_trail.append(global_position)
-	if _trail.size() > 26:
-		_trail.pop_front()
+	_reach = from_point.distance_to(hit.position) if not hit.is_empty() else MAX_RANGE
 
-	# Drag: caught enemies ride the slab. Sorted for deterministic multi-drag.
-	var bodies := _area.get_overlapping_bodies()
-	bodies.sort_custom(func(a: Node2D, b: Node2D) -> bool:
-		return a.get_instance_id() < b.get_instance_id())
-	for body in bodies:
-		var p := body as Player
-		if p == null or p.team_id == owner_team:
+	# Resolved once, on spawn, like the wind cannon: instantaneous is the design,
+	# so there is no travel window to dodge inside. Sorted for determinism.
+	var targets := caster.get_tree().get_nodes_in_group(&"players")
+	targets.sort_custom(func(a: Player, b: Player) -> bool: return a.player_id < b.player_id)
+	for t in targets:
+		var p := t as Player
+		if p == null or p.team_id == caster.team_id:
 			continue
-		_dragged[p.get_instance_id()] = p
-		p.global_position += motion
-		p.set_velocity_override(_direction * SPEED)
-
-	if not hit.is_empty():
-		_detonate()
-	elif _travelled >= RANGE:
-		queue_free()
-	queue_redraw()
-
-func _detonate() -> void:
-	for body in get_tree().get_nodes_in_group(&"players"):
-		var p := body as Player
-		if p == null or p.team_id == owner_team:
+		var offset := p.global_position - from_point
+		var along := offset.dot(direction)
+		if along < 0.0 or along > _reach:
 			continue
-		if p.global_position.distance_to(global_position) > BLAST_RADIUS \
-				and not _dragged.has(p.get_instance_id()):
+		if (offset - direction * along).length() > HALF_WIDTH:
 			continue
-		# Dropped, slowed, and grounded: no dash, no jump, for a beat.
-		p.set_velocity_override(Vector2(0.0, 320.0))
+		p.apply_stun(caster.combat.stun_terra_ult)
+		# The stun keeps momentum by design, which is exactly what carries them
+		# the rest of the way to the wall.
+		p.set_velocity_override(direction * PUSH_SPEED)
 		p.apply_slow(SLOW_MULT, SLOW_TIME, &"fracture")
 		p.apply_impairment(0.0, IMPAIR_TIME, &"fracture")
-	queue_free()
+
+func _process(delta: float) -> void:
+	_age += delta
+	if _age >= LIFE:
+		queue_free()
+		return
+	queue_redraw()
 
 func _draw() -> void:
-	var half := SIZE * 0.5
-	# Travel trail, drawn in local space behind the slab.
-	for i in _trail.size():
-		var at := to_local(_trail[i])
-		var fade := float(i) / maxf(float(_trail.size()), 1.0)
-		draw_rect(Rect2(at - Vector2(half.x * 0.5, half.y), Vector2(half.x, SIZE.y)),
-			Color(accent.r, accent.g, accent.b, 0.05 + 0.22 * fade))
-	draw_rect(Rect2(-half, SIZE), Color(accent.r, accent.g, accent.b, 0.8))
-	draw_rect(Rect2(-half, SIZE), Color(1, 1, 1, 0.9), false, 2.0)
-	draw_rect(Rect2(Vector2(half.x - 6, -half.y), Vector2(6, SIZE.y)), Color(1, 1, 1, 0.7))
+	var fade: float = 1.0 - clampf(_age / LIFE, 0.0, 1.0)
+	var dir := direction
+	var n := Vector2(-dir.y, dir.x)
+	# The corridor: a translucent slab from Terra to the wall it broke on.
+	var corners: PackedVector2Array = [
+		n * HALF_WIDTH, dir * _reach + n * HALF_WIDTH,
+		dir * _reach - n * HALF_WIDTH, -n * HALF_WIDTH,
+	]
+	draw_colored_polygon(corners, Color(accent.r, accent.g, accent.b, fade * 0.28))
+	for lane: float in [-1.0, 1.0]:
+		draw_line(n * lane * HALF_WIDTH, dir * _reach + n * lane * HALF_WIDTH,
+			Color(accent.r, accent.g, accent.b, fade * 0.9), 2.5)
+	# Cross-ripples sweeping toward the impact, selling the direction.
+	for i in 5:
+		var at := dir * minf(60.0 + i * (_reach / 5.0) + _age * 1600.0, _reach)
+		draw_line(at - n * HALF_WIDTH, at + n * HALF_WIDTH, Color(1, 1, 1, fade * 0.35), 1.5)
+	# The impact face: the wall the wave (and everyone in it) stopped at.
+	draw_line(dir * _reach - n * HALF_WIDTH, dir * _reach + n * HALF_WIDTH,
+		Color(1, 1, 1, fade), 4.0)
