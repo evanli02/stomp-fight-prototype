@@ -28,6 +28,9 @@ Do not implement from memory of similar games; this game deviates from genre def
 ## Workflows
 
 ### Add a hero
+0. If it is one of the second wave (Voodoo, Saint, Vesper, Siku): `docs/NEW_HEROES.md` is
+   the authoritative spec — art, HeroData, and ability skeletons already exist; follow its
+   build order and definition of done instead of starting from this recipe.
 1. Read DESIGN.md §5 for constraints and the roster table.
 2. Create `src/heroes/resources/<hero>.tres` (HeroData: name, colors, ability scene, ult scene, cooldown).
 3. Implement ability + ultimate as `Ability` subclasses in `src/heroes/abilities/` using only the player's public API and scene-spawned effects.

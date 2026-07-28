@@ -26,7 +26,7 @@ One PNG per animation, frames laid left-to-right in 32px columns. `<hero>_frames
 - **32×36, feet on row 35, body 34 px tall.** Identical for every hero — heroes share movement, hitboxes, and silhouette *size* (DESIGN 5.1). Only identity differs. The head is ~15 px wide and owns the sprite.
 - **Everything is drawn facing +x (right).** The engine mirrors it for leftward travel (`flip_h = facing < 0`, pinned by the movement harness). Every forward cue must agree: nose and face features forward, cap and helmet peaks jutting **forward**, capes/scarves/fins trailing **backward**, torso leaning into the direction of travel. A backward-pointing peak makes the whole character read as facing the wrong way even with the eyes drawn correctly — the silhouette wins at gameplay speed, so a head whose mass leans backward will look flipped no matter where the features sit.
 - **The top ~10 px is the head/stomp hurtbox, and the accent owns it.** That band is the kill zone (DESIGN 3.1); if a player cannot see where it ends, the core mechanic is unreadable. Crouched and sliding frames drop the body into the bottom half, accent band riding down with it.
-- Dark suit + one signature accent: Deadeye red `#e63946`, Fei jade `#3ddc84`, Mason gold `#ffd23f`, Cerebelle violet `#9d4edd`, Sai pink `#ff6ec7`, Slip aqua `#2de2e6`, Terra brown `#b5651d`, Kid orange `#ff8b2e`.
+- Dark suit + one signature accent: Deadeye red `#e63946`, Fei jade `#3ddc84`, Mason gold `#ffd23f`, Cerebelle **dark** violet `#5a189a`, Sai pink `#ff6ec7`, Slip **deep** blue `#1c6dd0`, Terra brown `#b5651d`, Kid orange `#ff8b2e`, Voodoo **bright** purple `#bf5fff`, Saint white `#f2f2fa`, Vesper neon pink `#ff2ec4` on a black costume, Siku ice blue `#9edfff`. The hue-family pairs are deliberate splits: Cerebelle went dark so Voodoo could be loud; Slip went deep so Siku could be pale. Vesper's *costume* is black by design, but her accent slots (and `HeroData.accent_color`) carry her eye-pink — a pure black accent would erase the head band, the HUD stripe, and every effect she owns.
 - **Internal keylines, not just an outline.** Every limb is drawn with its own 1px dark border. A dark suit against a dark stage collapses into one blob otherwise, and the back leg has to stay separable from the front leg while both are in shadow.
 - Suit midtones are tinted ~20% toward the hero's accent. The night palette is too narrow for an untinted ramp to hold up at gameplay zoom.
 - Rim light on the up-right key side, fading toward the midtone further down the body — a uniform bright edge reads as an outline, not as light.
@@ -67,6 +67,10 @@ Each is a different silhouette and one unmistakable prop, so heroes are told apa
 | **Slip** | aqua | tall spiked hair, goggles | backpack gadget |
 | **Terra** | brown | hard hat, front-heavy brim | widest build, gauntlets |
 | **Kid** | orange | big round glasses, messy fringe | satchel, chest screen |
+| **Voodoo** | bright purple | white doll mask, X eyes, purple head-flames | long coat, stitched-X chest |
+| **Saint** | white | bare crown, halo circlet | vestment cape, gold-bead cross |
+| **Vesper** | black / neon pink | hood + half-mask, one glowing pink eye | all-black suit, diamond chest mark |
+| **Siku** | ice blue | fur-ringed parka hood | chunky coat, snowflake chest mark |
 
 ### Team read (deferred)
 Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), never by recoloring the suit. That needs a shader pass and lands in M6. Until then the duel stage gives its two seats visually opposite heroes instead of tinting them, because tinting a whole sprite is exactly what this rule forbids.
@@ -80,7 +84,7 @@ Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), 
 - Stun/hazard telegraphy always uses the gold→white ramp; danger imminent = red `#e63946`.
 
 ## VFX language
-- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Debuff badges over the head, one per source, distinguished by SHAPE first and colour second** (slash / bolt / bars / ring). Slip's anchor is a pulsing diamond with a countdown arc — an invisible anchor makes the whole ability unreadable for both players. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact.
+- Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Debuff badges over the head, one per source, distinguished by SHAPE first and colour second** (slash / bolt / bars / ring). Slip's anchor is a pulsing diamond with a countdown arc — an invisible anchor makes the whole ability unreadable for both players. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact. **Buff windows wear a `HeroAura`** (`src/heroes/effects/hero_aura.gd`): `wind` gusts for Fei's Tailwind, `surge` licks for empowerments (Voodoo — the ult passes a higher intensity so it reads angrier than the ability), `ward` halo for Saint's blessing; Fei's air jump additionally kicks off a `WindPuff` cloud at the cast point. All follower-style effects (stage-parented, tracking the body) — never children of the player.
 
 ## Sound
 

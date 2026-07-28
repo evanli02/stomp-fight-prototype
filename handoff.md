@@ -24,6 +24,7 @@ Milestones M1–M5 from `docs/IMPLEMENTATION.md` §7 are complete; M6 is most of
 | M5 | Eight terrain elements + `PoleClimb`, three stages, stage select | done |
 | — | Art overhaul: chibi proportions, 8 heroes, VFX, UI pass | done |
 | M6 | 2v2/3v3, lobby, Windows export, audio, pause, HUD | **settings persistence, RNG seeding, 2 stages left** |
+| M7 | Second hero wave: Voodoo, Saint, Vesper, Siku | **art + skeletons done; kits pending — `docs/NEW_HEROES.md`** |
 
 You can boot `src/main.tscn` and play a full match at 1v1, 2v2 or 3v3: lobby (format, match
 length, who is sitting where) → hero select → stage select → rounds → results, on any of three
@@ -99,23 +100,30 @@ to load.
 
 ---
 
-## 3. Roster (8 heroes)
+## 3. Roster (8 live heroes + 4 designed)
 
 Heroes are identical in movement and hitboxes. Identity is ability + ultimate + cosmetics only.
-Cooldown order is Sai < Fei < Deadeye < Cerebelle < Slip < Kid < Terra < Mason. The
-Fei-shortest ordering the owner set applies to the original four; Sai's grapple was cut to
-4.7 s afterwards and is now the shortest in the game.
+Cooldown order is Sai 4.7 < Deadeye 5.2 < Fei 5.6 < Cerebelle 6.7 < Slip 8 < Kid 8.5 <
+Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
-| Deadeye | red | Bolt — stunning projectile (6.4) | Rapid Fire — resets CD; next bolt +50% velocity, 5.5 s stun |
-| Fei | jade green | Double Trouble — a stronger-than-normal extra jump (5.6) | 8 s window where the ability's CD is 0.3 s |
-| Cerebelle | purple | Burst — near-instant radial knockback, 2× force (6.7) | Supernova — one map-wide ring that expands slowly; caught players are stunned, lose all horizontal velocity, and fall |
-| Sai | pink | Grapple — visible hook; swing on the rope (5 redirects), recast to reel in (4.7) | Slash — dashing multi-hit arc |
-| Slip | aqua | Slip Back — drop a **visible** anchor, recast to blink instantly back to it (8.0) | Teleport — a linked pad pair; enemies arrive slowed, allies hasted |
-| Terra | brown | Slam — hover, then rocket straight down (9.0) | Fracture — wide slab that drags, trails, and detonates |
-| Kid | orange | Wind Cannon — pushing beam (8.5) | EMP — telegraphed wave that disrupts |
-| Mason | gold | Bumper Block — solid block that is a **four-sided spring**: fixed 390 launch out of the touched face, tangential speed kept (10.0) | Keystone — allies pass through, enemies freeze then drop |
+| Deadeye | red | Bolt — stunning projectile (5.2) | Rapid Fire — resets CD; next bolt 2× velocity, **through terrain**, 6.5 s stun |
+| Fei | jade green | Double Trouble — a stronger-than-normal extra jump, with a wind-puff VFX (5.6) | 8 s window where the ability's CD is 0.3 s; wears a wind aura |
+| Cerebelle | **dark violet** | Burst — near-instant radial knockback, 210 px radius, ring lingers (6.7) | Supernova — one map-wide ring at 250 px/s; caught players are stunned, lose all velocity, and fall |
+| Sai | pink | Grapple — visible hook at **any range** (the aim decides, not a range cap); swing (5 redirects), recast to reel in; jump-off ×1.35 (4.7) | Slash — instant line **through terrain**, 104 px corridor; lands at the furthest body-fits-and-inside-the-box point (see sai_slash.gd) |
+| Slip | **deep blue** | Slip Back — drop a **visible** anchor, recast to blink instantly back to it (8.0) | Teleport — a linked pad pair; enemies arrive slowed, allies hasted |
+| Terra | brown | Slam — hover, then rocket straight down (9.0) | Fracture — **instant 180px-wide wave**, stops at first terrain, victims stunned 2 s and hurled into that surface, long slow/impair |
+| Kid | orange | Wind Cannon — pushing beam (8.5) | EMP — telegraphed wave that disrupts for 9 s |
+| Mason | gold | Bumper Block — solid block that is a **four-sided spring**: fixed 470 launch out of the touched face, tangential speed kept, 6.5 s life (10.0) | Keystone — allies pass through; enemies freeze 0.45 s, fall, re-freeze — 3-4 freezes on the way through a block |
+
+**The second wave** — Voodoo (bright purple, empower + phase), Saint (white, cleanse + team
+ward), Vesper (black/neon pink, sleep stacks), Siku (ice blue, ice pillar + pulse storm) —
+has art, HeroData, and skeleton abilities in the repo but **no kits and no roster
+registration**. `docs/NEW_HEROES.md` is their authoritative spec and the build order,
+including the new Player API they need (sleep + a `Sleeping` state, phasing, cleanse,
+stomp ward, impulse buff). Do not register them in `GameManager.HERO_ROSTER` until the
+kit passes the harnesses.
 
 **Terra's Slam can end in a life loss and that is not a rule-1 violation.** A slam is a very
 fast fall, and falling onto a head *is* the stomp system: it goes through `receive_stomp` with
@@ -409,6 +417,26 @@ blocks on top of each other at 3v3.
 
 ---
 
+**Kit rework + second-wave prep pass (2026-07-28).** Every existing hero except Slip got a
+kit change from the owner's notes — the per-hero details are in §3's table and the
+`tune:`/`feat:` commits. The ones with logic worth knowing about: **Sai's slash** now cuts
+through terrain and finds its landing by walking back from the far end of the line until a
+body-sized shape query fits AND a rays-up-and-down "enclosed in the sealed box" test passes
+(that test is how it refuses to land in the void without knowing anything about the stage).
+**Terra's Fracture** is no longer a projectile: it is an instant wind-cannon-shaped wave,
+terrain-stopped, that hurls victims at the impact surface via velocity override (never a
+teleport, so nobody can be pushed inside a wall). **Mason's Keystone** had a real bug — the
+re-trigger gap (0.6) was shorter than the freeze (0.65), so anyone who fell in was re-frozen
+forever; the gap is now derived (`freeze_time + FALL_GAP`) and paced to 3-4 freezes on a
+straight fall-through. **Cerebelle and Slip changed colour** (dark violet / deep blue) to
+clear the bright ends of their hue families for Voodoo and Siku. Fei got a cast puff and an
+ult aura via the new reusable `HeroAura` effect (wind/surge/ward styles — the second wave's
+buff windows are expected to reuse it). And the four new heroes exist as art + HeroData +
+skeleton abilities, with `docs/NEW_HEROES.md` as their spec; `OPUS_PROMPT.md` gained the M7
+kickoff line.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
@@ -422,7 +450,13 @@ makes sense:
 3. **Settings persistence** (`user://`). Volume resets every run, and rebinding has nowhere to
    live; rebind UI + `user://input.cfg` belong in the same file. Per-match RNG seeding
    (`GameManager._ready`) is still a TODO.
-4. The two remaining launch stages (Powerplant, Skyline Gardens) — `docs/MAPS.md` is the guide,
+4. **Implement the second hero wave** — `docs/NEW_HEROES.md` is the spec, `OPUS_PROMPT.md`
+   M7 is the kickoff. Shared systems first (sleep, phasing, cleanse, ward, impulse buff),
+   kits second, `HERO_ROSTER` registration last.
+5. The two remaining launch stages (Powerplant, Skyline Gardens) — `docs/MAPS.md` is the guide,
    and Sunken Court (§6b there) is the worked example of building one from a sketch.
-5. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
+6. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.
+7. Feel-test the 2026-07-28 kit rework pass (§3) — every number in it is a first guess at the
+   owner's notes, and the slash-through-terrain landing search in particular wants human eyes
+   on weird aims (straight down through the roof, into a channel, at the outer wall).
