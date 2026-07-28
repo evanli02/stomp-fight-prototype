@@ -5,8 +5,9 @@ class_name CerebelleSupernova extends Ability
 ## Slow enough to outrun, wide enough that outrunning it only buys time. Whoever
 ## it catches is stunned, stripped of all momentum, and dropped.
 
-## Well under a capped run (420) so reacting early actually works.
-@export var ring_speed: float = 220.0
+## Still well under a capped run (420) so reacting early actually works — just
+## less room to be casual about it.
+@export var ring_speed: float = 250.0
 ## Generous enough to sweep the largest stage from any corner.
 @export var reach: float = 1800.0
 
