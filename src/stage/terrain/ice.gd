@@ -8,7 +8,9 @@ class_name Ice extends TerrainElement
 ## grip without the element having to notice.
 
 @export var slip: float = 1.0
-@export var tint: Color = Color(0.18, 0.35, 0.40)
+## Translucent on purpose: an ice sheet covers the band a body stands in, so an
+## opaque fill hides both the ground texture under it and anyone standing on it.
+@export var tint: Color = Color(0.18, 0.35, 0.40, 0.30)
 
 func physics_effect(p: Player, _delta: float) -> void:
 	if p.is_on_floor():
@@ -17,7 +19,10 @@ func physics_effect(p: Player, _delta: float) -> void:
 func _draw() -> void:
 	var half := size * 0.5
 	draw_rect(Rect2(-half, size), tint)
-	draw_rect(Rect2(-half, Vector2(size.x, 3)), Color(0.49, 0.98, 1.0))
+	# Sheen along the BOTTOM edge: the element sits a body-height above the
+	# surface it makes slippery, so the bottom is where the ground actually is.
+	draw_rect(Rect2(Vector2(-half.x, half.y - 3), Vector2(size.x, 3)),
+		Color(0.49, 0.98, 1.0, 0.75))
 	for i in int(size.x / 16.0):
-		draw_rect(Rect2(-half + Vector2(6 + i * 16, 7), Vector2(2, 2)),
-			Color(0.64, 0.98, 0.78, 0.7))
+		draw_rect(Rect2(Vector2(-half.x + 6 + i * 16, half.y - 9), Vector2(2, 2)),
+			Color(0.64, 0.98, 0.78, 0.6))

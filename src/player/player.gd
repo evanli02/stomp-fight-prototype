@@ -118,6 +118,11 @@ const CROUCH_INPUT_THRESHOLD: float = 0.5
 @onready var head_shape_crouch: CollisionShape2D = %HeadShapeCrouch
 
 func _ready() -> void:
+	# Above terrain, always. Terrain elements are add_child'd by the stage AFTER
+	# the scene-placed bodies, so at equal z-index the later sibling wins and an
+	# ice sheet or a portal paints straight over the character. The overlays
+	# parented to this node ride along on top of it (z_index is relative).
+	z_index = 5
 	# Abilities find their targets through this group rather than by walking the
 	# scene, so a stage can arrange its bodies however it likes.
 	add_to_group(&"players")

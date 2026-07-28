@@ -92,6 +92,19 @@ players climbing it meet, which is how wall-jump duels happen on purpose) and
 
 ---
 
+### Two things that are easy to get wrong
+
+- **Headroom.** A platform needs ~36px of clear air above it or the 34px body
+  cannot stand there. Stacking a small platform under a wide slab is the usual
+  way to build something that looks fine and cannot be used. `terrain_harness`
+  asserts this for Cryo Lab; copy that check for a new stage.
+- **Draw order.** Terrain is `add_child`ed by the stage *after* the scene-placed
+  bodies, so at equal z-index terrain paints over the characters. Players sit at
+  `z_index = 5` for this reason, and any element that draws a filled shape over
+  the ground (ice especially) should be translucent as well.
+
+---
+
 ## 3. The rules you cannot break
 
 From CLAUDE.md and DESIGN §6.1. These are not style preferences:

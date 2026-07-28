@@ -27,6 +27,7 @@ const FLOOR_TOP: float = 496.0
 const CROWN_TOP: float = 96.0     ## small platform under the ceiling
 const LEDGE_TOP: float = 160.0    ## upper side ledges
 const SLAB_TOP: float = 224.0     ## the wide centre slab
+const STEP_TOP: float = 368.0     ## two small steps between the poles
 const SHELF_TOP: float = 416.0    ## low side shelves, 80px above the floor
 
 ## The centre slab, and the flanking ledges that meet its edges.
@@ -71,6 +72,8 @@ func platforms() -> Array[Rect2]:
 		Rect2(128.0, LEDGE_TOP, 160.0, 16.0),                     # upper left
 		Rect2(608.0, LEDGE_TOP, 160.0, 16.0),                     # upper right
 		Rect2(SLAB_LEFT, SLAB_TOP, SLAB_RIGHT - SLAB_LEFT, 16.0), # centre slab
+		Rect2(304.0, STEP_TOP, 96.0, 16.0),                       # step, left of centre
+		Rect2(496.0, STEP_TOP, 96.0, 16.0),                       # step, right of centre
 		Rect2(16.0, SHELF_TOP, 160.0, 16.0),                      # low left shelf
 		Rect2(720.0, SHELF_TOP, 160.0, 16.0),                     # low right shelf
 	]
@@ -108,18 +111,22 @@ func _ice_over(left: float, right: float, surface_y: float) -> void:
 ## ceiling. Clear of the edge, the climb ends with a jump onto the slab, and the
 ## lower chamber has a way up that is not a portal.
 ##
-## The middle one stays under the slab and runs longer, exactly as drawn. It
-## cannot reach the top, and that is its job: it is the reposition and dash
-## refill in the middle of the room, not a route.
+## The middle one hangs off the slab's underside and runs longest, exactly as
+## drawn. It cannot reach the top, and that is its job: it is the reposition and
+## dash refill in the middle of the room, not a route.
+## Every pole now ends at POLE_BOTTOM, well clear of a standing body's head, so
+## reaching one is a jump rather than something you walk into.
+const POLE_BOTTOM: float = 400.0
+
 func _build_poles() -> void:
 	for x: float in [264.0, 632.0]:
-		_pole(Vector2(x, 370.0), 180.0)
-	_pole(Vector2(448.0, 354.0), 228.0)
+		_pole(x, 280.0)
+	_pole(448.0, SLAB_TOP + 16.0)   # the long one, hanging off the slab
 
-func _pole(at: Vector2, length: float) -> void:
+func _pole(x: float, top: float) -> void:
 	var pole := Pole.new()
-	pole.size = Vector2(8, length)
-	pole.position = at
+	pole.size = Vector2(8, POLE_BOTTOM - top)
+	pole.position = Vector2(x, (top + POLE_BOTTOM) * 0.5)
 	add_child(pole)
 
 ## Three pairs. Both ends of a pair face the same way, so velocity comes out of
@@ -132,8 +139,9 @@ func _build_portals() -> void:
 	_pair(Vector2(72.0, 456.0), Vector2(724.0, 100.0), COL_PURPLE)
 	# The flat one, floating at mid height on both sides: reachable by jumping off
 	# a low shelf or by dropping off the outer end of an upper ledge, and the only
-	# pair you cannot simply walk into.
-	_pair(Vector2(116.0, 288.0), Vector2(780.0, 288.0), COL_GREEN)
+	# pair you cannot simply walk into. Sits 48px above the steps, so the steps
+	# are the run-up to it as well as the way onto the poles.
+	_pair(Vector2(116.0, 320.0), Vector2(780.0, 320.0), COL_GREEN)
 
 func _pair(a_at: Vector2, b_at: Vector2, accent: Color) -> void:
 	var a := _portal(a_at, accent)

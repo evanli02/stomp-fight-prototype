@@ -351,6 +351,19 @@ func _check_cryo_lab() -> void:
 			lines += 1
 	check("cryo lab has no stun lines left", lines == 0, "lines=%d" % lines)
 	check("cryo lab hangs three poles", poles == 3, "poles=%d" % poles)
+	# Poles have to be out of reach from the ground: a body standing on the floor
+	# tops out at FLOOR - 41, and a pole you can touch while standing is a ladder,
+	# not a leap.
+	var standing_head: float = 496.0 - 41.0
+	var low := ""
+	for child in lab.get_children():
+		var pole := child as Pole
+		if pole == null:
+			continue
+		var bottom: float = pole.position.y + pole.size.y * 0.5
+		if bottom > standing_head - 20.0:
+			low += " pole at %s reaches %.0f" % [pole.position, bottom]
+	check("no pole can be grabbed without jumping", low.is_empty(), low)
 	check("cryo lab places three portal pairs", portals.size() == 6,
 		"portals=%d" % portals.size())
 
@@ -371,6 +384,19 @@ func _check_cryo_lab() -> void:
 	check("every platform is iced", bare.is_empty(), bare)
 	check("the floor is iced too", ice.size() == surfaces.size() + 1,
 		"sheets=%d surfaces=%d" % [ice.size(), surfaces.size()])
+
+	# Every platform needs a body's height of clearance under whatever is above
+	# it, or it is decoration you cannot stand on.
+	var crushed := ""
+	for block: Rect2 in surfaces:
+		for other: Rect2 in surfaces:
+			if other == block or other.position.y >= block.position.y:
+				continue
+			var overlaps: bool = other.position.x < block.position.x + block.size.x 				and other.position.x + other.size.x > block.position.x
+			var headroom: float = block.position.y - (other.position.y + other.size.y)
+			if overlaps and headroom < 36.0:
+				crushed += " %s under %s (%.0fpx)" % [block, other, headroom]
+	check("every platform has standing headroom", crushed.is_empty(), crushed)
 
 	# Pairs point at their own partner, and partners share a colour. A pair wired
 	# to the wrong end would still teleport, just not where the colour promised.
