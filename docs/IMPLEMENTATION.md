@@ -65,9 +65,15 @@ Player (CharacterBody2D)            player.gd — public API + physics integrati
 │   ├── Reel                        Sai: haul up the rope, stopping short of the hook
 │   ├── Recall                      Slip: blink back to the anchor, brief settle
 │   ├── PoleClimb                   ride down, down+jump to drop, dash to plummet
+│   ├── Sleeping                    Vesper: walk-only crawl, momentum pinned at 0,
+│   │                               head hurtbox LIVE; a stun suspends and returns
 │   └── Stunned                     unified stun; exits into Grace timer on player.gd
 ├── BodyShape / BodyShapeCrouch     one enabled at a time; crouch is half height,
 │                                   bottom-aligned, swapped via set_deferred
+├── ContactSense (Area2D)           enemy-body sense, monitoring OFF unless a
+│                                   window that cares about touching is running
+│                                   (Voodoo); reaches past the body because
+│                                   players are terrain and never overlap
 ├── HeadHurtbox (Area2D)            top 25%; disabled during grace
 │   └── HeadShape / HeadShapeCrouch  the crouched box is the top 25% of the short body
 ├── Status (Node2D)                 dash pips + ability cooldown over the head;
@@ -97,6 +103,15 @@ apply_slow(mult, dur)                     # speed-cap multiplier; strongest wins
 apply_impairment(mult, dur)               # scales jump/dash/wall-jump; 0 disables
 apply_disrupt(dur)                        # EMP: no dash, no ability, no ultimate
 apply_freeze(dur)                         # pinned mid-air, gravity suspended
+grant_impulse_buff(mult, dur)             # buff-side twin of impairment; launch_mult() multiplies both
+grant_debuff_immunity(dur)                # Saint: every apply_* above becomes a no-op
+grant_stomp_ward(dur)                     # Saint: next stomp spends the blessing, not the life
+clear_all_debuffs()                       # Saint: stun/slow/impair/disrupt/freeze/sleep/stacks/tags
+add_sleep_stack(life) -> int              # Vesper; stacks share one resettable timer
+consume_sleep_stacks() / apply_sleep(dur) # the Sleeping state; head hurtbox stays LIVE
+begin_phasing(dur) / end_phasing()        # Voodoo; per-pair collision exceptions, symmetric
+begin_contact_debuff(...) / begin_contact_stun(...)  # Voodoo; per-tick enemy-overlap scan
+apply_skin_override(frames) / clear_skin_override()  # Voodoo's phantom negative
 start_spawn_protection()                  # head hurtbox off until timeout OR first action
 respawn_at(pos: Vector2)                  # body + movement bookkeeping only; lives are MatchState's
 ```
@@ -217,10 +232,10 @@ Movement also emits `perfect_window_hit(kind)` (`&"bhop"` / `&"walljump"` / `&"d
 1. **M1 — Movement core**: player + state machine + configs + playground stage with flat ground/walls. Exit: b-hop chains and wall-jump chains feel good with debug overlay. *Mechanics implemented and verified headlessly (2026-07-25); the human feel pass in `playground.tscn` still has to sign off.*
 2. **M2 — Stomp loop**: stomp detection, lives, stun/grace/bounce, player-as-terrain + duels. Two local players, KBM + controller. Exit: a playable 1v1 with 1 dummy hero. *Mechanics implemented and verified headlessly (2026-07-25) in `src/stage/duel.tscn`; the human 1v1 pass still has to sign off. Not yet done here: hero swap, abilities, and the auto-swap/respawn a 3-hero roster needs (all M3+).*
 3. **M3 — Match structure**: MatchState, rounds, hero select (3 picks), swap, ult economy, HUD. *Done and verified headlessly (2026-07-26): 3-hero rosters, hero select with auto-fill, free swap, per-hero cooldowns ticking while benched, two ults per round with a 10 s gap, auto-swap and respawn on elimination, the round/results/best-of loop, and an in-round HUD. Stage select landed with M5, when there was more than one stage to pick between. The human pass on the full flow still has to sign off.*
-4. **M4 — Heroes**: full roster of EIGHT implemented and verified headlessly (2026-07-26): Deadeye, Fei, Mason, Cerebelle, Sai, Slip, Terra, Kid. Two ultimates use free-recast (`Ability._is_free_recast`), one ability is multi-stage (`_cooldown_after_fire`), one is air-gated (`_can_fire`). Terra's slam kill routes through the ordinary stomp system — no exception to rule 1 exists anywhere. Human pass outstanding.
+4. **M4 — Heroes**: the first EIGHT implemented and verified headlessly (2026-07-26): Deadeye, Fei, Mason, Cerebelle, Sai, Slip, Terra, Kid (the second wave is M7 below). Two ultimates use free-recast (`Ability._is_free_recast`), one ability is multi-stage (`_cooldown_after_fire`), one is air-gated and one ground-gated (`_can_fire`). Terra's slam kill routes through the ordinary stomp system — no exception to rule 1 exists anywhere. Several kits were reworked on 2026-07-28 (see DESIGN §5.2); the human pass is outstanding.
 5. **M5 — Terrain + stages**: contract + 8 core elements; three stages; stage select. *Complete and verified headlessly. All 8 elements plus the PoleClimb state they needed (poles later became "vertical ground": down rides, down+jump releases, dash is a boosted drop). The generic half of a stage lives in `MatchStage` (§3a), so a stage is layout and palette only. All three shipped stages were later rebuilt or built from the owner's hand sketches (2026-07-27/28): **Rooftop Rumble** — one wide roof, a 160px channel down each side, one-way teleporters as the only quick way back up; **Cryo Lab** — every surface ice, no hazards, three colour-coded portal pairs crossing a jump-proof middle gap; **Sunken Court** — two mesas over a five-spring trench with no standing room, roof platform dash-gated at 96px. Human feel pass on all three outstanding.*
 6. **M6 — Formats & polish**: 2v2/3v3, Bo3/Bo5 lobby options, VFX/SFX pass, remaining heroes/stages. *Format plumbing done and verified headlessly (2026-07-26): seat count, block seat→team allocation, per-team spawn anchors with teammates spread around them, six-seat input bindings with per-pad device indices, hero select and stage select both seat-count driven, and the round-win rule exercised at 2v2 (one player down is not a team down). The lobby screen landed with it, so 2v2 and 3v3 are reachable from the UI. *Audio landed (2026-07-28): 18 procedurally generated cues and an `Audio` autoload.* *Pause menu landed (2026-07-28): volume, restart, quit to lobby.* *HUD laid out for every format (2026-07-28): blocks group by team and scale down as the format grows.* **Outstanding: rebind UI + `user://input.cfg`, volume persistence, per-match RNG seeding, and the remaining two stages.** A Windows export preset and build script ship alongside (`tools/build_windows.ps1`, `docs/PLAYTEST.md`) for remote playtesting over Steam Remote Play Together.*
-7. **M7 — The second hero wave** (Voodoo, Saint, Vesper, Siku): `docs/NEW_HEROES.md` is the authoritative spec and build order. *Prepared 2026-07-28: all four rigs generated and frame-verified, HeroData resources wired, eight ability skeletons carrying final tunables with the implementation marked TODO. Not yet built: the shared Player API (impulse buff, contact debuff, phasing, cleanse, stomp ward, sleep + a `Sleeping` state) and the kits themselves. The heroes stay OUT of `GameManager.HERO_ROSTER` until their kit passes the harnesses.*
+7. **M7 — The second hero wave** (Voodoo, Saint, Vesper, Siku): `docs/NEW_HEROES.md` holds the detailed spec. *Complete and verified headlessly (2026-07-28). Shared systems first — impulse buff, contact debuff + `ContactSense`, phasing via per-pair collision exceptions, `clear_all_debuffs`, `fires_while_stunned`, debuff immunity, the stomp ward, and the sleep stack system with its `Sleeping` state — then the eight kits, then the harness cases, then registration in `HERO_ROSTER`. `StunBolt`'s flight was extracted into a shared `BoltProjectile` so Vesper's dart is a payload swap rather than a fork, and Voodoo's phantom negative is generated as a palette VARIANT of his own rig. Human feel pass outstanding for all four.*
 
 ## 8. How to update this document
 

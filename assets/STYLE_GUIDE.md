@@ -12,6 +12,8 @@ Godot --headless --path . --import             # so Godot picks up new PNGs
 
 Hand-editing a generated PNG works, but the next run overwrites it — port the change back into the generator, or take the file out of the generator's output list first.
 
+Besides the twelve heroes the generator also emits **variants**: same rig, different palette, swapped in at runtime and owning no `HeroData`. `voodoo_phantom` is the one that exists — his colours inverted for the duration of his ultimate (suit and accent ramps flipped, skin left alone, because an inverted face reads as a bug rather than as menace). Add one with `inverted(by_key("<hero>"), "<key>", "<name>")` in `VARIANTS`.
+
 ## Global rules
 - 16 px tile grid; characters 32×36 logical px (34 px body); integer scaling only; **Filter = Nearest** on every import.
 - Master palette: `palettes/master_palette_32.png` / `.gpl` (loadable in Aseprite/GIMP/Libresprite). Stay inside it; propose additions via PR note.

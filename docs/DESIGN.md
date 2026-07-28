@@ -127,6 +127,7 @@ Idle ↔ Run → Skid
 Air ↔ Dash (omni)  ↔ WallSlide → WallJump
   ↓
 Stunned (stomp / duel-loss / hazard) → Grace
+Sleeping (Vesper) — walk-only; a stun suspends it and hands the body back
 PoleClimb (terrain-specific state)
 ```
 
@@ -155,7 +156,7 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 | 7 | **Terra** (brown) | **Slam** (9 s, air only): hang, then drive straight down. Landing on a head resolves as a **stomp** — the one ability kill, and it is a stomp kill. Landing beside one is a shockwave: shove + brief stun | **Fracture**: an **instantaneous**, very wide wave (2× the wind cannon's width) that stops at the first terrain on its line — never at a body. Everyone caught is stunned 2 s, **hurled into the surface the wave stopped at**, and left slowed ~11 s with dash/jump gone ~8.5 s | Warrior-builder (name is a placeholder) |
 | 8 | **Kid** (orange) | **Wind Cannon** (8.5 s): a stage-crossing gust along the aim, through walls, shoving everyone in it — allies too | **EMP**: after a 0.6 s telegraph, every enemy is slowed and locked out of dash/ability/ultimate for **9 s** | Nerdy gadgeteer |
 
-**The second wave** — designed, art and skeletons in the repo, kits pending. `docs/NEW_HEROES.md` is their authoritative spec:
+**The second wave** — implemented 2026-07-28 and rostered. `docs/NEW_HEROES.md` remains their detailed spec (the shared systems they introduced, and the interaction table):
 
 | # | Hero | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
@@ -164,7 +165,17 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 | 11 | **Vesper** (black, neon pink tells) | **Sleep Dart** (5 s): a bolt-sized dart that briefly slows and adds a stack (12–15 s life, reset on re-hit); the third stack sleeps the target ~6.5 s — walk-only at a crawl, no momentum, nothing else | **Deep Sleep**: a huge slow sphere through walls and bodies alike; enemies touched drop from the air and sleep ~1.5× the dart's window | Shinobi assassin, hooded, half-masked |
 | 12 | **Siku** (ice blue) | **Pillar** (10 s, ground only): a 3×3-body ice pillar erupts underneath her, launching everyone standing there — Siku included — straight up with horizontal speed kept; icy top, melts in 5 s. **Refused under a low ceiling** (anti-stuck) | **Frostbite**: six fast ice pulses from her body, one every ~3.5 s; each catch is a 1.5 s stun and a dead drop | Arctic hunter in a fur-ringed parka |
 
-(Former concepts Wisp / Tether / Gale / Frostbyte are retired; their best ideas were folded into Slip, Sai, and Kid. Terra's slam is the only first-wave ability that can end in a life — and only because a slam onto a head **is** a stomp, resolved by the ordinary stomp system with grace and anti-chain intact. Voodoo's Phantom joins it under the same rule when it lands.)
+(Former concepts Wisp / Tether / Gale / Frostbyte are retired; their best ideas were folded into Slip, Sai, and Kid. Terra's slam and Voodoo's Phantom are the only abilities that can end in a life — and only because falling onto a head **is** a stomp, resolved by the ordinary stomp system with grace and anti-chain intact. Saint's Benediction is the mirror image: it is the only thing that can make a stomp *not* cost a life, and it does that as an early-out inside `receive_stomp` next to grace, spending the blessing instead. Neither is an exception to the rule; both go through the one authority.)
+
+### 5.2a Sleep (Vesper's debuff)
+
+Sleep is the one status that is neither a stun nor a slow, and it is worth stating separately because it is the only place a player keeps *partial* control:
+
+- The sleeper may walk left and right, at ~35% of base speed, and **builds no momentum** while doing it.
+- Everything else is refused: jump, dash, wall interaction, slide, crouch, hero swap, ability, ultimate.
+- The **head hurtbox stays live**. A sleeping player is the most stompable player in the game — that is what Vesper's kit is buying, and why sleep is a setup rather than a kill.
+- Duration refreshes, never stacks. A stun landing on a sleeper *suspends* the sleep and hands them back to it afterwards, so hitting someone can never be a way to wake them.
+- Saint's Cleanse removes it; Saint's Benediction prevents it. Sleep in turn blocks Saint from casting, which is the counter-counter.
 
 **Ability cooldowns are ordered, not uniform**: Sai 4.7 s < Vesper 5 s < Deadeye 5.2 s < Fei 5.6 s < Cerebelle 6.7 s < Slip 8 s < Kid 8.5 s < Terra 9 s = Voodoo 9 s < Mason 10 s = Siku 10 s < Saint 11 s. The cheaper an ability is to press, the less it should decide on its own — Sai's is pure mobility, Mason's and Siku's place terrain that outlives the press, Saint's undoes four other kits at once.
 
@@ -177,8 +188,9 @@ Cerebelle's Supernova is deliberately outrunnable and deliberately undodgeable: 
 ### 5.4 Stun rules (unified)
 - Stun sources (live values in `combat_config.tres`): stomp (0.6 s), duel loss (0.38 s), Deadeye bolt (1.0 s; 6.5 s from the loaded shot), stun line (0.5 s), explosion (0.65 s), Cerebelle ult (1.3 s), Mason ult block (0.45 s per freeze, re-applied as a body falls through), Terra ult (2.0 s). Pending with the second wave: Voodoo's pass-through (3 s), Siku's pulses (1.5 s), and Vesper's sleep — which is its own debuff, not a stun (see `NEW_HEROES.md`).
 - While stunned: no inputs, momentum preserved, gravity applies, cannot swap heroes.
-- Stuns do **not** stack; a new stun refreshes to `max(remaining, new)`.
+- Stuns do **not** stack; a new stun refreshes to `max(remaining, new)`. Every other status follows the same rule — slow, impairment, disrupt, sleep, sleep stacks, and both of Saint's buffs.
 - Stunned players' head hurtboxes remain **active** (stun into stomp is the core combo) *except* during post-stomp grace.
+- **Saint's blessing makes a body immune to all of the above** — but not to the stomp. A stomp's own stun bypasses immunity, because nothing may make a body unstompable; what protects a blessed player is the ward, which spends the blessing in place of the life exactly once.
 
 ---
 

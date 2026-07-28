@@ -320,8 +320,30 @@ func begin_phasing(dur: float) -> void:
 		p.add_collision_exception_with(self)
 		_phase_exceptions.append(p)
 
+## Wear a different SpriteFrames for a while (Voodoo's phantom negative). A
+## whole frames swap rather than a modulate, because the grace blink already
+## owns the sprite's alpha and a tint would be fighting it for the same channel.
+## Tied to the phasing window, and dropped by a hero swap for free — set_hero
+## assigns the incoming hero's frames over the top.
+func apply_skin_override(frames: SpriteFrames) -> void:
+	if frames == null or sprite == null:
+		return
+	var playing := sprite.animation
+	sprite.sprite_frames = frames
+	if frames.has_animation(playing):
+		sprite.play(playing)
+
+func clear_skin_override() -> void:
+	if sprite == null or hero == null or hero.sprite_frames == null:
+		return
+	var playing := sprite.animation
+	sprite.sprite_frames = hero.sprite_frames
+	if hero.sprite_frames.has_animation(playing):
+		sprite.play(playing)
+
 func end_phasing() -> void:
 	phasing_remaining = 0.0
+	clear_skin_override()
 	for other in _phase_exceptions:
 		var p := other as Player
 		if p == null or not is_instance_valid(p):

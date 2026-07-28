@@ -1,33 +1,29 @@
 # NEW_HEROES.md — The Second Wave (Voodoo, Saint, Vesper, Siku)
 
-The implementation guide for the four designed-but-unbuilt heroes. This file is
-the **authoritative spec for these kits** the way DESIGN.md §5.2 is for the
-first eight; DESIGN.md's roster table points here. Written 2026-07-28.
+**Status: implemented and rostered, 2026-07-28.** Written first as a build spec
+and kept as the reference for these four kits and the systems they introduced —
+DESIGN.md §5.2 has the roster rows, this file has the reasoning, the API, and
+the interaction rulings. The imperative voice in §1–§2 is the original build
+order; it now describes what exists.
 
-**What already exists** (do not redo):
+Where it lives:
 
-- Art: all four rigs in `assets/tools/generate_characters.py`, sheets in
-  `assets/characters/<hero>/`, SpriteFrames in
-  `src/heroes/resources/frames/<hero>_frames.tres`, all held to the 41-frame
+- Art: all four rigs (plus Voodoo's inverted phantom variant) in
+  `assets/tools/generate_characters.py`, sheets in `assets/characters/<hero>/`,
+  SpriteFrames in `src/heroes/resources/frames/`, all held to the 41-frame
   contract by `tests/verify_frames.gd`.
-- `HeroData` resources: `src/heroes/resources/{voodoo,saint,vesper,siku}.tres`
-  — names, accents, cooldowns, card text, frames, ability scene wiring.
-- Ability skeletons: eight `Ability` subclasses in `src/heroes/abilities/`
-  (`voodoo_soul_ignition`, `voodoo_phantom`, `saint_cleanse`,
-  `saint_benediction`, `vesper_sleep_dart`, `vesper_deep_sleep`, `siku_pillar`,
-  `siku_frostbite`) with final tunables as `@export`s and the implementation
-  marked `TODO(opus)`. Numbers are starting values — tune them, but tune them
-  in the exports/resources, never inline (CLAUDE.md).
-- A reusable on-body aura: `src/heroes/effects/hero_aura.gd` with styles
-  `&"wind"` (already live on Fei's ult), `&"surge"` (Voodoo), `&"ward"`
-  (Saint), and an `intensity` knob.
+- `HeroData`: `src/heroes/resources/{voodoo,saint,vesper,siku}.tres`.
+- Kits: eight `Ability` subclasses in `src/heroes/abilities/`, effects in
+  `src/heroes/effects/` (`sleep_dart`, `dream_sphere`, `ice_pillar`,
+  `frostbite_pulses`, `cleanse_flash`, `hero_aura`, and the shared
+  `bolt_projectile` that Deadeye's bolt and Vesper's dart both extend).
+- Shared Player systems: `src/player/player.gd` §"Second-wave systems", plus
+  `src/player/states/sleeping.gd` and the `ContactSense` area on `player.tscn`.
+- Coverage: `_check_second_wave` in `tests/match_harness.gd`, and the three
+  stomp-side cases at the end of `tests/combat_harness.gd`.
 
-**What this file adds**: the Player/system API these kits need, the per-hero
-rules that are easy to get wrong, the interaction table, and the harness
-checklist. Follow the milestone discipline: build the shared systems first
-(§1), then the kits (§2), then register (§4). **The heroes stay out of
-`GameManager.HERO_ROSTER` until their kit passes the harness** — a registered
-hero with a no-op ability is a trap for every playtest before then.
+Tunables are `@export`s on the ability scripts and `movement_config.gd`
+(`sleep_walk_mult`) — tune there, never inline (CLAUDE.md).
 
 ---
 
@@ -269,18 +265,29 @@ stomp paths that already exist (`receive_stomp` for Phantom's falls; the ward
 consuming INSTEAD of a life). If any other path in the new code can reach a
 life, it is wrong — stop and restructure.
 
-## 4. Definition of done, per hero
+## 4. What shipped, and what the build taught
 
-1. Shared systems from §1 in place, with `docs/IMPLEMENTATION.md` §3's API
-   list updated in the same commits.
-2. Kit implemented in the skeleton files; skeleton `push_warning` lines gone.
-3. `tests/match_harness.gd`: extend `_check_abilities` expectations (Siku's
-   pillar is air-refused via `_can_fire` like Terra's slam is ground-refused —
-   the sweep needs to know); add the per-hero cases above; the no-life sweep
-   must cover all twelve.
-4. `tests/combat_harness.gd`: phantom-stomp two-sided check; ward-consumption
-   check; sleeping-player-is-stompable check.
-5. Register in `GameManager.HERO_ROSTER` (this is the LAST code step), run all
-   four harnesses + `verify_frames`, feel-test in `duel.tscn`.
-6. Docs in the same commit as registration: DESIGN §5.2 rows move from
-   "designed" to implemented, IMPLEMENTATION §7 milestone note, handoff.md.
+All six steps of the original plan are done: shared systems, kits, harness
+cases, registration in `HERO_ROSTER` (twelve heroes now), docs. All four
+harnesses and `verify_frames` are green — **movement 78, combat 54, match 300,
+terrain 74 = 506 checks**. The human feel pass in `duel.tscn` is outstanding
+for all four.
+
+Three things worth carrying forward:
+
+- **The headroom probe must not touch the floor it measures from.** Siku's gate
+  originally cast a box whose bottom edge sat exactly on the ground under her,
+  and `intersect_shape` duly reported that ground as a blocker — so the ability
+  refused everywhere, standing on anything. It is inset 4px now. Any "is there
+  room above me" query has this failure mode.
+- **Harness debris is a real bug source, not just noise.** Twelve kits fire
+  within about a second of each other in the ability sweep, and several leave
+  *solid terrain* behind; a Mason block left standing overhead made Siku's gate
+  refuse a legal cast, and the failure looked like a bug in Siku. The sweep now
+  clears stage effects between heroes, and `_clear_effects()` restores the
+  stage to the children it shipped with. Pending respawns (`_respawning` on
+  `MatchStage`, 0.6s out) are debris too, and `_reset_bodies` clears them.
+- **Do not park a test body on a jump spring.** Rooftop Rumble has roof springs
+  at x 416-512 and 640-736. A body parked there is launched out of whatever
+  state the check just established — which read, for a while, as sleep failing
+  to hold.

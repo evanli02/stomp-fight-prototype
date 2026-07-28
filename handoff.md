@@ -24,7 +24,7 @@ Milestones M1–M5 from `docs/IMPLEMENTATION.md` §7 are complete; M6 is most of
 | M5 | Eight terrain elements + `PoleClimb`, three stages, stage select | done |
 | — | Art overhaul: chibi proportions, 8 heroes, VFX, UI pass | done |
 | M6 | 2v2/3v3, lobby, Windows export, audio, pause, HUD | **settings persistence, RNG seeding, 2 stages left** |
-| M7 | Second hero wave: Voodoo, Saint, Vesper, Siku | **art + skeletons done; kits pending — `docs/NEW_HEROES.md`** |
+| M7 | Second hero wave: Voodoo, Saint, Vesper, Siku | done and rostered; human feel pass outstanding |
 
 You can boot `src/main.tscn` and play a full match at 1v1, 2v2 or 3v3: lobby (format, match
 length, who is sitting where) → hero select → stage select → rounds → results, on any of three
@@ -32,7 +32,7 @@ stages, with sound and a pause menu. Netcode is out of scope by design — remot
 by streaming instead (`docs/PLAYTEST.md`), and §9 of `docs/IMPLEMENTATION.md` holds the posture
 that keeps a real implementation possible later.
 
-All four harnesses are green — **movement 78, combat 41, match 226, terrain 74 = 419 checks**,
+All four harnesses are green — **movement 78, combat 54, match 300, terrain 74 = 506 checks**,
 zero script errors. (This line goes stale easily; re-count it rather than trusting it.)
 
 ---
@@ -117,13 +117,18 @@ Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
 | Kid | orange | Wind Cannon — pushing beam (8.5) | EMP — telegraphed wave that disrupts for 9 s |
 | Mason | gold | Bumper Block — solid block that is a **four-sided spring**: fixed 470 launch out of the touched face, tangential speed kept, 6.5 s life (10.0) | Keystone — allies pass through; enemies freeze 0.45 s, fall, re-freeze — 3-4 freezes on the way through a block |
 
-**The second wave** — Voodoo (bright purple, empower + phase), Saint (white, cleanse + team
-ward), Vesper (black/neon pink, sleep stacks), Siku (ice blue, ice pillar + pulse storm) —
-has art, HeroData, and skeleton abilities in the repo but **no kits and no roster
-registration**. `docs/NEW_HEROES.md` is their authoritative spec and the build order,
-including the new Player API they need (sleep + a `Sleeping` state, phasing, cleanse,
-stomp ward, impulse buff). Do not register them in `GameManager.HERO_ROSTER` until the
-kit passes the harnesses.
+**The second wave is in and rostered** (2026-07-28) — twelve heroes now:
+
+| Hero | Colour | Ability (CD) | Ultimate |
+|---|---|---|---|
+| Voodoo | bright purple | Soul Ignition — self empower window; touching an enemy knocks them back and slows their whole kit 3 s (9.0) | Phantom — bigger empower, far longer, phases through bodies (3 s stun on pass-through), inverted skin. A fall through a head is still a stomp |
+| Saint | white | Cleanse — strip all debuffs/stuns from the team; casts **while stunned** (11.0) | Benediction — cleanse, then empower + debuff immunity + one stomp ward each |
+| Vesper | black / neon pink | Sleep Dart — slow + a stack; 3 stacks sleeps them ~6.5 s (5.0) | Deep Sleep — huge slow sphere through everything; drops and sleeps ~9.75 s |
+| Siku | ice blue | Pillar — ground only; ice column launches everyone in the footprint, refused under a low ceiling (10.0) | Frostbite — six fast pulses, 1.5 s stun and a drop each |
+
+`docs/NEW_HEROES.md` is still their detailed reference: the shared Player systems they
+introduced (impulse buff, contact scan, phasing, cleanse, stomp ward, the sleep stack
+system + `Sleeping` state), the interaction table, and what the build taught.
 
 **Terra's Slam can end in a life loss and that is not a rule-1 violation.** A slam is a very
 fast fall, and falling onto a head *is* the stomp system: it goes through `receive_stomp` with
@@ -435,6 +440,20 @@ buff windows are expected to reuse it). And the four new heroes exist as art + H
 skeleton abilities, with `docs/NEW_HEROES.md` as their spec; `OPUS_PROMPT.md` gained the M7
 kickoff line.
 
+**Second wave built (2026-07-28, same session as the rework pass).** Systems before kits:
+`grant_impulse_buff` (the buff-side twin of `impair_mult` — the two multiply at all three
+launch sites, so buffed-and-impaired needs no special case), a `ContactSense` area with a
+per-tick enemy scan, phasing as **per-pair collision exceptions** (not a layer edit — the
+layer is also how terrain and every player-watching area finds the body), `clear_all_debuffs`,
+`Ability.fires_while_stunned`, debuff immunity, the stomp ward, and the sleep stack system
+with a real `Sleeping` state. Two rulings worth remembering: the stomp's own stun goes
+through `_apply_stomp_stun` and **ignores immunity**, because nothing may make a body
+unstompable; and the ward is consumed *inside* `receive_stomp` beside the grace early-out,
+so victim authority stays the single path that decides a stomp. `StunBolt`'s flight was
+extracted into a shared `BoltProjectile` rather than forked for Vesper's dart, and Voodoo's
+phantom negative is a generated palette VARIANT of his own rig (a whole SpriteFrames swap,
+because the grace blink already owns `modulate.a`).
+
 ---
 
 ## 8. Open threads
@@ -450,13 +469,17 @@ makes sense:
 3. **Settings persistence** (`user://`). Volume resets every run, and rebinding has nowhere to
    live; rebind UI + `user://input.cfg` belong in the same file. Per-match RNG seeding
    (`GameManager._ready`) is still a TODO.
-4. **Implement the second hero wave** — `docs/NEW_HEROES.md` is the spec, `OPUS_PROMPT.md`
-   M7 is the kickoff. Shared systems first (sleep, phasing, cleanse, ward, impulse buff),
-   kits second, `HERO_ROSTER` registration last.
+4. **Feel-test the twelve-hero roster.** Every number in the rework pass and the second
+   wave is a first implementation of the owner's notes. The ones most likely to be wrong:
+   Voodoo's empowerment magnitudes, Vesper's stack timings (12-15s band) and how long
+   6.5s of sleep actually *feels* on the receiving end, Siku's launch height, and whether
+   Saint's ward reads as fair to the player who just landed a clean stomp.
 5. The two remaining launch stages (Powerplant, Skyline Gardens) — `docs/MAPS.md` is the guide,
    and Sunken Court (§6b there) is the worked example of building one from a sketch.
 6. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.
-7. Feel-test the 2026-07-28 kit rework pass (§3) — every number in it is a first guess at the
-   owner's notes, and the slash-through-terrain landing search in particular wants human eyes
-   on weird aims (straight down through the roof, into a channel, at the outer wall).
+7. Sai's slash-through-terrain landing search wants human eyes on weird aims specifically
+   (straight down through the roof, into a channel, at the outer wall).
+8. Two art follow-ups the second wave left open: Vesper has no `sleep` pose (the Sleeping
+   state reuses `stun`), and the hero-select screen has never been looked at with twelve
+   cards in it.
