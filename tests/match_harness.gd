@@ -517,6 +517,13 @@ func _check_stage_registry() -> void:
 		if GameManager.stage_scene(id) == null:
 			complete = false
 			missing += " %s.scene(unloadable)" % id
+		# The select screen's miniature: a size and at least a silhouette. Visual
+		# only, but a stage without one draws as an empty box on the card.
+		var preview: Dictionary = GameManager.stage_info(id, "preview", {})
+		if preview.is_empty() or not (preview.get("size", null) is Vector2) \
+				or (preview.get("blocks", []) as Array).is_empty():
+			complete = false
+			missing += " %s.preview" % id
 	check("every registered stage is fully described", complete, missing)
 	check("an unregistered id falls back rather than erroring",
 		GameManager.stage_info(&"not_a_stage", "name", "?") == "?")

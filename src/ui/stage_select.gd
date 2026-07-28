@@ -19,8 +19,12 @@ signal stage_confirmed(stage_id: StringName)
 const NAV_REPEAT: float = 0.18
 const NAV_DEADZONE: float = 0.5
 
-const CARD: Vector2 = Vector2(300, 176)
+## Taller than the old card: the bottom half is a miniature of the layout, so a
+## first round on an unseen stage is a choice rather than a surprise.
+const CARD: Vector2 = Vector2(300, 240)
 const GAP: float = 24.0
+## Where the layout miniature sits inside a card.
+const PREVIEW: Rect2 = Rect2(16, 104, 268, 108)
 const COL_BG: Color = Color(0.05, 0.03, 0.09, 0.88)
 const COL_CARD: Color = Color(0.10, 0.07, 0.18)
 const COL_FRAME: Color = Color(0.36, 0.36, 0.48)
@@ -116,13 +120,42 @@ func _draw_card(font: Font, index: int, at: Vector2) -> void:
 
 	_shadowed(font, at + Vector2(16, 44), GameManager.stage_info(id, "name", String(id)),
 		22, COL_TEXT)
-	_shadowed(font, at + Vector2(16, 70), GameManager.stage_info(id, "blurb", ""), 13,
-		Color(0.85, 0.88, 0.95))
+	# Shrunk until it fits the card rather than clipped mid-word.
+	var blurb: String = GameManager.stage_info(id, "blurb", "")
+	var blurb_size := 13
+	while blurb_size > 9 and font.get_string_size(blurb, HORIZONTAL_ALIGNMENT_LEFT,
+			-1, blurb_size).x > CARD.x - 32.0:
+		blurb_size -= 1
+	_shadowed(font, at + Vector2(16, 70), blurb, blurb_size, Color(0.85, 0.88, 0.95))
 	# What is actually underfoot. A stage list that only gives names makes the
 	# first round on a new stage a surprise rather than a choice.
 	_shadowed(font, at + Vector2(16, 92), GameManager.stage_info(id, "features", ""), 12, accent)
+	_draw_preview(id, Rect2(at + PREVIEW.position, PREVIEW.size))
 	if current:
-		_shadowed(font, at + Vector2(16, CARD.y - 18), "CURRENT STAGE", 12, COL_DIM)
+		_shadowed(font, at + Vector2(16, CARD.y - 10), "CURRENT STAGE", 12, COL_DIM)
+
+## The layout miniature: terrain silhouette plus terrain elements in their
+## gameplay colours, from the hand-kept "preview" data in STAGE_ROSTER. Purely
+## visual — nothing here is measured against, and drawing it never builds a
+## stage.
+func _draw_preview(id: StringName, box: Rect2) -> void:
+	_canvas.draw_rect(box, Color(0.03, 0.02, 0.06))
+	_canvas.draw_rect(box, COL_FRAME, false, 1.0)
+	var preview: Dictionary = GameManager.stage_info(id, "preview", {})
+	if preview.is_empty():
+		return
+	var stage_size: Vector2 = preview.get("size", Vector2.ONE)
+	# Fit, preserving aspect, centred: a squashed stage is a lie about distances.
+	var scale: float = minf((box.size.x - 8.0) / stage_size.x, (box.size.y - 8.0) / stage_size.y)
+	var origin: Vector2 = box.position + (box.size - stage_size * scale) * 0.5
+	for r: Rect2 in preview.get("blocks", []):
+		_canvas.draw_rect(Rect2(origin + r.position * scale, (r.size * scale).max(Vector2.ONE)),
+			Color(0.32, 0.30, 0.44))
+	for mark: Dictionary in preview.get("marks", []):
+		var r: Rect2 = mark["rect"]
+		var col: Color = mark["color"]
+		_canvas.draw_rect(Rect2(origin + r.position * scale, (r.size * scale).max(Vector2.ONE)),
+			Color(col.r, col.g, col.b, 0.9))
 
 func _shadowed(font: Font, at: Vector2, msg: String, size: int, col: Color) -> void:
 	_canvas.draw_string(font, at + Vector2(1, 1), msg, HORIZONTAL_ALIGNMENT_LEFT, -1, size,

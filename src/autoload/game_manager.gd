@@ -36,6 +36,13 @@ const HERO_ROSTER: Dictionary = {
 ## something a menu should be doing to draw a card. The stage script reads its
 ## own name back out of here (MatchStage.stage_name), so there is still one
 ## source of truth.
+##
+## "preview" is a visual-only miniature for the select screen: the stage's
+## pixel size, its terrain silhouette, and its terrain elements as coloured
+## marks (STYLE_GUIDE colour-coding: green springs, pale-blue ice, portals in
+## their pair colours, grey poles). Hand-kept against each stage's layout
+## constants — a preview is a picture of the stage, not the stage, and drawing
+## a card must never build one.
 const STAGE_ROSTER: Dictionary = {
 	&"rooftop_rumble": {
 		"scene": "res://src/stage/duel.tscn",
@@ -43,6 +50,28 @@ const STAGE_ROSTER: Dictionary = {
 		"blurb": "Open street, high slab, one narrow shaft.",
 		"features": "poles · springs · updraft",
 		"accent": Color(0.63, 0.24, 0.47),
+		"preview": {
+			"size": Vector2(1152, 640),
+			"blocks": [
+				Rect2(0, 624, 1152, 16), Rect2(0, 0, 1152, 16),
+				Rect2(0, 0, 16, 640), Rect2(1136, 0, 16, 640),
+				Rect2(176, 368, 800, 256),
+				Rect2(320, 144, 96, 16), Rect2(736, 144, 96, 16),
+				Rect2(528, 224, 96, 16),
+				Rect2(144, 288, 96, 16), Rect2(912, 288, 96, 16),
+			],
+			"marks": [
+				{"rect": Rect2(416, 352, 96, 16), "color": Color(0.4, 0.85, 0.45)},
+				{"rect": Rect2(640, 352, 96, 16), "color": Color(0.4, 0.85, 0.45)},
+				{"rect": Rect2(16, 136, 24, 176), "color": Color(0.4, 0.85, 0.45)},
+				{"rect": Rect2(1112, 136, 24, 176), "color": Color(0.4, 0.85, 0.45)},
+				{"rect": Rect2(16, 560, 160, 64), "color": Color(0.93, 0.42, 0.42)},
+				{"rect": Rect2(764, 60, 40, 56), "color": Color(0.93, 0.42, 0.42)},
+				{"rect": Rect2(976, 560, 160, 64), "color": Color(0.55, 0.83, 0.51)},
+				{"rect": Rect2(348, 60, 40, 56), "color": Color(0.55, 0.83, 0.51)},
+				{"rect": Rect2(572, 88, 8, 80), "color": Color(0.6, 0.6, 0.7)},
+			],
+		},
 	},
 	&"sunken_court": {
 		"scene": "res://src/stage/sunken_court.tscn",
@@ -50,6 +79,20 @@ const STAGE_ROSTER: Dictionary = {
 		"blurb": "Two mesas over a sprung trench you cannot climb out of.",
 		"features": "springs - poles - one high platform",
 		"accent": Color(0.95, 0.55, 0.28),
+		"preview": {
+			"size": Vector2(896, 512),
+			"blocks": [
+				Rect2(0, 496, 896, 16), Rect2(0, 0, 896, 16),
+				Rect2(0, 0, 16, 512), Rect2(880, 0, 16, 512),
+				Rect2(16, 368, 272, 128), Rect2(608, 368, 272, 128),
+				Rect2(288, 272, 320, 16),
+			],
+			"marks": [
+				{"rect": Rect2(288, 484, 320, 12), "color": Color(0.4, 0.85, 0.45)},
+				{"rect": Rect2(116, 120, 8, 160), "color": Color(0.6, 0.6, 0.7)},
+				{"rect": Rect2(772, 120, 8, 160), "color": Color(0.6, 0.6, 0.7)},
+			],
+		},
 	},
 	&"cryo_lab": {
 		"scene": "res://src/stage/cryo_lab.tscn",
@@ -57,6 +100,30 @@ const STAGE_ROSTER: Dictionary = {
 		"blurb": "Every surface is ice. Three portals, no hazards.",
 		"features": "all ice - 3 portal pairs - poles",
 		"accent": Color(0.18, 0.89, 0.90),
+		"preview": {
+			"size": Vector2(896, 512),
+			"blocks": [
+				Rect2(0, 496, 896, 16), Rect2(0, 0, 896, 16),
+				Rect2(0, 0, 16, 512), Rect2(880, 0, 16, 512),
+				Rect2(352, 96, 192, 16),
+				Rect2(128, 160, 160, 16), Rect2(608, 160, 160, 16),
+				Rect2(288, 224, 320, 16),
+				Rect2(320, 352, 64, 16), Rect2(512, 352, 64, 16),
+				Rect2(16, 416, 160, 16), Rect2(720, 416, 160, 16),
+			],
+			"marks": [
+				{"rect": Rect2(16, 490, 864, 6), "color": Color(0.49, 0.98, 1.0)},
+				{"rect": Rect2(260, 280, 8, 160), "color": Color(0.6, 0.6, 0.7)},
+				{"rect": Rect2(628, 280, 8, 160), "color": Color(0.6, 0.6, 0.7)},
+				{"rect": Rect2(444, 240, 8, 200), "color": Color(0.6, 0.6, 0.7)},
+				{"rect": Rect2(804, 428, 40, 56), "color": Color(0.93, 0.42, 0.42)},
+				{"rect": Rect2(152, 72, 40, 56), "color": Color(0.93, 0.42, 0.42)},
+				{"rect": Rect2(52, 428, 40, 56), "color": Color(0.60, 0.48, 0.86)},
+				{"rect": Rect2(704, 72, 40, 56), "color": Color(0.60, 0.48, 0.86)},
+				{"rect": Rect2(96, 292, 40, 56), "color": Color(0.55, 0.83, 0.51)},
+				{"rect": Rect2(760, 292, 40, 56), "color": Color(0.55, 0.83, 0.51)},
+			],
+		},
 	},
 }
 

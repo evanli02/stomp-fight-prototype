@@ -12,3 +12,4 @@ build/
 # for a while at 38MB a copy; git keeps every version of a binary forever, so a
 # handful of those is a repo nobody wants to clone.
 build*.zip
+screenshots/
