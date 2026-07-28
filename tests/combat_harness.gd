@@ -97,6 +97,9 @@ func _run() -> void:
 	await _check_wall_duel_stun()
 	await _check_wall_duel_simultaneous()
 	await _check_slam_is_a_stomp()
+	await _check_phantom_stomp()
+	await _check_saint_ward()
+	await _check_sleeping_is_stompable()
 
 func _check_registration() -> void:
 	check("both players are registered", MatchState.has_player(0) and MatchState.has_player(1))
@@ -276,3 +279,102 @@ func _check_wall_duel_simultaneous() -> void:
 	check("a tied duel stuns nobody",
 		is_zero_approx(_p1.stun_remaining) and is_zero_approx(_p2.stun_remaining),
 		"p1=%.2f p2=%.2f" % [_p1.stun_remaining, _p2.stun_remaining])
+
+## Voodoo's Phantom (docs/NEW_HEROES.md §3), the two-sided assertion that keeps
+## rule 1 honest — the same shape as the slam check above.
+##
+## Phasing lifts BODY collision only. The head hurtbox and the stompbox are
+## Area2Ds on their own layers and are untouched, so falling through a head is
+## still a stomp resolved by receive_stomp; walking through a flank is not, and
+## can only ever cost a stun.
+func _check_phantom_stomp() -> void:
+	MatchState.reset_round()
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
+	_p1.equip_hero(&"voodoo")
+	await step(2)
+	_p1.begin_phasing(6.0)
+	check("a phasing body passes through the other player",
+		_p1.get_collision_exceptions().has(_p2))
+	var lives_before := lives_of(1)
+	await step(30)
+	check("falling through a head while phasing is still a stomp",
+		lives_of(1) == lives_before - 1,
+		"lives %d -> %d" % [lives_before, lives_of(1)])
+
+	# The other half: passing through side-on stuns and never touches a life.
+	MatchState.reset_round()
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X - 60, FLOOR_Y))
+	_p1.grace_remaining = 0.0
+	_p2.grace_remaining = 0.0
+	_p1.begin_phasing(6.0)
+	_p1.begin_contact_stun(3.0, 6.0)
+	var side_lives := lives_of(1)
+	# Walk him through her horizontally, well below head height for both.
+	for i in 30:
+		_p1.global_position.x += 4.0
+		_p1.velocity = Vector2.ZERO
+		_p1.fall_speed_memory = 0.0
+		await get_tree().physics_frame
+	check("passing through a body side-on stuns them", _p2.stun_remaining > 0.0,
+		"stun=%.2f" % _p2.stun_remaining)
+	check("passing through a body side-on costs no life", lives_of(1) == side_lives,
+		"lives %d -> %d" % [side_lives, lives_of(1)])
+	_p1.end_phasing()
+	await step(2)
+
+## Saint's ward (docs/NEW_HEROES.md §3): a stomp on a blessed body spends the
+## blessing instead of the life. The attacker still gets paid their bounce, so
+## reading the stomp right is not punished — only charged differently.
+func _check_saint_ward() -> void:
+	MatchState.reset_round()
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
+	_p2.grant_stomp_ward(8.0)
+	_p2.grant_debuff_immunity(8.0)
+	var lives_before := lives_of(1)
+	var warded: Array = []
+	_p2.stomp_warded.connect(func(a: Player) -> void: warded.append(a))
+	# One-element array, not a bool: a lambda captures locals BY VALUE, so a flag
+	# set inside this closure would never escape it (CLAUDE.md checklist).
+	var bounced := [false]
+	await wait_until(func() -> bool:
+		if _p1.velocity.y < -100.0:
+			bounced[0] = true
+		return not warded.is_empty(), 90)
+	check("the ward absorbs the stomp", not warded.is_empty())
+	check("a warded stomp costs no life", lives_of(1) == lives_before,
+		"lives %d -> %d" % [lives_before, lives_of(1)])
+	check("the ward is spent by the hit", _p2.stomp_ward_remaining <= 0.0,
+		"ward=%.2f" % _p2.stomp_ward_remaining)
+	check("the whole blessing goes with it", _p2.debuff_immune_remaining <= 0.0,
+		"immune=%.2f" % _p2.debuff_immune_remaining)
+	check("the attacker is still paid their bounce", bounced[0],
+		"vy=%.1f" % _p1.velocity.y)
+	# ...and with the blessing gone, the NEXT stomp lands normally.
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
+	var second_before := lives_of(1)
+	await step(30)
+	check("an unwarded stomp on the same body takes the life",
+		lives_of(1) == second_before - 1,
+		"lives %d -> %d" % [second_before, lives_of(1)])
+
+## Sleep does not touch the head hurtbox, and that is the whole point of the
+## debuff: a sleeping player is the most stompable player in the game.
+func _check_sleeping_is_stompable() -> void:
+	MatchState.reset_round()
+	await place(_p2, Vector2(TEST_X, FLOOR_Y))
+	await place(_p1, Vector2(TEST_X, FLOOR_Y - 110))
+	_p2.apply_sleep(8.0)
+	await step(1)
+	check("the sleeping body's head hurtbox is live", _p2.head_hurtbox.monitorable)
+	var lives_before := lives_of(1)
+	await step(30)
+	check("a sleeping player can be stomped", lives_of(1) == lives_before - 1,
+		"lives %d -> %d" % [lives_before, lives_of(1)])
+	check("the stomp does not wake them", _p2.sleep_remaining > 0.0,
+		"sleep=%.2f" % _p2.sleep_remaining)
+	_p2.clear_all_debuffs()
+	await step(2)

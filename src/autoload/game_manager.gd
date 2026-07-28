@@ -21,6 +21,10 @@ const HERO_ROSTER: Dictionary = {
 	&"slip": "res://src/heroes/resources/slip.tres",
 	&"terra": "res://src/heroes/resources/terra.tres",
 	&"kid": "res://src/heroes/resources/kid.tres",
+	&"voodoo": "res://src/heroes/resources/voodoo.tres",
+	&"saint": "res://src/heroes/resources/saint.tres",
+	&"vesper": "res://src/heroes/resources/vesper.tres",
+	&"siku": "res://src/heroes/resources/siku.tres",
 }
 
 ## Registered stages. Extend via SKILL.md "Add a stage"; order here is the order

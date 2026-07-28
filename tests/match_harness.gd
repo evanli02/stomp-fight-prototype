@@ -10,10 +10,19 @@ extends Node
 ##   Godot --headless --path . res://tests/match_harness.tscn
 ## Exits non-zero if any check fails.
 
+## Heroes whose ability is refused in the air (Siku builds her pillar from the
+## ground up). The rest of the sweep fires airborne, which is what Terra's
+## air-only slam needs.
+const GROUND_ONLY: Array[StringName] = [&"siku"]
+
 var _failures: int = 0
 var _stage: Node2D
 var _p1: Player
 var _p2: Player
+## The stage's children before any ability has fired — the set _clear_effects
+## restores it to. Captured once, so a check can be cleaned up regardless of
+## which earlier check left the debris.
+var _stage_baseline: Dictionary = {}
 
 func _ready() -> void:
 	_stage = load("res://src/stage/duel.tscn").instantiate() as Node2D
@@ -21,6 +30,8 @@ func _ready() -> void:
 	await get_tree().physics_frame
 	_p1 = _stage.get_node("%Player1") as Player
 	_p2 = _stage.get_node("%Player2") as Player
+	for child in _stage.get_children():
+		_stage_baseline[child.get_instance_id()] = true
 	await _run()
 	print("\n%s" % ("ALL CHECKS PASSED" if _failures == 0 else "%d CHECK(S) FAILED" % _failures))
 	get_tree().quit(1 if _failures > 0 else 0)
@@ -51,6 +62,7 @@ func _run() -> void:
 	await _check_ultimate_economy()
 	await _check_abilities()
 	await _check_sai_grapple()
+	await _check_second_wave()
 	await _check_aim_line()
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
@@ -269,6 +281,10 @@ func _check_ultimate_economy() -> void:
 ## it cannot cost a life. Only stomps do that (CLAUDE.md rule 1).
 func _check_abilities() -> void:
 	MatchState.reset_round()
+	# Start from a clean stage: earlier checks equip heroes too, and a Mason
+	# block left standing overhead is enough to make Siku's headroom gate refuse
+	# a cast that should have been legal.
+	await _clear_effects()
 	var lives_before := [
 		MatchState.lives_of(0, MatchState.active_hero(0)),
 		MatchState.lives_of(1, MatchState.active_hero(1)),
@@ -282,16 +298,24 @@ func _check_abilities() -> void:
 	var fired_any := false
 	for hero_id in GameManager.roster_ids():
 		MatchState.reset_round()
+		# Each hero is swept in isolation. Twelve kits fire within about a second
+		# of each other, and several leave solid terrain behind — the hero under
+		# test must not be standing in the previous one's furniture.
+		await _clear_effects()
 		# Force the hero onto seat 0 even if it is not in that seat's trio: this
-		# is about the abilities, not about roster legality. Fired AIRBORNE,
-		# because some abilities (Terra's slam) are air-only by design.
-		_p1.global_position = Vector2(400, 260)
+		# is about the abilities, not about roster legality. Stance matters:
+		# Terra's slam is air-only and Siku's pillar is ground-only, so the
+		# sweep has to stand each hero where their ability is legal or the gate
+		# refuses the cast and the check fails for the wrong reason.
+		var grounded: bool = hero_id in GROUND_ONLY
+		_p1.global_position = Vector2(400, 344) if grounded else Vector2(400, 260)
 		_p1.velocity = Vector2.ZERO
 		_p1.stun_remaining = 0.0
 		_p1.disrupt_remaining = 0.0
-		_p1.state_machine.change_state(&"Air")
+		_p1.sleep_remaining = 0.0
+		_p1.state_machine.change_state(&"Idle" if grounded else &"Air")
 		_p1.equip_hero(hero_id)
-		await step(2)
+		await step(8 if grounded else 2)
 		var ability := _p1.equipped_ability()
 		check("%s equips an ability component" % hero_id, ability != null)
 		if ability == null:
@@ -412,7 +436,25 @@ func _check_abilities() -> void:
 		and MatchState.lives_of(1, MatchState.active_hero(1)) == lives_before[1],
 		"p1=%d p2=%d" % [MatchState.lives_of(0, MatchState.active_hero(0)),
 			MatchState.lives_of(1, MatchState.active_hero(1))])
+	await _clear_effects()
 	MatchState.reset_round()
+
+## Put the stage back to the children it shipped with, freeing every effect any
+## check has spawned. Some are long-lived by design — Siku's storm keeps
+## throwing stun rings for twenty seconds, Mason's blocks are solid terrain for
+## six — so leaving them running drops stuns, sleeps and whole walls on top of
+## whatever check comes next, and the failure then looks like a bug in that
+## check rather than debris from an earlier one. (It cost an hour here: a Mason
+## block left overhead made Siku's headroom gate refuse a legal cast.)
+##
+## Doable generically because every ability parents its effects to the STAGE
+## (Player.spawn_effect), never to the body that made them.
+func _clear_effects() -> void:
+	for child in _stage.get_children():
+		if _stage_baseline.has(child.get_instance_id()):
+			continue
+		child.queue_free()
+	await step(2)
 
 func _check_round_win_and_reset() -> void:
 	MatchState.reset_round()
@@ -540,6 +582,248 @@ func _find_rope() -> GrappleRope:
 		if rope != null:
 			return rope
 	return null
+
+## The second wave's rules (docs/NEW_HEROES.md §3). Every row of that file's
+## interaction table that does not involve a stomp lives here; the stomp ones
+## are in combat_harness, next to the rest of the stomp rules.
+func _check_second_wave() -> void:
+	await _clear_effects()
+	await _check_sleep_system()
+	await _check_saint_cleanse()
+	await _check_saint_blessing()
+	await _check_voodoo()
+	await _check_siku_pillar()
+	# These leave their own debris — a pillar is solid terrain for five seconds,
+	# which the checks after this one would fall onto.
+	await _clear_effects()
+
+## Vesper: three darts put a body under, and sleep is a different thing from a
+## stun — the sleeper can still walk, cannot act, and is still stompable.
+func _check_sleep_system() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p2.clear_all_debuffs()
+	await step(2)
+
+	check("one dart stack is not sleep", _p2.add_sleep_stack(13.0) == 1
+		and _p2.sleep_remaining <= 0.0)
+	check("a second stack still is not", _p2.add_sleep_stack(13.0) == 2)
+	check("stacks share one timer", _p2.sleep_stack_remaining > 12.0,
+		"remaining=%.2f" % _p2.sleep_stack_remaining)
+	check("the third stack is the one that counts", _p2.add_sleep_stack(13.0) == 3)
+	_p2.consume_sleep_stacks()
+	_p2.apply_sleep(6.5)
+	await step(2)
+	check("sleeping takes over the state machine",
+		_p2.state_machine.state_name() == &"Sleeping",
+		"state=%s sleep=%.2f immune=%.2f" % [_p2.state_machine.state_name(),
+			_p2.sleep_remaining, _p2.debuff_immune_remaining])
+	check("the sleeping body's head is still stompable",
+		_p2.head_hurtbox.monitorable, "sleep is not grace")
+	check("a sleeping player cannot swap", not _p2.try_swap())
+	check("a sleeping player cannot use an ability", not _p2.try_ability())
+	check("a sleeping player cannot use an ultimate", not _p2.try_ultimate())
+	check("sleep shows a badge distinct from every other source",
+		DebuffMarks.MARKS[&"sleep"][1] != DebuffMarks.MARKS[&"slash"][1]
+		and DebuffMarks.MARKS[&"dart"][1] != DebuffMarks.MARKS[&"sleep"][1])
+
+	# A stun over a sleep suspends it rather than replacing it: waking someone
+	# up by hitting them would invert what the debuff is for.
+	_p2.apply_stun(0.2)
+	await step(2)
+	check("a stun interrupts the sleeping state",
+		_p2.state_machine.state_name() == &"Stunned")
+	await step(20)
+	check("the stun hands the body back to sleep, not to control",
+		_p2.state_machine.state_name() == &"Sleeping",
+		"state=%s sleep=%.2f" % [_p2.state_machine.state_name(), _p2.sleep_remaining])
+	_p2.clear_all_debuffs()
+	await step(2)
+
+## Saint's ability: it undoes everything, it casts while stunned, and Kid's EMP
+## is the one thing that still stops it.
+func _check_saint_cleanse() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"saint")
+	await step(2)
+
+	_p2.apply_slow(0.4, 8.0, &"slash")
+	_p2.apply_impairment(0.2, 8.0, &"slash")
+	_p2.apply_sleep(6.0)
+	_p2.apply_stun(3.0)
+	# _p2 is the other TEAM, so Saint must not reach them at all.
+	var enemy_stun := _p2.stun_remaining
+	_p1.apply_stun(3.0)
+	_p1.apply_slow(0.4, 8.0, &"slash")
+	await step(2)
+	check("saint can cast while stunned", _p1.try_ability(),
+		"stun=%.2f" % _p1.stun_remaining)
+	await step(2)
+	check("cleanse clears his own stun", _p1.stun_remaining <= 0.0)
+	check("cleanse clears his own slow", is_equal_approx(_p1.slow_mult, 1.0))
+	check("cleanse leaves the enemy team alone",
+		_p2.stun_remaining > 0.0 and _p2.sleep_remaining > 0.0,
+		"enemy stun was %.2f" % enemy_stun)
+
+	# The EMP hole, which is the whole counterplay to Saint.
+	MatchState.reset_round()
+	_p1.stun_remaining = 0.0
+	_p1.apply_disrupt(3.0, &"emp")
+	await step(2)
+	check("kid's EMP still locks saint out", not _p1.try_ability(),
+		"disrupt=%.2f" % _p1.disrupt_remaining)
+	# ...and so does sleep, which is Vesper's answer to him.
+	_p1.disrupt_remaining = 0.0
+	_p1.apply_sleep(3.0)
+	await step(2)
+	check("a slept saint cannot cleanse either", not _p1.try_ability())
+	_p1.clear_all_debuffs()
+	_p2.clear_all_debuffs()
+	await step(2)
+
+## Saint's ultimate: the blessing makes a body untouchable by abilities, and the
+## ward is spent by a stomp rather than a life (the stomp half lives in
+## combat_harness).
+func _check_saint_blessing() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"saint")
+	await step(2)
+	check("benediction fires", _p1.try_ultimate())
+	await step(2)
+	check("the blessing grants a stomp ward", _p1.stomp_ward_remaining > 0.0)
+	check("the blessing raises the launch multiplier", _p1.launch_mult() > 1.0,
+		"mult=%.2f" % _p1.launch_mult())
+
+	_p1.apply_slow(0.3, 5.0, &"slash")
+	_p1.apply_stun(2.0)
+	_p1.apply_sleep(5.0)
+	_p1.add_sleep_stack(12.0)
+	check("a blessed body cannot be slowed", is_equal_approx(_p1.slow_mult, 1.0))
+	check("a blessed body cannot be stunned", _p1.stun_remaining <= 0.0)
+	check("a blessed body cannot be slept", _p1.sleep_remaining <= 0.0)
+	check("a blessed body accrues no dart stacks", _p1.sleep_stacks == 0)
+	_p1.clear_all_debuffs()
+	_p1.stomp_ward_remaining = 0.0
+	_p1.debuff_immune_remaining = 0.0
+	await step(2)
+
+## Voodoo: the empowerment is real, the touch debuffs an enemy, and phasing is
+## symmetric and always cleaned up.
+func _check_voodoo() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"voodoo")
+	await step(2)
+	var plain := _p1.launch_mult()
+	check("voodoo's ability fires", _p1.try_ability())
+	await step(2)
+	check("soul ignition empowers his launches", _p1.launch_mult() > plain,
+		"%.2f -> %.2f" % [plain, _p1.launch_mult()])
+	check("soul ignition opens a contact window", _p1.contact_window_remaining > 0.0)
+
+	# Stand the enemy on top of him and let the scan find them.
+	_p2.global_position = _p1.global_position + Vector2(14.0, 0.0)
+	await step(4)
+	check("touching an enemy while ignited slows them",
+		_p2.slow_mult < 1.0 and _p2.debuff_tags.has(&"ignite"),
+		"slow=%.2f tags=%s" % [_p2.slow_mult, _p2.debuff_tags.keys()])
+
+	# The ultimate: phasing, and the exceptions it must not leave behind.
+	MatchState.reset_round()
+	_reset_bodies()
+	await step(2)
+	check("phantom fires", _p1.try_ultimate())
+	await step(2)
+	check("phantom starts phasing", _p1.phasing_remaining > 0.0)
+	check("phasing is symmetric",
+		_p1.get_collision_exceptions().has(_p2)
+		and _p2.get_collision_exceptions().has(_p1),
+		"one-sided phasing leaves the other player standing on a ghost")
+	check("phantom wears the inverted skin",
+		_p1.sprite.sprite_frames != _p1.hero.sprite_frames)
+	_p1.end_phasing()
+	await step(1)
+	check("ending the phase removes both exceptions",
+		not _p1.get_collision_exceptions().has(_p2)
+		and not _p2.get_collision_exceptions().has(_p1))
+	check("ending the phase restores the normal skin",
+		_p1.sprite.sprite_frames == _p1.hero.sprite_frames)
+	_p1.respawn_at(Vector2(400, 344))
+	_p2.clear_all_debuffs()
+	await step(2)
+
+## Siku: the pillar launches whoever is standing on it, keeps their horizontal
+## speed, and is REFUSED where the column would not fit — which is the whole
+## anti-stuck mechanism.
+func _check_siku_pillar() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"siku")
+	_p1.global_position = Vector2(400, 344)
+	_p1.state_machine.change_state(&"Idle")
+	await step(8)
+	check("siku is grounded before the cast", _p1.is_on_floor())
+	# An enemy standing in the footprint goes up too — terrain does not take
+	# sides — and keeps the speed they walked in with.
+	_p2.global_position = _p1.global_position + Vector2(18.0, 0.0)
+	await step(6)
+	_p2.velocity.x = 180.0
+	var carried := _p2.velocity.x
+	check("the pillar fires from the ground", _p1.try_ability())
+	await step(1)
+	check("the caster is launched by her own pillar", _p1.velocity.y < -100.0,
+		"vy=%.1f" % _p1.velocity.y)
+	check("an enemy in the footprint is launched too", _p2.velocity.y < -100.0,
+		"vy=%.1f" % _p2.velocity.y)
+	check("the launch keeps horizontal velocity",
+		is_equal_approx(_p2.velocity.x, carried),
+		"%.1f -> %.1f" % [carried, _p2.velocity.x])
+
+	# The refusal, which is the whole anti-stuck mechanism. The mid-left platform
+	# (x 144-240, underside at y=304) overhangs the roof at y=368: a 64px gap,
+	# far less than the pillar (96) plus a standing body, so a cast under it must
+	# be refused rather than build a column into the platform above.
+	MatchState.reset_round()
+	await _clear_effects()
+	_p1.equip_hero(&"siku")
+	_p1.global_position = Vector2(200, 344)
+	_p1.velocity = Vector2.ZERO
+	_p1.state_machine.change_state(&"Idle")
+	await step(10)
+	var blocked := not _p1.try_ability()
+	check("a pillar with no headroom is refused", blocked,
+		"on_floor=%s at=%s" % [_p1.is_on_floor(), _p1.global_position])
+	check("a refused pillar spends no cooldown",
+		MatchState.is_ability_ready(0, &"siku"))
+	_reset_bodies()
+	await step(2)
+
+## Put both bodies somewhere clear and inert. Several of the checks above care
+## about a body's exact state, and the checks before them leave debris.
+##
+## The pending-respawn queue has to go with it. An elimination anywhere earlier
+## in the suite schedules `_bring_in_next_hero` 0.6s out, and that lands as a
+## respawn_at — which wipes debuffs and forces the body into Air. Left in the
+## queue it detonates in the middle of an unrelated check, which is exactly how
+## the sleep check first failed: the sleep was applied, and a respawn owed from
+## an earlier check undid it two frames later.
+## Both spots are clear ROOF, deliberately away from the two roof springs
+## (x 416-512 and 640-736). Parking a test body on a spring launches it out of
+## whatever state the check just put it in — which is how the sleep check first
+## failed: the sleep applied correctly and a spring threw the body into Air two
+## frames later, so it read as sleep not holding.
+func _reset_bodies() -> void:
+	_stage._respawning.clear()
+	_p1.respawn_at(Vector2(360, 344))
+	_p2.respawn_at(Vector2(820, 344))
+	_p1.grace_remaining = 0.0
+	_p2.grace_remaining = 0.0
+	_p1.spawn_protected = false
+	_p2.spawn_protected = false
+	_p1.set_head_hurtbox_enabled(true)
+	_p2.set_head_hurtbox_enabled(true)
 
 ## Sai's grapple end to end: the hook is a visible object with a flight, biting
 ## starts the swing, and recasting mid-swing reels him in and stops short of the

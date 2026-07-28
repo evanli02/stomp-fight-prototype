@@ -31,6 +31,8 @@ class_name SikuPillar extends Ability
 ## footprint scan. Not a feel number — it is the body.
 const BODY_HALF_HEIGHT: float = 17.0
 const GROUND_PROBE: float = 64.0
+## How far the headroom probe is lifted off the floor it measures from.
+const GROUND_INSET: float = 4.0
 
 func _can_fire() -> bool:
 	if not player.is_on_floor():
@@ -74,14 +76,19 @@ func _ground_point() -> Vector2:
 	return hit.position if not hit.is_empty() else Vector2.ZERO
 
 ## Is the column plus a standing body clear of terrain above this ground point?
+##
+## The probe is inset on three sides. Narrower than the pillar so a column built
+## flush against a wall is not refused over a pixel of contact, and lifted clear
+## of the floor because a box whose bottom edge sits exactly ON the ground
+## reports that ground as an overlap — which would refuse the ability
+## everywhere, standing on anything.
 func _has_headroom(ground: Vector2) -> bool:
 	var box := RectangleShape2D.new()
-	# A shade narrower than the pillar, so a column built flush against a wall is
-	# not refused over a pixel of contact with it.
-	box.size = Vector2(pillar_size.x - 4.0, required_headroom)
+	box.size = Vector2(pillar_size.x - 4.0, required_headroom - GROUND_INSET)
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = box
-	query.transform = Transform2D(0.0, ground - Vector2(0.0, required_headroom * 0.5))
+	var centre := ground.y - GROUND_INSET - (required_headroom - GROUND_INSET) * 0.5
+	query.transform = Transform2D(0.0, Vector2(ground.x, centre))
 	query.collision_mask = 1
 	return player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
