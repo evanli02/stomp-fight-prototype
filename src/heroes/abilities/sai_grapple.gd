@@ -9,7 +9,11 @@ class_name SaiGrapple extends Ability
 ## same play, and charging twice would mean the only efficient use of the
 ## ability is the one that never uses half of it.
 
-@export var range: float = 460.0
+## Effectively infinite: longer than any stage's diagonal, so the hook reaches
+## whatever the aim line touches. Stages are sealed boxes, so a throw always
+## finds terrain somewhere — range stopped being the limiting factor on purpose;
+## the aim is.
+@export var range: float = 2400.0
 
 var _rope: GrappleRope = null
 
