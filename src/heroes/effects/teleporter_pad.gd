@@ -15,7 +15,7 @@ const HASTE_TIME: float = 4.0
 var pair: TeleporterPad = null
 var owner_team: int = -1
 var lifetime: float = 25.0
-var accent: Color = Color(0.18, 0.89, 0.90)
+var accent: Color = Color(0.11, 0.43, 0.82)
 
 var _downtime: float = 0.0
 

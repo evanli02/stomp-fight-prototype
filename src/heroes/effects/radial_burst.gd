@@ -16,7 +16,7 @@ const LINGER: float = 0.45
 var radius: float = 110.0
 var force: float = 460.0
 var stun_time: float = 0.0
-var accent: Color = Color(0.62, 0.31, 0.87)
+var accent: Color = Color(0.35, 0.09, 0.60)
 
 var _age: float = 0.0
 

@@ -121,7 +121,8 @@ HEROES = [
          "#6b3f2a", "#8a5a3b", torso_w=8, limb=5, cape_style="none",
          head_style="crown", gear="gauntlets"),
     # Gravity valkyrie: crested helm, sleeveless armour, tattooed arms, war cape.
-    Hero("cerebelle", "Cerebelle", "#1c1030", "#33244d", "#4a3a66", "#9d4edd", "#c77dff",
+    # DARK violet on purpose — the bright end of purple belongs to Voodoo now.
+    Hero("cerebelle", "Cerebelle", "#1c1030", "#33244d", "#4a3a66", "#5a189a", "#9d4edd",
          "#8a5a3b", "#a87450", torso_w=6, limb=4, cape_style="cape",
          cape_color="#2a3d63", head_style="crest", gear="tattoos"),
     # Stylish grappler: sleek visor, swept hair, hook at the hip, short scarf.
@@ -129,7 +130,8 @@ HEROES = [
          "#e8c39e", "#f7dfc0", torso_w=5, limb=3, cape_style="scarf",
          cape_color="#ff6ec7", head_style="visor", gear="hook"),
     # Streetpunk tinkerer: tall spiked hair, goggles pushed up, belt gadgets.
-    Hero("slip", "Slip", "#0f2428", "#1e4a50", "#2f6b72", "#2de2e6", "#7df9ff",
+    # DEEP blue on purpose — the pale icy end of blue belongs to Siku now.
+    Hero("slip", "Slip", "#0e1a30", "#1c3a5e", "#2b567e", "#1c6dd0", "#5aa9f0",
          "#b98865", "#d4a37c", torso_w=5, limb=3, cape_style="none",
          head_style="spikes", gear="pack"),
     # Warrior-builder: hard hat, heavy shoulders, wraps and plate mixed.
@@ -140,6 +142,27 @@ HEROES = [
     Hero("kid", "Kid", "#26150a", "#4a2c12", "#6b431e", "#ff8b2e", "#ffc48a",
          "#f2cf9e", "#f7dfc0", torso_w=5, limb=3, cape_style="none",
          head_style="glasses", gear="pack"),
+    # --- The second wave (kits designed, implementation pending — docs/NEW_HEROES.md) ---
+    # Spirit brawler: white voodoo-doll mask with X eyes, bright purple flames
+    # off the skull, long stylish coat. BRIGHT purple — Cerebelle went dark.
+    Hero("voodoo", "Voodoo", "#1b1226", "#332347", "#4b3566", "#bf5fff", "#e2b3ff",
+         "#d9a066", "#f2cf9e", torso_w=6, limb=4, cape_style="coat",
+         cape_color="#241733", head_style="doll_mask", gear="none"),
+    # Battle priest crossed with a monk: white and grey robes, a halo circlet,
+    # a war cape that reads as a vestment. The one white hero.
+    Hero("saint", "Saint", "#4a4a55", "#8f8f9e", "#c9c9d4", "#f2f2fa", "#ffffff",
+         "#c99b6a", "#e8bd8f", torso_w=6, limb=4, cape_style="cape",
+         cape_color="#8f8f9e", head_style="monk", gear="none"),
+    # Shinobi assassin: hood, half-face mask, neon pink eyes. Costume is BLACK
+    # (the suit ramp); the accent slots carry her neon pink because a pure black
+    # accent would erase the head band, the boots, and every effect she owns.
+    Hero("vesper", "Vesper", "#0b0b12", "#191926", "#2a2a3a", "#ff2ec4", "#ff9ce4",
+         "#e8c39e", "#f7dfc0", torso_w=5, limb=3, cape_style="scarf",
+         cape_color="#191926", head_style="shinobi", gear="none"),
+    # Arctic hunter in an ice-blue parka: fur-ringed hood, mitten-heavy build.
+    Hero("siku", "Siku", "#12303e", "#1f5468", "#2f7d95", "#9edfff", "#e2f7ff",
+         "#b98865", "#d4a37c", torso_w=6, limb=4, cape_style="none",
+         head_style="fur_hood", gear="none"),
 ]
 
 
@@ -238,6 +261,21 @@ def draw_emblem(c: Canvas, h: Hero, p: Pose) -> None:
         c.rect(sx - 1, y + 2, sx + 1, y + 2, h.accent_hi)        # circuit dashes
     elif h.key == "terra":
         c.poly([(sx - 3, y + 2), (sx, y - 1), (sx + 3, y + 2)], h.accent)  # peak
+    elif h.key == "voodoo":
+        c.line((sx - 2, y - 1), (sx + 2, y + 3), h.accent)       # stitched X
+        c.line((sx - 2, y + 3), (sx + 2, y - 1), h.accent)
+        c.put(sx, y + 1, h.accent_hi)
+    elif h.key == "saint":
+        c.rect(sx, y - 1, sx, y + 3, h.accent)                   # cross
+        c.rect(sx - 2, y, sx + 2, y, h.accent)
+        c.put(sx, y, "#ffd23f")
+    elif h.key == "vesper":
+        c.poly([(sx, y - 1), (sx + 2, y + 1), (sx, y + 3), (sx - 2, y + 1)], h.accent)  # diamond
+        c.put(sx, y + 1, h.accent_hi)
+    elif h.key == "siku":
+        c.line((sx - 2, y + 1), (sx + 2, y + 1), h.accent_hi)    # snowflake
+        c.line((sx - 1, y - 1), (sx + 1, y + 3), h.accent)
+        c.line((sx - 1, y + 3), (sx + 1, y - 1), h.accent)
     else:
         c.rect(sx - 2, y - 1, sx + 2, y + 2, KEYLINE)
         c.rect(sx - 1, y, sx + 1, y + 1, h.accent_hi)            # kid: screen
@@ -362,6 +400,61 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.rect(cx - 6, cy - 2, cx + 8, cy - 1, KEYLINE)
         c.rect(cx - 5, cy - 2, cx + 7, cy - 2, h.accent)
         c.rect(cx + 2, cy - 2, cx + 7, cy - 2, h.accent_hi)
+    elif s == "doll_mask":  # Voodoo: white doll mask, X eyes, purple head-flames
+        # The mask replaces the face entirely — bone white, stitched, blank.
+        c.ellipse(cx + 1, cy + 1, 5.8, 5.4, KEYLINE)
+        c.ellipse(cx + 1, cy + 1, 5.0, 4.7, "#f2efe6")
+        c.rect(cx - 2, cy - 2, cx - 2, cy + 4, "#d9d4c4")     # centre seam
+        for ey, ex in ((0, 0), (0, 4)):                        # two X eyes
+            for d in (-1, 1):
+                c.put(cx + ex + d, cy + ey - 1, KEYLINE)
+                c.put(cx + ex - d, cy + ey + 1, KEYLINE)
+            c.put(cx + ex, cy + ey, KEYLINE)
+        for mx in (cx - 1, cx + 1, cx + 3):                    # stitched mouth
+            c.put(mx, cy + 4, KEYLINE)
+        c.rect(cx - 1, cy + 4, cx + 3, cy + 4, "#b8b2a0")
+        # Bright purple flames pouring off the skull — his tell at any zoom.
+        for dx, hgt in ((-4, 5), (-1, 8), (2, 6), (4, 4)):
+            c.poly([(cx + dx - 1, cy - 4), (cx + dx, cy - 5 - hgt), (cx + dx + 2, cy - 4)], KEYLINE)
+            c.poly([(cx + dx, cy - 4), (cx + dx, cy - 4 - hgt), (cx + dx + 1, cy - 4)], h.accent)
+            c.put(cx + dx, cy - 3 - hgt, h.accent_hi)
+        c.rect(cx - 5, cy - 4, cx + 5, cy - 3, h.accent)       # accent band under the fire
+    elif s == "monk":       # Saint: shaved head, halo circlet, calm face
+        c.ellipse(cx - 1, cy - 4, 5.2, 2.6, face_skin(h))      # bare crown
+        c.rect(cx - 5, cy - 3, cx + 5, cy - 2, KEYLINE)        # circlet
+        c.rect(cx - 4, cy - 3, cx + 4, cy - 3, h.accent)
+        c.put(cx, cy - 3, "#ffd23f")                           # one gold bead
+        # A floating halo arc, broken so it reads as light, not a hat.
+        c.rect(cx - 3, cy - 9, cx - 1, cy - 9, h.accent_hi)
+        c.rect(cx + 1, cy - 9, cx + 3, cy - 9, h.accent_hi)
+        c.put(cx - 4, cy - 8, h.accent)
+        c.put(cx + 4, cy - 8, h.accent)
+    elif s == "shinobi":    # Vesper: hood, half-mask, neon pink eyes
+        # Hood over the whole skull, black like the rest of her.
+        c.poly([(cx - 6, cy + 2), (cx - 5, cy - 6), (cx + 4, cy - 6), (cx + 6, cy + 1)], KEYLINE)
+        c.poly([(cx - 5, cy + 1), (cx - 4, cy - 5), (cx + 3, cy - 5), (cx + 5, cy)], h.mid)
+        c.rect(cx - 4, cy - 5, cx + 2, cy - 5, h.light)        # hood rim catch-light
+        # Half-mask across the lower face.
+        c.rect(cx - 1, cy + 3, cx + 6, cy + 6, KEYLINE)
+        c.rect(cx - 1, cy + 3, cx + 5, cy + 5, h.dark)
+        c.rect(cx, cy + 3, cx + 4, cy + 3, h.mid)
+        # The neon pink eye is the only bright thing on her.
+        c.rect(cx + 1, cy + 1, cx + 4, cy + 2, h.accent)
+        c.rect(cx + 2, cy + 1, cx + 4, cy + 1, h.accent_hi)
+        c.put(cx + 4, cy + 1, "#ffffff")
+        c.rect(cx - 5, cy - 4, cx + 3, cy - 4, h.accent)       # thin accent band on the hood
+    elif s == "fur_hood":   # Siku: parka hood ringed in fur
+        # Fur ring around the face — pale, chunky, unmistakable at zoom.
+        c.ellipse(cx, cy, 7.4, 7.2, "#e8e2d4", filled=False)
+        c.ellipse(cx, cy, 6.9, 6.7, "#cfc7b2", filled=False)
+        for i in range(8):                                     # fur tufts
+            ang = -2.6 + i * 0.42
+            c.put(int(cx + math.cos(ang) * 7.6), int(cy + math.sin(ang) * 7.4), "#e8e2d4")
+        # Hood shell over the top, in coat blue with the accent band.
+        c.poly([(cx - 6, cy - 3), (cx - 4, cy - 7), (cx + 4, cy - 7), (cx + 6, cy - 3)], KEYLINE)
+        c.poly([(cx - 5, cy - 3), (cx - 3, cy - 6), (cx + 3, cy - 6), (cx + 5, cy - 3)], h.mid)
+        c.rect(cx - 4, cy - 4, cx + 4, cy - 3, h.accent)
+        c.rect(cx - 2, cy - 6, cx + 2, cy - 6, h.accent_hi)
     else:                   # glasses: big round frames + messy fringe
         c.ellipse(cx - 1, cy - 5, 5.8, 3.0, h.dark)
         for dx in (-3, 3):

@@ -16,7 +16,7 @@ const MARKS: Dictionary = {
 	&"slash": [Color(1, 0.43, 0.78), "slash"],
 	&"emp": [Color(1, 0.55, 0.18), "bolt"],
 	&"fracture": [Color(0.71, 0.40, 0.11), "chain"],
-	&"teleport": [Color(0.18, 0.89, 0.90), "ring"],
+	&"teleport": [Color(0.11, 0.43, 0.82), "ring"],
 	&"slow": [Color(0.75, 0.75, 0.85), "ring"],
 	&"impair": [Color(0.75, 0.75, 0.85), "chain"],
 }
