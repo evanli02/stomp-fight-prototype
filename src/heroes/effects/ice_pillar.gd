@@ -22,7 +22,7 @@ const MELT_TIME: float = 0.45
 ## into a half-built pillar would be exactly the bug the gate exists to stop.
 const BUILD_TIME: float = 0.12
 
-var pillar_size: Vector2 = Vector2(64.0, 96.0)
+var pillar_size: Vector2 = Vector2(64.0, 80.0)
 var lifetime: float = 5.0
 var accent: Color = Color(0.62, 0.87, 1.0)
 
@@ -31,6 +31,14 @@ var _shape: CollisionShape2D
 var _rect: RectangleShape2D
 var _age: float = 0.0
 var _melting: float = 0.0
+## Bodies that were inside the column when it was built. The pillar's collision
+## holds an exception for each until they have physically left it — without
+## this the solid appears AROUND them and the physics server depenetrates them
+## out the shortest way, which for a body at the base is straight down: Siku
+## was being shoved into the floor (or through a thin platform) by her own
+## cast, the exact bug the launch-first ordering alone could not prevent,
+## because one frame of launch moves ~11px and the column is 80.
+var _phasing_out: Array = []
 
 func _ready() -> void:
 	# The trigger covers the band a body OCCUPIES while standing on the cap, not
@@ -53,6 +61,14 @@ func _ready() -> void:
 	_shape.position = Vector2(0.0, pillar_size.y * 0.5)
 	_body.add_child(_shape)
 	add_child(_body)
+	for p in _phasing_out:
+		if is_instance_valid(p):
+			_body.add_collision_exception_with(p)
+
+## Called by SikuPillar before the pillar enters the tree: everyone launched is
+## also everyone the new collision must ignore until they are clear of it.
+func ignore_until_clear(bodies: Array) -> void:
+	_phasing_out = bodies.duplicate()
 
 func physics_effect(p: Player, _delta: float) -> void:
 	if p.is_on_floor():
@@ -60,6 +76,7 @@ func physics_effect(p: Player, _delta: float) -> void:
 
 func tick(delta: float) -> void:
 	_age += delta
+	_release_cleared_bodies()
 	if _age < lifetime:
 		queue_redraw()
 		return
@@ -73,6 +90,25 @@ func tick(delta: float) -> void:
 		queue_free()
 		return
 	queue_redraw()
+
+## A launched body becomes solid to the pillar again the moment it stops
+## overlapping the column — usually at the top of its launch arc, so it lands
+## back ON the cap. A body that never clears (frozen mid-column, wedged by a
+## ceiling) keeps its exception for the pillar's life, which degrades to "the
+## pillar is not solid to that one body" rather than to anyone stuck in ice.
+func _release_cleared_bodies() -> void:
+	for i in range(_phasing_out.size() - 1, -1, -1):
+		var p := _phasing_out[i] as Player
+		if p == null or not is_instance_valid(p):
+			_phasing_out.remove_at(i)
+			continue
+		# Body AABB (22x34 about its centre) vs the column, with a small margin
+		# so re-solidifying never happens while still in contact.
+		var column := Rect2(global_position + Vector2(-pillar_size.x * 0.5, 0.0), pillar_size)
+		var body_box := Rect2(p.global_position - Vector2(12.0, 18.0), Vector2(24.0, 36.0))
+		if not column.intersects(body_box):
+			_body.remove_collision_exception_with(p)
+			_phasing_out.remove_at(i)
 
 func _draw() -> void:
 	var grow: float = clampf(_age / BUILD_TIME, 0.0, 1.0)

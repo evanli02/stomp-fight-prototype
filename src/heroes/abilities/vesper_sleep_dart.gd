@@ -12,7 +12,9 @@ class_name VesperSleepDart extends Ability
 ## come at you frightening rather than merely fatal — and their head hurtbox
 ## stays live the whole time, which is what the kit is actually buying.
 
-@export var dart_speed: float = 620.0        # Deadeye's bolt speed exactly
+## Faster than Deadeye's 620 (owner pass 2026-07-28): the dart is a needle and
+## should fly like one. Same body and size as the bolt, just quicker.
+@export var dart_speed: float = 780.0
 @export var dart_slow_mult: float = 0.6
 @export var dart_impair_mult: float = 0.65
 @export var dart_slow_time: float = 2.0

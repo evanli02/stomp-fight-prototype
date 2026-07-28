@@ -22,8 +22,9 @@ func enter(_params: Dictionary = {}) -> void:
 		distance = player.movement.dash_distance_ground
 	elif player.is_on_wall():
 		distance = player.movement.dash_distance_wall
-	# Impairment shortens every dash variant; empowerment lengthens it.
-	distance *= maxf(player.launch_mult(), 0.05)
+	# Impairment shortens every dash variant; empowerment lengthens it. The dash
+	# buff stacks on top and touches only this — jumps never read it.
+	distance *= maxf(player.launch_mult() * player.dash_buff_mult, 0.05)
 	var dir := _resolve_direction()
 	_grants_boost = true
 	if not on_surface and dir.y > 0.0 			and absf(dir.x) < player.movement.air_dash_down_deadzone:

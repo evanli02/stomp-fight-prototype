@@ -627,16 +627,33 @@ func _check_sleep_system() -> void:
 		DebuffMarks.MARKS[&"sleep"][1] != DebuffMarks.MARKS[&"slash"][1]
 		and DebuffMarks.MARKS[&"dart"][1] != DebuffMarks.MARKS[&"sleep"][1])
 
-	# A stun over a sleep suspends it rather than replacing it: waking someone
-	# up by hitting them would invert what the debuff is for.
-	_p2.apply_stun(0.2)
+	# Terrain launches must not be a free wake-up: a spring's launch asks for
+	# Air, and while asleep that request is redirected back to Sleeping — the
+	# velocity still applies, so a slept body still gets thrown, just asleep.
+	_p2.set_velocity_override(Vector2(0.0, -400.0))
+	_p2.request_state(&"Air")
 	await step(2)
-	check("a stun interrupts the sleeping state",
-		_p2.state_machine.state_name() == &"Stunned")
+	check("a spring-style launch does not break the sleep",
+		_p2.state_machine.state_name() == &"Sleeping" and _p2.sleep_remaining > 0.0,
+		"state=%s" % _p2.state_machine.state_name())
+
+	# What DOES end a sleep early (owner ruling 2026-07-28): a stun, or any
+	# fresh debuff. Sleep is a setup, and collecting on it finishes it.
+	_p2.apply_stun(0.2)
+	await step(1)
+	check("a stun wakes the sleeper", _p2.sleep_remaining <= 0.0
+		and _p2.state_machine.state_name() == &"Stunned",
+		"sleep=%.2f state=%s" % [_p2.sleep_remaining, _p2.state_machine.state_name()])
 	await step(20)
-	check("the stun hands the body back to sleep, not to control",
-		_p2.state_machine.state_name() == &"Sleeping",
-		"state=%s sleep=%.2f" % [_p2.state_machine.state_name(), _p2.sleep_remaining])
+	check("the stun releases to control, not back to sleep",
+		_p2.state_machine.state_name() != &"Sleeping",
+		"state=%s" % _p2.state_machine.state_name())
+	_p2.clear_all_debuffs()
+	_p2.apply_sleep(6.0)
+	await step(1)
+	_p2.apply_slow(0.5, 1.0, &"slash")
+	check("a fresh debuff wakes the sleeper too", _p2.sleep_remaining <= 0.0,
+		"sleep=%.2f" % _p2.sleep_remaining)
 	_p2.clear_all_debuffs()
 	await step(2)
 
@@ -648,10 +665,12 @@ func _check_saint_cleanse() -> void:
 	_p1.equip_hero(&"saint")
 	await step(2)
 
+	# Order matters now that a fresh debuff or stun WAKES a sleeper: the sleep
+	# goes on last so it is still running when cleanse resolves.
 	_p2.apply_slow(0.4, 8.0, &"slash")
 	_p2.apply_impairment(0.2, 8.0, &"slash")
-	_p2.apply_sleep(6.0)
 	_p2.apply_stun(3.0)
+	_p2.apply_sleep(6.0)
 	# _p2 is the other TEAM, so Saint must not reach them at all.
 	var enemy_stun := _p2.stun_remaining
 	_p1.apply_stun(3.0)
@@ -673,11 +692,16 @@ func _check_saint_cleanse() -> void:
 	await step(2)
 	check("kid's EMP still locks saint out", not _p1.try_ability(),
 		"disrupt=%.2f" % _p1.disrupt_remaining)
-	# ...and so does sleep, which is Vesper's answer to him.
+	# Sleep, though, is castable-through (owner ruling 2026-07-28): the flag
+	# covers stun AND sleep, and only the EMP is absolute.
 	_p1.disrupt_remaining = 0.0
+	MatchState.start_cooldown(0, &"saint", 0.0)
 	_p1.apply_sleep(3.0)
 	await step(2)
-	check("a slept saint cannot cleanse either", not _p1.try_ability())
+	check("a slept saint casts his way out", _p1.try_ability(),
+		"sleep=%.2f" % _p1.sleep_remaining)
+	await step(1)
+	check("the cast cleared his own sleep", _p1.sleep_remaining <= 0.0)
 	_p1.clear_all_debuffs()
 	_p2.clear_all_debuffs()
 	await step(2)
@@ -737,6 +761,10 @@ func _check_voodoo() -> void:
 	check("phantom fires", _p1.try_ultimate())
 	await step(2)
 	check("phantom starts phasing", _p1.phasing_remaining > 0.0)
+	# Owner ruling 2026-07-28: the ult buffs run and dash, never the jump.
+	check("phantom buffs the dash but not the jump",
+		_p1.dash_buff_mult > 1.0 and is_equal_approx(_p1.launch_mult(), 1.0),
+		"dash=%.2f launch=%.2f" % [_p1.dash_buff_mult, _p1.launch_mult()])
 	check("phasing is symmetric",
 		_p1.get_collision_exceptions().has(_p2)
 		and _p2.get_collision_exceptions().has(_p1),
@@ -780,6 +808,16 @@ func _check_siku_pillar() -> void:
 	check("the launch keeps horizontal velocity",
 		is_equal_approx(_p2.velocity.x, carried),
 		"%.1f -> %.1f" % [carried, _p2.velocity.x])
+	# Velocity alone is not proof: the original bug set the launch velocity AND
+	# shoved the caster into the floor, because the pillar's solid appeared
+	# around her body and depenetration pushed her out the shortest way — down.
+	# The fix is a per-body collision exception until she has cleared the
+	# column, and the position is the only witness to it working.
+	var cast_y := _p1.global_position.y
+	await step(20)
+	check("the caster actually rises out of her own pillar",
+		_p1.global_position.y < cast_y - 40.0,
+		"y %.1f -> %.1f" % [cast_y, _p1.global_position.y])
 
 	# The refusal, which is the whole anti-stuck mechanism. The mid-left platform
 	# (x 144-240, underside at y=304) overhangs the roof at y=368: a 64px gap,

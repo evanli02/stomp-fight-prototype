@@ -9,6 +9,7 @@ class_name HeroAura extends Node2D
 ##   &"surge"   an empowerment (Voodoo's kits, Saint's ultimate) — rising
 ##              flame-like licks; menace scales with `intensity`
 ##   &"ward"    a protective blessing (Saint) — a soft steady halo ring
+##   &"frost"   an active ice ultimate (Siku) — orbiting crystals and drift
 ##
 ## Parented to the stage like every effect (spawn_effect), so it FOLLOWS the
 ## player rather than riding as a child — same pattern as the grapple rope. It
@@ -57,6 +58,8 @@ func _draw() -> void:
 			_draw_surge(fade)
 		&"ward":
 			_draw_ward(fade)
+		&"frost":
+			_draw_frost(fade)
 
 ## Gusts circling the body — three short arcs orbiting at different heights.
 func _draw_wind(fade: float) -> void:
@@ -69,21 +72,52 @@ func _draw_wind(fade: float) -> void:
 		draw_arc(Vector2(0.0, y), 16.0 + i * 2.0, phase + sweep * 0.6,
 			phase + sweep * 0.9, 6, Color(1, 1, 1, fade * 0.35), 1.0)
 
-## Rising licks of energy off the body — taller and denser with intensity.
+## Rising licks of energy off the body — taller, denser, and wider with
+## intensity. Loud on purpose: an empowerment window is information both
+## players need from across the stage, and the first cut of this read as a
+## shimmer rather than a state.
 func _draw_surge(fade: float) -> void:
-	var licks := 4 + int(intensity * 2.0)
+	# A grounded glow ring so the state reads even when the licks are between
+	# pulses — the licks say "burning", the ring says "still on".
+	var breathe := 1.0 + sin(_age * 6.0) * 0.12
+	draw_arc(Vector2(0.0, 4.0), 19.0 * breathe, 0.0, TAU, 28,
+		Color(accent.r, accent.g, accent.b, fade * (0.4 + 0.2 * intensity)), 2.5)
+	var licks := 6 + int(intensity * 3.0)
 	for i in licks:
 		# Deterministic per-lick wobble, no RNG: this is presentation.
-		var seed_x := float((i * 37) % 11) - 5.0
-		var t := fmod(_age * (1.4 + 0.13 * float(i % 3)) + float(i) * 0.31, 1.0)
-		var x := seed_x * 2.2 + sin(_age * 5.0 + i) * 2.0
-		var rise := (10.0 + 14.0 * intensity) * t
-		var top := Vector2(x, 8.0 - rise)
-		var alpha := fade * (1.0 - t) * (0.5 + 0.25 * intensity)
-		draw_line(Vector2(x, 12.0 - rise * 0.6), top,
-			Color(accent.r, accent.g, accent.b, alpha), 2.0)
+		var seed_x := float((i * 37) % 13) - 6.0
+		var t := fmod(_age * (1.6 + 0.13 * float(i % 3)) + float(i) * 0.29, 1.0)
+		var x := seed_x * 2.4 + sin(_age * 5.0 + i) * 2.5
+		var rise := (16.0 + 18.0 * intensity) * t
+		var top := Vector2(x, 10.0 - rise)
+		var alpha := fade * (1.0 - t) * (0.7 + 0.3 * intensity)
+		# Two-tone flame: accent body with a white-hot core stroke.
+		draw_line(Vector2(x, 14.0 - rise * 0.6), top,
+			Color(accent.r, accent.g, accent.b, alpha), 3.0)
+		draw_line(Vector2(x, 12.0 - rise * 0.55), top,
+			Color(1, 1, 1, alpha * 0.45), 1.2)
 		if i % 2 == 0:
-			draw_circle(top, 1.2, Color(1, 1, 1, alpha * 0.7))
+			draw_circle(top, 1.6, Color(1, 1, 1, alpha * 0.8))
+
+## Ice crystals orbiting the body plus a slow falling drift — cold where the
+## surge is hot, and unmistakably "the storm is still firing".
+func _draw_frost(fade: float) -> void:
+	for i in 3:
+		var ang := _age * 2.2 + float(i) * TAU / 3.0
+		var at := Vector2(cos(ang) * 18.0, sin(ang) * 8.0 - 8.0)
+		var s := 3.5 + sin(_age * 4.0 + i) * 0.8
+		var pts: PackedVector2Array = [at + Vector2(0, -s), at + Vector2(s * 0.6, 0),
+			at + Vector2(0, s), at + Vector2(-s * 0.6, 0)]
+		draw_colored_polygon(pts, Color(accent.r, accent.g, accent.b, fade * 0.8))
+		draw_circle(at, 1.0, Color(1, 1, 1, fade * 0.7))
+	# Frost motes sinking off the body.
+	for i in 4:
+		var t := fmod(_age * 0.8 + float(i) * 0.25, 1.0)
+		var x := float((i * 29) % 15) - 7.0
+		draw_circle(Vector2(x, -14.0 + 30.0 * t), 1.2,
+			Color(accent.r, accent.g, accent.b, fade * (1.0 - t) * 0.7))
+	draw_arc(Vector2.ZERO, 21.0, 0.0, TAU, 28,
+		Color(accent.r, accent.g, accent.b, fade * 0.35), 1.5)
 
 ## A steady halo — calm on purpose, the opposite read from a surge.
 func _draw_ward(fade: float) -> void:

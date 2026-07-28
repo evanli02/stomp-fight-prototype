@@ -13,13 +13,15 @@ class_name VoodooPhantom extends Ability
 ## ordinary stomp system — victim authority, grace, anti-chain — exactly like
 ## Terra's slam. The combat harness asserts both halves.
 
-## Noticeably longer than the ability's window.
-@export var duration: float = 9.0
-## The same empowerment as Soul Ignition, noticeably more of it.
-@export var speed_mult: float = 1.4
-@export var impulse_mult: float = 1.3
+## Noticeably longer than a cast of the ability.
+@export var duration: float = 12.0
+## More run and more dash than Soul Ignition — but the JUMP is deliberately
+## untouched (no impulse buff here): a ghost that also out-jumped everyone
+## would leave no answer to him at all. The dash buff is dash-only.
+@export var speed_mult: float = 1.6
+@export var dash_mult: float = 1.45
 ## The pass-through stun. Refreshes, never stacks.
-@export var pass_stun_time: float = 3.0
+@export var pass_stun_time: float = 2.0
 
 ## The negative skin, loaded once. Generated beside the ordinary frames by
 ## assets/tools/generate_characters.py (see `VARIANTS` there).
@@ -27,7 +29,7 @@ const PHANTOM_FRAMES: String = "res://src/heroes/resources/frames/voodoo_phantom
 
 func _execute(_aim: Vector2) -> void:
 	player.grant_speed_buff(speed_mult, duration)
-	player.grant_impulse_buff(impulse_mult, duration)
+	player.grant_dash_buff(dash_mult, duration)
 	player.begin_phasing(duration)
 	player.begin_contact_stun(pass_stun_time, duration)
 	player.apply_skin_override(load(PHANTOM_FRAMES) as SpriteFrames)

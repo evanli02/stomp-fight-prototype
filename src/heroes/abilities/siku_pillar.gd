@@ -17,15 +17,17 @@ class_name SikuPillar extends Ability
 ## happen — which is what makes "nobody ends up inside terrain" true by
 ## construction rather than by testing.
 
-## 3 body-widths x 3 body-heights (the body is 22x34), snapped to the tile grid.
-@export var pillar_size: Vector2 = Vector2(64.0, 96.0)
+## 3 body-widths across, a shade over 2 body-heights tall (the body is 22x34) —
+## brought down from 96 on the owner's pass, snapped to the tile grid.
+@export var pillar_size: Vector2 = Vector2(64.0, 80.0)
 @export var pillar_life: float = 5.0
 ## The launch: replaces velocity.y, keeps velocity.x. A medium distance — above
-## a held jump's apex, well below a stage spring's 760-820.
+## a held jump's apex, well below a stage spring's 760-820, and comfortably
+## past the pillar's own height so a launched body clears the cap.
 @export var launch_velocity: float = -640.0
 ## Clearance the cast needs above the ground: the pillar, plus a standing body
 ## on top of it, plus a little slack.
-@export var required_headroom: float = 140.0
+@export var required_headroom: float = 122.0
 
 ## Half the body width, used to find the ground under her and to size the
 ## footprint scan. Not a feel number — it is the body.
@@ -44,9 +46,13 @@ func _can_fire() -> bool:
 
 func _execute(_aim: Vector2) -> void:
 	var ground := _ground_point()
-	# Launch FIRST, collision second. Everyone in the footprint is already in
-	# Air by the time the solid column exists, so the pillar can never appear
-	# around a body that was standing in it.
+	# Launch first — but launching is not enough on its own: one frame at the
+	# launch speed moves ~11px and the column is 80, so everyone launched is
+	# also handed to the pillar as a collision exception until they have
+	# physically cleared it (IcePillar.ignore_until_clear). Without that, the
+	# solid appears around the bodies and depenetration shoves them out the
+	# shortest way — for a body at the base, straight DOWN into the floor.
+	var launched: Array = []
 	for t in all_players():
 		var body := t as Player
 		if not _in_footprint(body, ground):
@@ -54,10 +60,12 @@ func _execute(_aim: Vector2) -> void:
 		body.velocity.y = launch_velocity          # velocity.x deliberately kept
 		body.request_state(&"Air", {"anim": &"rise"})
 		body.air_dash_locked = false
+		launched.append(body)
 
 	var pillar := IcePillar.new()
 	pillar.pillar_size = pillar_size
 	pillar.lifetime = pillar_life
+	pillar.ignore_until_clear(launched)
 	# The node's origin is the pillar's CAP, which is one pillar-height above
 	# the ground it is built on.
 	pillar.global_position = ground - Vector2(0.0, pillar_size.y)

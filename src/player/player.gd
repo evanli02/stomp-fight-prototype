@@ -62,6 +62,11 @@ var disrupt_remaining: float = 0.0
 ## without either system knowing about the other.
 var impulse_buff_mult: float = 1.0
 var impulse_buff_remaining: float = 0.0
+## Dash-only sibling of the impulse buff (Voodoo's Phantom buffs run and dash
+## but deliberately not the jump — a ghost that also out-jumped everyone had no
+## answer left).
+var dash_buff_mult: float = 1.0
+var dash_buff_remaining: float = 0.0
 ## Sleep (Vesper). Stacks share ONE timer — adding a stack resets it for all of
 ## them, and they expire together. The threshold and the sleep duration belong
 ## to the ability, not here: this side owns the mechanism, not the numbers.
@@ -187,6 +192,7 @@ func apply_slow(mult: float, dur: float, tag: StringName = &"slow") -> void:
 	## Speed-cap multiplier < 1. Takes the strongest slow and the longest timer.
 	if debuff_immune_remaining > 0.0:
 		return
+	_wake()
 	slow_mult = minf(slow_mult, clampf(mult, 0.1, 1.0))
 	slow_remaining = maxf(slow_remaining, dur)
 	mark_debuff(tag, dur)
@@ -195,6 +201,7 @@ func apply_impairment(mult: float, dur: float, tag: StringName = &"impair") -> v
 	## Scales jump, dash, and wall-jump strength. 0 disables them entirely.
 	if debuff_immune_remaining > 0.0:
 		return
+	_wake()
 	impair_mult = minf(impair_mult, clampf(mult, 0.0, 1.0))
 	impair_remaining = maxf(impair_remaining, dur)
 	mark_debuff(tag, dur)
@@ -203,8 +210,20 @@ func apply_disrupt(dur: float, tag: StringName = &"emp") -> void:
 	## EMP: no dash, no ability, no ultimate until it expires.
 	if debuff_immune_remaining > 0.0:
 		return
+	_wake()
 	disrupt_remaining = maxf(disrupt_remaining, dur)
 	mark_debuff(tag, dur)
+
+## A fresh stun or debuff ENDS a sleep rather than stacking under it — hitting a
+## sleeper wakes them (docs/NEW_HEROES.md §1.6). Sleep is a setup, and the
+## moment somebody collects on the setup its job is done. The state hand-off is
+## left to whatever the caller does next (a stun takes the body to Stunned; a
+## bare slow leaves the Sleeping state to notice sleep_remaining hit zero).
+func _wake() -> void:
+	if sleep_remaining <= 0.0:
+		return
+	sleep_remaining = 0.0
+	debuff_tags.erase(&"sleep")
 
 func mark_debuff(tag: StringName, dur: float) -> void:
 	## Which SOURCE is on you, for the status icons. Longest timer wins, so a
@@ -216,6 +235,7 @@ func apply_freeze(duration: float) -> void:
 	## freeze ends the player simply falls — no impulse, just gravity again.
 	if debuff_immune_remaining > 0.0:
 		return
+	_wake()
 	freeze_remaining = maxf(freeze_remaining, duration)
 	velocity = Vector2.ZERO
 
@@ -234,6 +254,7 @@ func _apply_stomp_stun(duration: float) -> void:
 	_stun(duration)
 
 func _stun(duration: float) -> void:
+	_wake()   # a stun ends a sleep; it does not run underneath it
 	stun_remaining = maxf(stun_remaining, duration)
 	stun_applied.emit(duration)
 	if state_machine != null and state_machine.state_name() != &"Stunned":
@@ -246,6 +267,12 @@ func grant_impulse_buff(mult: float, dur: float) -> void:
 	## multiplier, longest timer, never additive.
 	impulse_buff_mult = maxf(impulse_buff_mult, mult)
 	impulse_buff_remaining = maxf(impulse_buff_remaining, dur)
+
+func grant_dash_buff(mult: float, dur: float) -> void:
+	## Lengthens dashes only; jumps and wall jumps are untouched. Same refresh
+	## rule as every buff: strongest and longest, never additive.
+	dash_buff_mult = maxf(dash_buff_mult, mult)
+	dash_buff_remaining = maxf(dash_buff_remaining, dur)
 
 func grant_debuff_immunity(dur: float) -> void:
 	## Saint's blessing: every apply_* above becomes a no-op for the window.
@@ -414,6 +441,16 @@ func _end_contact_window() -> void:
 func request_state(state_name: StringName, params: Dictionary = {}) -> void:
 	## Abilities ask for a state (e.g. Skyla's double jump requests Air); they
 	## never reach into state internals.
+	##
+	## Sleep holds through these. Terrain launches (springs, Mason's block) ask
+	## for Air as part of their launch, and honouring that while asleep was a
+	## free wake-up — walk onto a spring and the sleep was gone. The velocity
+	## they set still applies, so a slept body still gets thrown; it just wakes
+	## up where it lands instead of mid-flight. Only expiry, a stun, or a fresh
+	## debuff end a sleep (docs/NEW_HEROES.md §1.6).
+	if sleep_remaining > 0.0 and state_name != &"Stunned":
+		state_name = &"Sleeping"
+		params = {}
 	state_machine.change_state(state_name, params)
 
 func apply_surface_slip(amount: float) -> void:
@@ -520,14 +557,16 @@ func try_ultimate() -> bool:
 		play_cast()
 	return ok
 
-## Shared cast gate. Stun is the one condition an ability may opt out of
-## (Saint's, whose whole point is casting out of trouble). Disrupt and sleep are
-## not negotiable for anybody: Kid's EMP and Vesper's sleep are the sanctioned
-## answers to a hero who can undo everything else.
+## Shared cast gate. Stun and sleep are the conditions an ability may opt out
+## of (Saint's, whose whole point is casting out of trouble — sleep included,
+## by owner ruling 2026-07-28). Disrupt is not negotiable for anybody: Kid's
+## EMP is the one sanctioned answer to a hero who can undo everything else.
 func _can_cast(ability: Ability) -> bool:
-	if disrupt_remaining > 0.0 or sleep_remaining > 0.0:
+	if disrupt_remaining > 0.0:
 		return false
-	return stun_remaining <= 0.0 or ability.fires_while_stunned
+	if stun_remaining <= 0.0 and sleep_remaining <= 0.0:
+		return true
+	return ability.fires_while_stunned
 
 func play_cast() -> void:
 	## Short cast flourish on any successful ability or ultimate.
@@ -582,6 +621,8 @@ func respawn_at(spawn_position: Vector2) -> void:
 	consume_sleep_stacks()
 	impulse_buff_mult = 1.0
 	impulse_buff_remaining = 0.0
+	dash_buff_mult = 1.0
+	dash_buff_remaining = 0.0
 	debuff_immune_remaining = 0.0
 	stomp_ward_remaining = 0.0
 	# A ghost that outlived its window would be permanent: nothing else ever
@@ -776,6 +817,10 @@ func _tick_timers(delta: float) -> void:
 		impulse_buff_remaining -= delta
 		if impulse_buff_remaining <= 0.0:
 			impulse_buff_mult = 1.0
+	if dash_buff_remaining > 0.0:
+		dash_buff_remaining -= delta
+		if dash_buff_remaining <= 0.0:
+			dash_buff_mult = 1.0
 	if debuff_immune_remaining > 0.0:
 		debuff_immune_remaining -= delta
 	if stomp_ward_remaining > 0.0:

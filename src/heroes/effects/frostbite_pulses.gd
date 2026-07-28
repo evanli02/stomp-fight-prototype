@@ -11,7 +11,7 @@ class_name FrostbitePulses extends Node2D
 ## Cerebelle's ult object, reused rather than forked.
 
 var caster: Player
-var pulses_left: int = 6
+var pulses_left: int = 5
 var gap: float = 3.5
 var pulse_speed: float = 520.0
 var reach: float = 1800.0

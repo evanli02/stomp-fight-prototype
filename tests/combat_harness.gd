@@ -374,7 +374,9 @@ func _check_sleeping_is_stompable() -> void:
 	await step(30)
 	check("a sleeping player can be stomped", lives_of(1) == lives_before - 1,
 		"lives %d -> %d" % [lives_before, lives_of(1)])
-	check("the stomp does not wake them", _p2.sleep_remaining > 0.0,
+	# The stomp's stun ends the sleep (a stun wakes a sleeper — owner ruling
+	# 2026-07-28): the setup was collected on, so its job is done.
+	check("the stomp wakes them", _p2.sleep_remaining <= 0.0,
 		"sleep=%.2f" % _p2.sleep_remaining)
 	_p2.clear_all_debuffs()
 	await step(2)

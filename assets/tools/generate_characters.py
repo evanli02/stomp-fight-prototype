@@ -106,6 +106,9 @@ class Hero:
     ## Variants (Voodoo's phantom skin) keep the emblem of the hero they are a
     ## variant OF — a phantom is still Voodoo, drawn in negative.
     emblem: str = ""
+    ## Negative variants flip prop colours that are normally hardcoded (the
+    ## doll mask's bone white). Skin stays skin either way.
+    invert_props: bool = False
 
     def cape_col(self) -> str:
         return self.cape_color or self.dark
@@ -185,9 +188,10 @@ def inverted(h: Hero, key: str, name: str) -> Hero:
     swap is a whole SpriteFrames rather than a modulate: the grace blink already
     drives the sprite's alpha, and a tint would be fighting it for the same
     channel. Skin stays skin — inverting a face reads as a bug, not as menace —
-    so only the suit and accent ramps flip.
+    but hardcoded prop colours flip too (invert_props): the phantom's mask goes
+    black with white stitching, which is most of what makes him read possessed.
     """
-    return replace(h, key=key, name=name, emblem=h.key,
+    return replace(h, key=key, name=name, emblem=h.key, invert_props=True,
         dark=_negative(h.dark), mid=_negative(h.mid), light=_negative(h.light),
         accent=_negative(h.accent), accent_hi=_negative(h.accent_hi),
         cape_color=_negative(h.cape_color) if h.cape_color else "")
@@ -430,17 +434,24 @@ def draw_head(c: Canvas, h: Hero, p: Pose) -> None:
         c.rect(cx + 2, cy - 2, cx + 7, cy - 2, h.accent_hi)
     elif s == "doll_mask":  # Voodoo: white doll mask, X eyes, purple head-flames
         # The mask replaces the face entirely — bone white, stitched, blank.
+        # The phantom variant flips it: black mask, pale stitching, white X eyes
+        # (invert_props) — the negative mask is most of what sells "possessed".
+        mask, seam, lip = ("#f2efe6", "#d9d4c4", "#b8b2a0")
+        stitch = KEYLINE
+        if h.invert_props:
+            mask, seam, lip = (_negative(mask), _negative(seam), _negative(lip))
+            stitch = "#f2efe6"
         c.ellipse(cx + 1, cy + 1, 5.8, 5.4, KEYLINE)
-        c.ellipse(cx + 1, cy + 1, 5.0, 4.7, "#f2efe6")
-        c.rect(cx - 2, cy - 2, cx - 2, cy + 4, "#d9d4c4")     # centre seam
+        c.ellipse(cx + 1, cy + 1, 5.0, 4.7, mask)
+        c.rect(cx - 2, cy - 2, cx - 2, cy + 4, seam)           # centre seam
         for ey, ex in ((0, 0), (0, 4)):                        # two X eyes
             for d in (-1, 1):
-                c.put(cx + ex + d, cy + ey - 1, KEYLINE)
-                c.put(cx + ex - d, cy + ey + 1, KEYLINE)
-            c.put(cx + ex, cy + ey, KEYLINE)
+                c.put(cx + ex + d, cy + ey - 1, stitch)
+                c.put(cx + ex - d, cy + ey + 1, stitch)
+            c.put(cx + ex, cy + ey, stitch)
         for mx in (cx - 1, cx + 1, cx + 3):                    # stitched mouth
-            c.put(mx, cy + 4, KEYLINE)
-        c.rect(cx - 1, cy + 4, cx + 3, cy + 4, "#b8b2a0")
+            c.put(mx, cy + 4, stitch)
+        c.rect(cx - 1, cy + 4, cx + 3, cy + 4, lip)
         # Bright purple flames pouring off the skull — his tell at any zoom.
         for dx, hgt in ((-4, 5), (-1, 8), (2, 6), (4, 4)):
             c.poly([(cx + dx - 1, cy - 4), (cx + dx, cy - 5 - hgt), (cx + dx + 2, cy - 4)], KEYLINE)

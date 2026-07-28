@@ -12,12 +12,15 @@ class_name VoodooSoulIgnition extends Ability
 ## resets their 3 s slow. Both fall out of max-refresh, which is the same rule
 ## stuns use.
 
-## The window. Long enough to force a real answer, short enough to wait out.
-@export var duration: float = 5.0
-## Run-speed-cap multiplier while ignited.
-@export var speed_mult: float = 1.25
+## The window. Doubled from the first cut (owner pass 2026-07-28), and the
+## cooldown doubled with it — a long, committed transformation rather than a
+## frequent sip.
+@export var duration: float = 10.0
+## Run-speed-cap multiplier while ignited. Significantly stronger than the
+## first cut: ignited Voodoo should visibly outrun everyone.
+@export var speed_mult: float = 1.5
 ## Movement-impulse multiplier while ignited.
-@export var impulse_mult: float = 1.18
+@export var impulse_mult: float = 1.35
 ## The touch: knockback magnitude, away from Voodoo's centre.
 @export var contact_knockback: float = 420.0
 ## The touch: slow and impair on the enemy. Both, with one tag — the spec asks
