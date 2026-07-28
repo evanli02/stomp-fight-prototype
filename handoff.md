@@ -30,8 +30,8 @@ length, who is sitting where) → hero select → stage select → rounds → re
 no audio, the HUD is laid out for two players, and netcode is out of scope by design — remote
 play is covered by streaming instead (`docs/PLAYTEST.md`).
 
-All four harnesses are green — **movement 72, combat 41, match 193, terrain 35 = 341 checks**,
-zero script errors.
+All four harnesses are green — **movement 78, combat 41, match 213, terrain 74 = 406 checks**,
+zero script errors. (This line goes stale easily; re-count it rather than trusting it.)
 
 ---
 
@@ -227,6 +227,9 @@ approach in the game — with diagonals explicitly untouched.
   root or pass an absolute `--path`.
 - **Use the Write tool for large files, not heredocs** — long `cat > f <<EOF` bodies failed with
   "unexpected EOF".
+- **A `.replace()` without an assert fails silently.** Scripted doc edits that miss their anchor
+  leave the file untouched and print success anyway — handoff.md's harness counts sat three
+  commits stale that way. Assert every pattern, and check the result.
 - **A script error inside a harness check does not fail the run.** The error aborts that check
   and the run still prints `ALL CHECKS PASSED`, because `_failures` never incremented. Always
   grep the output for `SCRIPT ERROR` as well as `FAIL`.
@@ -327,6 +330,15 @@ gameplay: nothing on the physics tick, unknown cues are silent no-ops, both asse
 
 ---
 
+**Audio and pause.** 18 procedurally generated cues (`assets/tools/generate_sfx.py`, stdlib `wave`
+only — same bargain as the art pipeline) behind an `Audio` autoload with named cues, wired to
+existing signals wherever one exists. A pause menu on Esc / Start from any seat gives volume,
+restart and quit-to-lobby. `PROCESS_MODE_ALWAYS` on both the menu and `Audio` is what makes it work:
+pausing the tree is what stops everything else, so the two nodes that must keep running opt out of
+the pause they caused. Volume is in-session only; persisting it needs `user://`.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
@@ -337,7 +349,7 @@ makes sense:
    only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
    is the single most likely thing to be wrong by feel.
 2. **HUD for more than two players.** 2v2 and 3v3 run, but the readout was laid out for two.
-3. Rebind UI + `user://input.cfg` persistence; per-match RNG seeding (`GameManager._ready`);
+3. Rebind UI + `user://input.cfg` persistence (volume belongs in the same file); per-match RNG seeding (`GameManager._ready`);
    the two remaining launch stages (Powerplant, Skyline Gardens).
 4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.
