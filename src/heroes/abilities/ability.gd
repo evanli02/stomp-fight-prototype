@@ -53,6 +53,7 @@ func try_fire(aim: Vector2) -> bool:
 	elif _on_cooldown():
 		return false
 	_execute(aim)
+	Audio.play(&"ultimate" if is_ultimate else &"ability", 0.9)
 	fired.emit()
 	if not is_ultimate and _cooldown_after_fire():
 		_start_cooldown()

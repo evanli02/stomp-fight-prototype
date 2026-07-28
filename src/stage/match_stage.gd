@@ -62,6 +62,7 @@ func _ready() -> void:
 		players[i].team_id = GameManager.team_of_seat(i)
 		players[i].stomp_landed.connect(_on_stomp_landed.bind(i))
 		players[i].stun_applied.connect(_on_stun_applied.bind(i))
+		Audio.attach_player(players[i])
 	MatchState.life_lost.connect(_on_life_lost)
 	MatchState.hero_eliminated.connect(_on_hero_eliminated)
 	MatchState.hero_swapped.connect(_on_hero_swapped)

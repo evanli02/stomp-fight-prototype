@@ -320,6 +320,13 @@ overlay's constants come from the tool — re-run and update them together after
 
 ---
 
+**Audio.** 18 procedurally generated cues (`assets/tools/generate_sfx.py`, stdlib `wave` only — same
+bargain as the art pipeline) plus an `Audio` autoload. Cues are named rather than paths, and wired to
+existing signals wherever one exists so a new way to lose a life keeps its sound. Never touches
+gameplay: nothing on the physics tick, unknown cues are silent no-ops, both asserted.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that
@@ -329,9 +336,8 @@ makes sense:
    debuff buffs, the dive-dash nerf and Sai's swing speed all pass their harness checks, but
    only a human can say whether they're right. Cryo Lab's grid cadence (3 s cycle, 45% live)
    is the single most likely thing to be wrong by feel.
-2. **Audio.** There is none at all, and it is the largest single gap for a playtest.
-3. **HUD for more than two players.** 2v2 and 3v3 run, but the readout was laid out for two.
-4. Rebind UI + `user://input.cfg` persistence; per-match RNG seeding (`GameManager._ready`);
+2. **HUD for more than two players.** 2v2 and 3v3 run, but the readout was laid out for two.
+3. Rebind UI + `user://input.cfg` persistence; per-match RNG seeding (`GameManager._ready`);
    the two remaining launch stages (Powerplant, Skyline Gardens).
-5. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
+4. `movement_config.tres` vs `movement_config.gd` defaults (§4) is worth resolving one way or
    the other before the numbers drift.

@@ -19,6 +19,7 @@ func enter(params: Dictionary = {}) -> void:
 		# comes through here, jumps and bounces alike.
 		player.velocity.y = params.get("impulse_y", player.movement.jump_impulse_min) 			* player.impair_mult
 		_holding = params.get("extendable", true)
+		Audio.play(&"wall_jump" if _launch_anim == &"wall_jump" else &"jump", 0.8)
 		if params.get("perfect", false):
 			# B-hop: the landing never gets to charge friction, so 100% of the
 			# horizontal momentum survives (DESIGN 4.2).

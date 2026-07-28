@@ -10,6 +10,7 @@ var _velocity: Vector2 = Vector2.ZERO
 var _grants_boost: bool = true
 
 func enter(_params: Dictionary = {}) -> void:
+	Audio.play(&"dash", 0.7)
 	player.consume_dash_charge()
 	_remaining = player.movement.dash_duration
 	var on_surface := player.is_on_floor() or player.is_on_wall()

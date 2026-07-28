@@ -154,7 +154,7 @@ ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
 
 Honest list, so feedback lands on real problems:
 
-- **No audio at all.** Not a bug.
+- Sound effects are **procedurally generated placeholders** (chiptune blips from `assets/tools/generate_sfx.py`). They convey events, not atmosphere. No music.
 - The HUD is laid out for two players; 2v2 and 3v3 will look cramped.
 - Only two stages: Rooftop Rumble and Cryo Lab.
 - No rebinding, no options screen, no pause.

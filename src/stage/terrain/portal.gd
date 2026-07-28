@@ -41,6 +41,7 @@ func on_body_entered(p: Player) -> void:
 	var turn := exit.facing.angle() - facing.angle()
 	p.global_position = exit.global_position
 	p.set_velocity_override(p.velocity.rotated(turn))
+	Audio.play(&"portal")
 
 func _draw() -> void:
 	var t := float(Time.get_ticks_msec()) * 0.004

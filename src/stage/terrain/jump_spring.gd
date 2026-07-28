@@ -38,6 +38,7 @@ func on_body_entered(p: Player) -> void:
 	# A launch is a fresh start in the air, not a landing.
 	p.air_dash_locked = false
 	_squash = 1.0
+	Audio.play(&"spring")
 
 ## Drawn in a frame where the launch always points up, then rotated onto the real
 ## axis. Written flat, the plate was pinned to the element's top edge and the

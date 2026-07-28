@@ -25,6 +25,7 @@ config/icon="res://icon.svg"
 GameManager="*res://src/autoload/game_manager.gd"
 MatchState="*res://src/autoload/match_state.gd"
 InputConfig="*res://src/autoload/input_config.gd"
+Audio="*res://src/autoload/audio.gd"
 
 [display]
 

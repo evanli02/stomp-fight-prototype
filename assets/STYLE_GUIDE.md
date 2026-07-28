@@ -81,3 +81,28 @@ Team is meant to read as **rim-light color** (blue `#457b9d` vs red `#e63946`), 
 
 ## VFX language
 - Stun: gold stars + brief desaturation. Grace: 4 Hz alpha blink. **Debuff badges over the head, one per source, distinguished by SHAPE first and colour second** (slash / bolt / bars / ring). Slip's anchor is a pulsing diamond with a countdown arc — an invisible anchor makes the whole ability unreadable for both players. **Stomp: eight-spoke starburst in the attacker's accent at the victim's head — the kill confirm.** Ability/ult: the `cast` flourish plus each effect's own draw. Perfect b-hop/wall-jump: tiny white spark at contact.
+
+## Sound
+
+Generated the same way as the art: stdlib Python only, no dependencies, the
+*definition* of a sound is the code.
+
+```bash
+python assets/tools/generate_sfx.py
+```
+
+Writes 18 16-bit mono WAVs to `assets/sfx/` (~208KB total). Godot imports `.wav`
+as `AudioStreamWAV` with no import settings. The noise generator is seeded, so a
+re-run is byte-identical and a rebuild is not a diff.
+
+Rules for the set:
+
+- **Short.** Nothing here reaches half a second. A sound that outlives its event
+  is noise on a screen that is already busy.
+- **One idea per cue** — a pitch direction or a texture, not both.
+- **The stomp is the loudest thing in the game** and everything else leaves it
+  room, because the stomp is the only event that changes the score. Movement
+  cues sit around 0.3-0.4 peak; the stomp is 1.0.
+- Adding a sound means a `save()` here **and** a line in `Audio.CUES`. The match
+  harness checks the two agree in both directions, so one without the other
+  fails a test.

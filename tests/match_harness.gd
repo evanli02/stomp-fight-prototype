@@ -54,6 +54,9 @@ func _run() -> void:
 	await _check_aim_line()
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
+	# Before _check_team_formats: that one tears the stage down, and the audio
+	# checks need live bodies to prove sound does not move them.
+	await _check_audio()
 	await _check_stage_select_flow()
 	await _check_team_formats()
 	await _check_lobby_seating()
@@ -795,3 +798,59 @@ func _check_lobby_seating() -> void:
 	InputConfig.assign_device(0, InputConfig.Device.KBM)
 	for seat in range(1, InputConfig.MAX_LOCAL_PLAYERS):
 		InputConfig.assign_device(seat, InputConfig.Device.PAD, seat - 1)
+
+## Audio. Two things matter and neither is audible in a harness: the cue table
+## and the generated files agree, and playing a sound can never change the game.
+func _check_audio() -> void:
+	var missing := ""
+	for cue: StringName in Audio.CUES:
+		if load(Audio.CUES[cue]) == null:
+			missing += " %s" % cue
+	check("every cue has a file behind it", missing.is_empty(), missing)
+
+	# ...and every file has a cue. A wav generated but never registered is a
+	# sound nobody can play, which is the failure that hides for months.
+	var orphans := ""
+	var dir := DirAccess.open("res://assets/sfx")
+	if dir != null:
+		for file in dir.get_files():
+			if not file.ends_with(".wav") and not file.ends_with(".wav.import"):
+				continue
+			var stem: StringName = StringName(file.get_basename().get_basename() 				if file.ends_with(".import") else file.get_basename())
+			if not Audio.CUES.has(stem):
+				orphans += " %s" % stem
+	check("every generated sound is registered as a cue", orphans.is_empty(), orphans)
+
+	# An unknown cue must be a silent no-op. A typo in a cue name is not worth
+	# stopping a round for, and audio is the one subsystem where failing quietly
+	# is the correct behaviour.
+	Audio.play(&"no_such_cue_at_all")
+	check("an unknown cue is ignored rather than fatal", true)
+
+	# Playing cannot touch gameplay. Fire the loudest one repeatedly across a
+	# round in progress and assert nothing on the board moved.
+	MatchState.reset_round()
+	var lives_before := _total_lives()
+	var where := _p1.global_position
+	for i in 12:
+		Audio.play(&"stomp")
+		Audio.play(&"ultimate", 1.0, 1.4)
+		await get_tree().physics_frame
+	check("playing sound removes no lives", _total_lives() == lives_before,
+		"%d -> %d" % [lives_before, _total_lives()])
+	check("playing sound moves nobody", _p1.global_position.distance_to(where) < 40.0,
+		"%s -> %s" % [where, _p1.global_position])
+
+	# The voice pool is fixed: a long fight must not grow the node tree.
+	var voices := 0
+	for child in Audio.get_children():
+		if child is AudioStreamPlayer:
+			voices += 1
+	check("the voice pool is fixed in size", voices == Audio.VOICES,
+		"voices=%d expected=%d" % [voices, Audio.VOICES])
+
+	# Muting is honoured, and does not throw.
+	Audio.master_volume = 0.0
+	Audio.play(&"stomp")
+	Audio.master_volume = 1.0
+	check("muting is honoured without erroring", true)

@@ -37,6 +37,7 @@ func enter(params: Dictionary = {}) -> void:
 	player.air_dash_locked = false
 	player.dash_charges_left = player.movement.dash_charges
 	player.global_position.x = _pole_x
+	Audio.play(&"pole_grab", 0.7)
 
 func physics_update(_delta: float) -> void:
 	if player.has_buffered_jump():
