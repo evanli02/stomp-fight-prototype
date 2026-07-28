@@ -40,6 +40,13 @@ const STAGE_ROSTER: Dictionary = {
 		"features": "poles · springs · updraft",
 		"accent": Color(0.63, 0.24, 0.47),
 	},
+	&"sunken_court": {
+		"scene": "res://src/stage/sunken_court.tscn",
+		"name": "Sunken Court",
+		"blurb": "Two mesas over a sprung trench you cannot climb out of.",
+		"features": "springs - poles - one high platform",
+		"accent": Color(0.95, 0.55, 0.28),
+	},
 	&"cryo_lab": {
 		"scene": "res://src/stage/cryo_lab.tscn",
 		"name": "Cryo Lab",

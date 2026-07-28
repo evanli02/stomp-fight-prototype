@@ -187,6 +187,31 @@ Then run all four harnesses before committing.
 
 ---
 
+## 6b. A worked build from a sketch — Sunken Court
+
+`src/stage/sunken_court.gd` was built from a hand sketch, and every distance in it
+was chosen against §2 rather than eyeballed:
+
+- **Trench 128 px deep** — chosen to be *more* than the 92 px held jump, so you
+  cannot climb out unaided. That is the whole premise of the stage.
+- **Trench 224 px wide** — too wide to wall-jump across without losing height
+  (a kick gives 42 px of rise and ~126 px of push), which is what stops the
+  facing walls from quietly undoing the depth.
+- **Platform 80 px above the mesa tops** — *inside* the 92 px held jump, so the
+  high ground is reachable from either side without spending a dash, but only if
+  you commit to the jump.
+- **Springs at −820** — lift a body ~177 px, which clears the 128 px lip
+  comfortably but stops 26 px short of the platform's underside. The floor gets
+  you out of the hole; it does not hand you the high ground.
+- **Poles hanging to y=280** — a held jump from a mesa apexes at y=252, so the
+  pole is passed on the way up and grabbed in flight.
+
+The one thing the sketch could not tell me, and testing did: springs spanning the
+trench wall-to-wall meant a 22 px body always touched one, so you could never
+*stand* in the trench at all — it was a bounce pad, not a place. 32 px of plain
+floor against each wall fixed it. That is the kind of thing only the harness or
+your hands will catch, which is why §6 step 4 exists.
+
 ## 7. Worked example — why Rooftop Rumble is shaped like that
 
 Read `src/stage/duel.gd` alongside this.

@@ -89,6 +89,16 @@ def make_tiles() -> None:
             c.put(x, 8, "#2a4d5e")
             c.put(x, 12, "#2a4d5e")
 
+    def court(c: Canvas) -> None:
+        # Sunken Court: warm cut stone, distinct at a glance from Rooftop's
+        # brick and Cryo's steel.
+        c.rect(0, 0, 15, 15, "#2e1a18")
+        c.rect(0, 0, 15, 3, "#4a2a22")
+        c.rect(0, 0, 15, 0, "#f28a47")
+        c.rect(7, 5, 8, 15, "#25150f")
+        c.put(3, 9, "#4a2a22")
+        c.put(12, 12, "#4a2a22")
+
     def ice(c: Canvas) -> None:
         c.rect(0, 0, 15, 15, "#2e5a66")
         c.rect(0, 0, 15, 2, "#7df9ff")
@@ -135,6 +145,7 @@ def make_tiles() -> None:
 
     tile("ground", ground)
     tile("lab", lab)
+    tile("court", court)
     tile("ice", ice)
     tile("stun_line", stun_line)
     tile("spring", spring)

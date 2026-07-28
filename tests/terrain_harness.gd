@@ -85,6 +85,7 @@ func _run() -> void:
 	await _check_pole()
 	await _check_nothing_took_a_life()
 	await _check_cryo_lab()
+	await _check_sunken_court()
 
 func _check_stun_line() -> void:
 	var lives_before := lives()
@@ -319,4 +320,68 @@ func _check_cryo_lab() -> void:
 	check("nothing in cryo lab removed a life", lives() == lives_before,
 		"lives=%d" % lives())
 	lab.queue_free()
+	await step(2)
+
+## Sunken Court. The layout claim worth testing is the one the whole stage rests
+## on: the trench is too deep to jump out of, and the springs get you out anyway.
+## If either half stops being true the stage becomes a trap or a formality.
+func _check_sunken_court() -> void:
+	var court := load("res://src/stage/sunken_court.tscn").instantiate() as MatchStage
+	add_child(court)
+	await step(3)
+	var p: Player = court.players[0]
+
+	var springs := 0
+	var poles := 0
+	for child in court.get_children():
+		if child is JumpSpring:
+			springs += 1
+		elif child is Pole:
+			poles += 1
+	check("sunken court has three springs", springs == 3, "springs=%d" % springs)
+	check("sunken court has a pole over each mesa", poles == 2, "poles=%d" % poles)
+	check("both seats spawn on the mesa tops",
+		is_equal_approx(court.spawn_for(0).y, court.spawn_for(1).y)
+			and court.spawn_for(0).x < 448.0 and court.spawn_for(1).x > 448.0,
+		"a=%s b=%s" % [court.spawn_for(0), court.spawn_for(1)])
+
+	# Stand on the un-sprung ledge against the trench wall and try to jump out.
+	# The mesa lip is 128px above the trench floor and a held jump is 92px, so
+	# this has to fail — the depth is the whole point of the stage. Standing room
+	# down there is the other half: springs wall-to-wall would mean a 22px body
+	# could never be in the trench at all.
+	var trench_mid := Vector2(352.0, 440.0)
+	p.global_position = trench_mid
+	p.velocity = Vector2.ZERO
+	p.stun_remaining = 0.0
+	await step(20)
+	var floor_y := p.global_position.y
+	check("a body dropped in the trench lands on its floor", p.is_on_floor(),
+		"y=%.0f state=%s" % [floor_y, p.state_machine.state_name()])
+	Input.action_press(InputConfig.action(p.player_id, &"jump"))
+	var apex := floor_y
+	for i in 60:
+		await get_tree().physics_frame
+		apex = minf(apex, p.global_position.y)
+	Input.action_release(InputConfig.action(p.player_id, &"jump"))
+	check("a held jump cannot clear the trench lip",
+		apex > 368.0, "apex y=%.0f, mesa top y=368" % apex)
+
+	# Now take a spring. It has to clear the lip, or the trench is a prison.
+	p.global_position = Vector2(448.0, 440.0)
+	p.velocity = Vector2.ZERO
+	await step(30)
+	var sprung := 512.0
+	for i in 90:
+		await get_tree().physics_frame
+		sprung = minf(sprung, p.global_position.y)
+	check("a spring throws you clear of the trench", sprung < 344.0,
+		"apex y=%.0f, need < 344 (mesa standing height)" % sprung)
+	# ...but not so far that it hands you the high platform for free.
+	check("a spring stops short of the high platform", sprung > 264.0,
+		"apex y=%.0f, platform standing height 264" % sprung)
+
+	check("nothing in sunken court removed a life",
+		lives() == MatchState.LIVES_PER_HERO, "lives=%d" % lives())
+	court.queue_free()
 	await step(2)
