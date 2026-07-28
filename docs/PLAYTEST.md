@@ -130,6 +130,7 @@ pad and nobody needs the keyboard.
 | Ability | L1 | Left click |
 | Swap hero | L2 | Right click |
 | Ultimate | **R2 + L2 together** | E |
+| Pause / options | **Start** | **Esc** |
 
 The only way to take a life is to land on someone's head. Nothing else — no
 ability, no ultimate, no hazard, no fall — can do it, and there are no pits.
@@ -157,7 +158,8 @@ Honest list, so feedback lands on real problems:
 - Sound effects are **procedurally generated placeholders** (chiptune blips from `assets/tools/generate_sfx.py`). They convey events, not atmosphere. No music.
 - The HUD is laid out for two players; 2v2 and 3v3 will look cramped.
 - Only two stages: Rooftop Rumble and Cryo Lab.
-- No rebinding, no options screen, no pause.
+- Pause (Esc / Start, from any seat) has volume, restart and quit-to-lobby.
+  **Volume does not persist** between runs. No rebinding beyond that.
 - **No timers on the select screens.** Nothing advances until every player has
   acted, so one person going to get a drink stalls the lobby. Say so before you
   start rather than after.

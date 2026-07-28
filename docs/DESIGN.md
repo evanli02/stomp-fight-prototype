@@ -219,6 +219,7 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 | Ability | Left click | L1 (left bumper) |
 | Swap hero | Right click (cycles; hold for radial menu) | L2 (left trigger) — tap cycles, hold for radial |
 | Ultimate | E | **R2 + L2 together** (chord) |
+| Pause | Esc | **Start** (any pad) |
 
 Notes:
 - The controller ultimate chord requires a small simultaneity window (~0.1 s) and suppresses the individual dash/swap actions when the chord lands.
@@ -245,6 +246,7 @@ Notes:
 - The stomp needs the best sound in the game: layered thump + pop + pitch-up per chain stomp.
 
 ## 10. UX / Meta screens
+- **Pause** is available from any seat while a stage is up: volume, restart the match, quit to lobby. Not available on the select screens, which are already waiting for somebody.
 - Lobby → format select (1v1/2v2/3v3, Bo1/3/5) → per-round: hero select (3 picks, simultaneous, timed) → stage select (coinflip/loser) → combat → round results → match results.
 - In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown radial, ultimate available marker (team-visible), enemy roster life state.
 
