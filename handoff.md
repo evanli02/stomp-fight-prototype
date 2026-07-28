@@ -121,7 +121,7 @@ Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
-| Voodoo | bright purple | Soul Ignition — long strong empower window (10 s, 1.5× run); touching an enemy knocks them back and slows their whole kit 3 s (18.0) | Phantom — 1.6× run + 1.45× dash, **jump untouched**, phases through bodies (2 s stun on pass-through), fully inverted skin, mask included. A fall through a head is still a stomp |
+| Voodoo | bright purple | Soul Ignition — 8 s empower window (1.32× run), purple aura; touching an enemy knocks them back and slows their whole kit 3 s (18.0) | Phantom — 1.6× run + 1.45× dash, **jump untouched**, **green** aura, phases through bodies (2 s stun on pass-through), fully inverted skin, mask included. **Supersedes the ability**: ends it, cooldowns it, locks it out. A fall through a head is still a stomp |
 | Saint | white | Cleanse — strip all debuffs/stuns from the team; casts **while stunned or slept** (11.0) | Benediction — cleanse, then empower + debuff immunity + one stomp ward each |
 | Vesper | black / neon pink | Sleep Dart — fast dart (780), slow + a stack; 3 stacks sleeps them ~6.5 s (3.5) | Deep Sleep — huge slow sphere through everything; drops and sleeps ~9.75 s |
 | Siku | ice blue | Pillar — ground only; 80px ice column launches everyone in the footprint, refused under a low ceiling (10.0) | Frostbite — five fast pulses with a frost aura on her, 1.5 s stun and a drop each |
@@ -129,7 +129,8 @@ Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
 **Sleep rules after the owner pass:** a sleep ends on expiry, a stun, or a fresh debuff —
 and on nothing else. Terrain launches throw the sleeper without waking them
 (`Player.request_state` redirects to `Sleeping` while asleep — a sleeper on a jump spring
-was getting a free wake-up). A stun or any `apply_*` debuff calls `_wake()`, so stomping a
+was getting a free wake-up), but the launch itself still moves them: `Sleeping` only pins
+`velocity.y` for a body that is resting or falling, or the throw would be erased on the floor. A stun or any `apply_*` debuff calls `_wake()`, so stomping a
 sleeper wakes them. Saint casts through his own sleep; only the EMP locks him.
 
 `docs/NEW_HEROES.md` is still their detailed reference: the shared Player systems they

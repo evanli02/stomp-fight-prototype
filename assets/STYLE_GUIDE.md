@@ -28,9 +28,10 @@ One PNG per animation, frames laid left-to-right in 32px columns. `<hero>_frames
 - **32×36, feet on row 35, body 34 px tall.** Identical for every hero — heroes share movement, hitboxes, and silhouette *size* (DESIGN 5.1). Only identity differs. The head is ~15 px wide and owns the sprite.
 - **Everything is drawn facing +x (right).** The engine mirrors it for leftward travel (`flip_h = facing < 0`, pinned by the movement harness). Every forward cue must agree: nose and face features forward, cap and helmet peaks jutting **forward**, capes/scarves/fins trailing **backward**, torso leaning into the direction of travel. A backward-pointing peak makes the whole character read as facing the wrong way even with the eyes drawn correctly — the silhouette wins at gameplay speed, so a head whose mass leans backward will look flipped no matter where the features sit.
 - **The top ~10 px is the head/stomp hurtbox, and the accent owns it.** That band is the kill zone (DESIGN 3.1); if a player cannot see where it ends, the core mechanic is unreadable. Crouched and sliding frames drop the body into the bottom half, accent band riding down with it.
-- Dark suit + one signature accent: Deadeye red `#e63946`, Fei jade `#3ddc84`, Mason gold `#ffd23f`, Cerebelle **dark** violet `#5a189a`, Sai pink `#ff6ec7`, Slip **deep** blue `#1c6dd0`, Terra brown `#b5651d`, Kid orange `#ff8b2e`, Voodoo **bright** purple `#bf5fff`, Saint white `#f2f2fa`, Vesper neon pink `#ff2ec4` on a black costume, Siku ice blue `#9edfff`. The hue-family pairs are deliberate splits: Cerebelle went dark so Voodoo could be loud; Slip went deep so Siku could be pale. Vesper's *costume* is black by design, but her accent slots (and `HeroData.accent_color`) carry her eye-pink — a pure black accent would erase the head band, the HUD stripe, and every effect she owns.
+- Dark suit + one signature accent: Deadeye red `#e63946`, Fei jade `#3ddc84`, Mason gold `#ffd23f`, Cerebelle **dark** violet `#4c1076` on **white** plate, Sai pink `#ff6ec7`, Slip **deep** blue `#1c6dd0`, Terra **dark** brown `#6b4526`, Kid orange `#ffa521`, Voodoo **bright** purple `#ca5cff`, Saint cream-white `#f2f2fa`, Vesper neon pink `#ff2ec4` on a **black** costume, Siku ice blue `#9edfff`. The hue-family pairs are deliberate splits: Cerebelle went dark so Voodoo could be loud; Slip went deep so Siku could be pale. Vesper's *costume* is black by design, but her accent slots (and `HeroData.accent_color`) carry her eye-pink — a pure black accent would erase the head band, the HUD stripe, and every effect she owns.
 - **Internal keylines, not just an outline.** Every limb is drawn with its own 1px dark border. A dark suit against a dark stage collapses into one blob otherwise, and the back leg has to stay separable from the front leg while both are in shadow.
-- Suit midtones are tinted ~20% toward the hero's accent. The night palette is too narrow for an untinted ramp to hold up at gameplay zoom.
+- Suit midtones are tinted ~20% toward the hero's accent. The night palette is too narrow for an untinted ramp to hold up at gameplay zoom. **`accent_tint` scales that**, for heroes whose costume must *not* take the accent's hue: Vesper runs 0.12 so black stays black and the pink stays trim, Cerebelle 0.3 so a dark violet accent cannot wash her white plate lavender.
+- **Both eyes, always, and never the same pair twice.** A single eye on a 3/4 face reads as a pure profile at 32px and made every hero's expression identical — the hat was doing all the work. `eye_style` picks the shape: `sharp` (squint under a heavy brow), `almond` (lashes, softer lid), `wide` (big pupils, glint), `calm` (half-lidded), `masked` (glowing slits, no whites), `visor` (the head style draws them instead). The far eye is always dimmer than the near one; that falloff is what stops the head reading flat-on.
 - Rim light on the up-right key side, fading toward the midtone further down the body — a uniform bright edge reads as an outline, not as light.
 - Squash-and-stretch: exaggerate on jump start (stretch), landing (squash), and the stomp bounce (both, hard).
 
@@ -64,14 +65,14 @@ Each is a different silhouette and one unmistakable prop, so heroes are told apa
 | **Deadeye** | red | cowboy brim, glowing augmented eye | long split coat, bolt pistol |
 | **Fei** | jade | hair bun with a jade pin, band | streaming ribbon scarf |
 | **Mason** | gold | fur crown with gold trims | heavy shoulders, huge gauntlets |
-| **Cerebelle** | purple | crested magneto-style helm | sleeveless, tattooed arms, war cape |
+| **Cerebelle** | dark violet on white | crested helm over long pale hair | slim build, sleeveless, tattooed arms, war cape |
 | **Sai** | pink | sleek visor, swept hair | short scarf, hook at the hip |
-| **Slip** | aqua | tall spiked hair, goggles | backpack gadget |
-| **Terra** | brown | hard hat, front-heavy brim | widest build, gauntlets |
-| **Kid** | orange | big round glasses, messy fringe | satchel, chest screen |
+| **Slip** | deep blue | tall spiked hair, goggles | backpack gadget |
+| **Terra** | dark brown | hard hat, front-heavy brim | widest build, gauntlets |
+| **Kid** | bright orange | big round glasses, messy fringe | satchel, chest screen |
 | **Voodoo** | bright purple | white doll mask, X eyes, purple head-flames | long coat, stitched-X chest |
-| **Saint** | white | bare crown, halo circlet | vestment cape, gold-bead cross |
-| **Vesper** | black / neon pink | hood + half-mask, one glowing pink eye | all-black suit, diamond chest mark |
+| **Saint** | cream white | bare crown, halo circlet | vestment cape, gold-bead cross |
+| **Vesper** | black / neon pink | hood + half-mask, two glowing pink eyes | all-black suit, diamond chest mark |
 | **Siku** | ice blue | fur-ringed parka hood | chunky coat, snowflake chest mark |
 
 ### Team read (deferred)
