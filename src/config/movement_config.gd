@@ -88,5 +88,10 @@ class_name MovementConfig extends Resource
 @export var slide_exit_speed: float = 90.0       ## slower than this and the slide is over
 ## The slide jump trades height for distance: a fraction of the minimum hop
 ## upward, and a hard horizontal launch off whatever speed the slide still has.
-@export var slide_jump_up_mult: float = 0.8
+## Enough lift to clear a lip on the way out, still far short of a real jump.
+@export var slide_jump_up_mult: float = 0.9
+## Applied to the speed carried into the jump, and ALSO the ceiling it may reach:
+## the launch is capped at run_speed_cap * this, so one slide jump off a capped
+## run arrives exactly at the ceiling and a second one gains nothing. Without the
+## cap the multiplier compounds and four slide jumps in a row leave the stage.
 @export var slide_jump_speed_mult: float = 1.75

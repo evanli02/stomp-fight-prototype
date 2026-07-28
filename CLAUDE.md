@@ -53,7 +53,7 @@ Overstomp is a 1v1/2v2/3v3 **stomp-to-kill platform fighter** built in **Godot 4
 - [ ] Don't let swap cancel stuns, or let ult be used while stunned.
 - [ ] Stun refresh rule is `max(remaining, new)`, never additive.
 - [ ] The controller ultimate is the R2+L2 **chord** — make sure it suppresses the individual dash/swap presses when it triggers.
-- [ ] B-hop and perfect wall jump share the same "perfect window preserves momentum" pattern — implement once, reuse.
+- [ ] B-hop, perfect wall jump, and landing-into-a-slide all share the same "perfect window preserves momentum" pattern (`perfect_window_check`) - implement once, reuse. All three set `landing_settled = true` so the landing never charges friction.
 - [ ] Grace period disables only the **head hurtbox**, not collision (they're still terrain to others).
 - [ ] Godot 4 syntax only (no `onready var` without `@`, no `yield`, use `await`; `move_and_slide()` takes no args on CharacterBody2D).
 - [ ] `signi()` takes an **int** — `signi(0.7)` truncates to 0. Use `1 if x > 0.0 else -1` for float signs. This silently broke sprite facing on analog sticks for a whole session.

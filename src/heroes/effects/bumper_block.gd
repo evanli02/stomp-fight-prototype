@@ -1,12 +1,19 @@
 class_name BumperBlock extends TerrainElement
-## Mason's ability block (DESIGN 5.2 #3). A Smash-style bumper: SOLID, so nobody
-## walks through it, wrapped in a slightly larger active hitbox that reflects
-## whoever touches it.
+## Mason's ability block (DESIGN 5.2 #3). A four-sided spring: SOLID, so nobody
+## walks through it, wrapped in a slightly larger active hitbox that throws
+## whoever touches it straight back out of the face they touched.
 ##
-## Reflection is vector-based, not a fixed shove: your outgoing direction is your
-## incoming direction mirrored about the contact normal, so the block is a tool
-## you aim with your own approach rather than a button that pushes people away.
-## Fast in, fast out.
+## It is a JumpSpring turned into a cube. The component of your velocity along
+## the contact normal is REPLACED by a fixed launch and the tangential component
+## is kept, exactly the way a spring overrides your fall and leaves your run
+## alone: a side face slings you sideways without eating your fall, the top face
+## pops you up without eating your run.
+##
+## Fixed, not elastic. The old version reflected incoming velocity scaled by an
+## elasticity, so the block did almost nothing to someone drifting into it and
+## fired a dashing player across the stage. One placement, two different tools.
+## A spring answers everyone the same, and Mason can place it knowing what it
+## will do.
 ##
 ## The hitbox lingers — it re-checks overlaps every tick instead of waiting for
 ## an enter signal, so a body resting against it or re-entering quickly still
@@ -20,10 +27,10 @@ const CORE: Vector2 = Vector2(30, 30)
 const HITBOX_PAD: float = 7.0
 const RETRIGGER: float = 0.18
 
-## How much of the incoming speed comes back out.
-var elasticity: float = 1.15
-## Floor on the outgoing speed, so drifting into it still pops you.
-var min_bounce: float = 320.0
+## Launch out of whichever face was touched, in px/s. About half a stage spring
+## (those run 760-820): a real reposition and a real interruption, not a free
+## crossing of the stage.
+var bounce_speed: float = 390.0
 var lifetime: float = 4.0
 var accent: Color = Color(1, 0.71, 0.33)
 
@@ -80,20 +87,21 @@ func _physics_process(delta: float) -> void:
 func on_body_entered(p: Player) -> void:
 	var offset := p.global_position - global_position
 	# Normal of the face being touched: whichever axis the player is furthest out
-	# on. A rectangle has four faces and reflecting off the wrong one sends
-	# people sideways through the block.
-	var normal := Vector2.RIGHT * signf(offset.x) if absf(offset.x) > absf(offset.y) \
-		else Vector2.DOWN * signf(offset.y)
-	if normal == Vector2.ZERO:
-		normal = Vector2.UP
-	var incoming := p.velocity
-	var out := incoming.bounce(normal) * elasticity if incoming.length() > 1.0 \
-		else normal * min_bounce
-	if out.length() < min_bounce:
-		out = out.normalized() * min_bounce if out.length() > 1.0 else normal * min_bounce
+	# on. A rectangle has four faces and launching off the wrong one sends people
+	# sideways through the block.
+	var normal := Vector2.UP
+	if absf(offset.x) > absf(offset.y):
+		normal = Vector2.RIGHT * signf(offset.x)
+	elif not is_zero_approx(offset.y):
+		normal = Vector2.DOWN * signf(offset.y)
+	# Spring maths: replace the component along the normal, keep the rest.
+	var tangent := p.velocity - normal * p.velocity.dot(normal)
 	# Push clear of the core so the solid body cannot immediately re-stop them.
 	p.global_position += normal * 2.0
-	p.set_velocity_override(out)
+	p.set_velocity_override(tangent + normal * bounce_speed)
+	# Grounded states zero velocity.y every frame, so a body launched off the top
+	# face while standing on something would never move (CLAUDE.md checklist).
+	p.request_state(&"Air", {"anim": &"rise"})
 	# A bounce is not a landing: it should not hand back a wall-jump chain.
 	p.air_dash_locked = false
 

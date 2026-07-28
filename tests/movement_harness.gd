@@ -80,6 +80,8 @@ func _run() -> void:
 	await _check_land()
 	await _check_run_to_cap()
 	await _check_jump_heights()
+	await _check_slide_jump_does_not_stack()
+	await _check_dash_into_slide()
 	await _check_bhop()
 	await _check_dash()
 	await _check_wall()
@@ -126,6 +128,77 @@ func _check_run_to_cap() -> void:
 		"cap=%.1f" % cap)
 	release(&"move_right")
 	await step(30)
+
+## Chaining slide jumps used to compound slide_jump_speed_mult, so each landing
+## handed the next one a bigger number and speed ran away inside four jumps. The
+## perfect-slide window below makes that worse, not better: it hands the whole
+## launch speed back to the next slide, so the ceiling is what holds the line.
+##
+## Each round feeds the previous launch back in rather than flying the arc, which
+## is the same arithmetic without needing 3000px of runway to do it in.
+func _check_slide_jump_does_not_stack() -> void:
+	var cfg := _player.movement
+	var ceiling: float = cfg.run_speed_cap * cfg.slide_jump_speed_mult
+	var speeds: Array[float] = []
+	var carried: float = cfg.run_speed_cap
+	for i in 4:
+		await reset_at(Vector2(200, 300))
+		press(&"move_right")
+		# Run up to the slide threshold first: crouching from a standstill is a
+		# crouch, not a slide, so pressing both on the same frame never converts.
+		for f in 40:
+			await get_tree().physics_frame
+			if _player.is_on_floor() and absf(_player.velocity.x) >= cfg.slide_min_speed:
+				break
+		press(&"move_down")
+		await step(2)
+		if state() != "Slide":
+			check("slide chain round %d reached Slide" % i, false, "state=%s" % state())
+			break
+		# Set the carried speed on the Slide itself: Run would clamp it back to
+		# the ordinary cap before the jump ever happened.
+		_player.velocity.x = carried
+		press(&"jump")
+		await step(3)
+		release(&"jump")
+		release(&"move_down")
+		release(&"move_right")
+		carried = absf(_player.velocity.x)
+		speeds.append(carried)
+	check("a slide jump launches above the run cap",
+		speeds.size() > 0 and speeds[0] > cfg.run_speed_cap,
+		"first=%.0f cap=%.0f" % [speeds[0] if speeds.size() > 0 else -1.0, cfg.run_speed_cap])
+	check("consecutive slide jumps do not compound",
+		speeds.size() > 0 and speeds.max() <= ceiling + 1.0,
+		"speeds=%s ceiling=%.0f" % [
+			speeds.map(func(v: float) -> String: return "%.0f" % v), ceiling])
+
+## Landing out of an air dash straight into a slide keeps the speed. Without the
+## perfect window the landing clamps it back to the run cap, which throws the
+## dash away at exactly the moment a slide is worth taking.
+func _check_dash_into_slide() -> void:
+	await reset_at(Vector2(200, 210))
+	press(&"move_right")
+	await step(2)
+	press(&"dash")
+	await step(6)
+	release(&"dash")
+	var airborne := absf(_player.velocity.x)
+	# Hold down through the landing: the slide converts on the first grounded frame.
+	press(&"move_down")
+	for i in 60:
+		await get_tree().physics_frame
+		if _player.state_machine.state_name() == &"Slide":
+			break
+	var kept := absf(_player.velocity.x)
+	check("landing into a slide reaches the Slide state",
+		state() == "Slide", "state=%s" % state())
+	check("the slide keeps the air-dash speed", kept > _player.movement.run_speed_cap,
+		"airborne=%.0f kept=%.0f cap=%.0f" % [airborne, kept, _player.movement.run_speed_cap])
+	check("the landing never settled, so nothing was clamped", _player.landing_settled)
+	release(&"move_down")
+	release(&"move_right")
+	await step(4)
 
 func _check_jump_heights() -> void:
 	# Min hop: DESIGN 4.2 says ~1.35 tiles (21px).
@@ -559,7 +632,9 @@ func _check_slide() -> void:
 	check("slide jump stands you back up", not _player.crouched)
 	release(&"move_down")
 	var apex: float = await measure_apex(90)
-	check("slide jump stays low", apex < 20.0, "apex=%.1fpx" % apex)
+	check("slide jump stays low", apex < 26.0, "apex=%.1fpx" % apex)
+	# Low, but not flat: it has to clear a lip on the way out.
+	check("slide jump still gets off the ground", apex > 12.0, "apex=%.1fpx" % apex)
 	release(&"move_right")
 	await step(20)
 

@@ -83,6 +83,7 @@ func _run() -> void:
 	await _check_portal()
 	await _check_explosion()
 	await _check_pole()
+	await _check_bumper_block()
 	await _check_nothing_took_a_life()
 	await _check_cryo_lab()
 	await _check_sunken_court()
@@ -259,6 +260,63 @@ func _check_pole() -> void:
 		"vx=%.1f state=%s" % [_p.velocity.x, _p.state_machine.state_name()])
 	pole.queue_free()
 	await step(2)
+
+## Mason's block is a four-sided spring, so the property to check is the spring
+## property: the component along the face normal is REPLACED by a fixed launch
+## and the tangential component survives. A reflection would scale with how fast
+## you arrived; this must not.
+##
+## Bodies are parked already inside the lingering hitbox rather than flown into
+## it. That is how the block actually works — it re-scans overlaps every tick, so
+## a body resting against it is thrown the same as one that ran in — and it makes
+## the contact face unambiguous, which a falling approach does not.
+func _check_bumper_block() -> void:
+	var lives_before := lives()
+	var at := Vector2(TEST_X, FLOOR_Y - 60)
+
+	# Side face, arriving slowly and quickly. A fixed launch answers both the
+	# same; the old elastic version answered neither reliably.
+	for incoming: float in [20.0, 620.0]:
+		await park(at - Vector2(20.0, 0.0), Vector2(incoming, 0.0))
+		var block := BumperBlock.new()
+		block.global_position = at
+		block.lifetime = 4.0
+		_stage.add_child(block)
+		var out := 0.0
+		for i in 20:
+			await get_tree().physics_frame
+			if _p.velocity.x < -50.0:
+				out = absf(_p.velocity.x)
+				break
+		check("the side face throws you back (arrived at %.0f)" % incoming, out > 0.0,
+			"vx=%.0f" % _p.velocity.x)
+		check("the launch is the block's, not your speed returned (arrived at %.0f)"
+			% incoming, absf(out - block.bounce_speed) < 40.0,
+			"out=%.0f expected ~%.0f" % [out, block.bounce_speed])
+		block.queue_free()
+		await step(3)
+
+	# Top face: it must pop you up the way a spring does, and keep the run you
+	# brought, the way a spring leaves your horizontal speed alone.
+	await park(at - Vector2(0.0, 20.0), Vector2(260.0, 120.0))
+	var top := BumperBlock.new()
+	top.global_position = at
+	top.lifetime = 4.0
+	_stage.add_child(top)
+	var kept := 0.0
+	var lifted := 0.0
+	for i in 20:
+		await get_tree().physics_frame
+		if _p.velocity.y < -100.0:
+			kept = _p.velocity.x
+			lifted = _p.velocity.y
+			break
+	check("the top face pops you up", lifted < -100.0, "vy=%.0f" % lifted)
+	check("and keeps the run you brought into it", kept > 200.0,
+		"vx=%.0f, arrived with 260" % kept)
+	check("the block costs no life", lives() == lives_before)
+	top.queue_free()
+	await step(3)
 
 func _check_nothing_took_a_life() -> void:
 	check("no terrain element removed a life",

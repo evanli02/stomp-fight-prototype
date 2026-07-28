@@ -59,7 +59,7 @@ wall, a pole, or a spring.
 | Held jump, standing | **63 px** (4.0t) | From a standstill. |
 | Held jump, base run | **113 px** (7.0t) | A short run-up. |
 | Held jump, capped run | **133 px** (8.3t) | Full momentum, no dash. |
-| Slide jump, capped run | **203 px** (12.7t) | Low arc — needs headroom clearance, not height. |
+| Slide jump, capped run | **228 px** (14.2t) | Low arc — needs headroom clearance, not height. |
 | Capped jump + air dash | **275 px** (17.2t) | The widest gap worth building. |
 
 **A gap over ~133 px demands a dash or a slide jump.** Over 275 px it is a wall,

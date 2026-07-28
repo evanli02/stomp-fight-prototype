@@ -239,6 +239,7 @@ approach in the game — with diagonals explicitly untouched.
 - **Never `2>&1` a native exe in PowerShell 5.1.** It wraps each stderr line in an ErrorRecord
   and sets `$?` false even on exit code 0 — with `ErrorActionPreference = "Stop"` that aborts
   the script over nothing.
+- **Keep non-ASCII out of match patterns in shell heredocs.** A `python - <<'EOF'` block is read with the locale encoding, not UTF-8, so an em-dash inside a string you are matching against a file arrives mangled and the match silently fails. Anchor on ASCII-only substrings.
 - **`tests/test_match_state.gd` is a dead GUT stub.** GUT is not installed and is not used. It
   logs one harmless parse error on load. Ignore it, or delete it if it keeps causing confusion.
 

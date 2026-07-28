@@ -26,11 +26,21 @@ func try_dash() -> bool:
 
 ## Down while grounded (DESIGN 4.6). Carrying real speed into it converts the run
 ## into a slide; anything slower is just a crouch. Returns true if it fired.
+##
+## Sliding inside the b-hop window after a landing is the third member of the
+## "perfect window preserves momentum" family, alongside the b-hop and the
+## perfect wall jump (CLAUDE.md checklist). It is what lets an air dash be
+## converted into ground speed instead of being clamped away by the landing.
 func try_crouch() -> bool:
 	if not player.is_on_floor() or not player.wants_crouch():
 		return false
 	var fast := absf(player.velocity.x) >= player.movement.slide_min_speed
-	machine.change_state(&"Slide" if fast else &"Crouch")
+	if not fast:
+		machine.change_state(&"Crouch")
+		return true
+	var perfect := player.perfect_window_check(
+		player.time_since_landing, player.bhop_window())
+	machine.change_state(&"Slide", {"perfect": perfect})
 	return true
 
 ## Buffered jump off ground or coyote time. A jump inside the b-hop window keeps

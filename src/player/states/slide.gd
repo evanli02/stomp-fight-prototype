@@ -9,9 +9,17 @@ class_name SlideState extends PlayerState
 
 var _held: float = 0.0
 
-func enter(_params: Dictionary = {}) -> void:
+func enter(params: Dictionary = {}) -> void:
 	player.set_crouched(true)
 	_held = 0.0
+	# Landing straight into a slide inside the b-hop window keeps everything you
+	# were carrying — the same bargain a b-hop makes, for the same reason: the
+	# landing never gets to charge friction. Without it, arriving off an air dash
+	# meant the slide started at the ordinary run cap and threw the dash away,
+	# which is exactly the moment a slide is worth taking.
+	if params.get("perfect", false):
+		player.landing_settled = true
+		player.note_perfect(&"bhop")
 
 func exit() -> void:
 	player.set_crouched(false)
@@ -45,7 +53,13 @@ func physics_update(delta: float) -> void:
 ## letting it grow with a held button would just be a better jump.
 func _slide_jump() -> void:
 	var cfg := player.movement
-	player.velocity.x *= cfg.slide_jump_speed_mult
+	# Capped, not just multiplied. Chaining slide jumps used to compound the
+	# multiplier — each landing handed the next one a bigger number and speed ran
+	# away inside four jumps. The ceiling is what one slide jump off a capped run
+	# is worth, so the first one is fully paid and the rest hold that line.
+	var ceiling: float = cfg.run_speed_cap * cfg.slide_jump_speed_mult
+	player.velocity.x = clampf(player.velocity.x * cfg.slide_jump_speed_mult,
+		-ceiling, ceiling)
 	# The launch outruns the current cap, so borrow the dash's boost window to
 	# keep it from being clamped away on the next grounded frame.
 	player.dash_boost_remaining = cfg.dash_boost_time
