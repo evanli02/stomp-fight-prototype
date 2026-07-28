@@ -770,6 +770,10 @@ func _check_lobby_seating() -> void:
 		InputConfig.claim_seat(InputConfig.Device.PAD, 0) == 1)
 	check("a second pad takes seat 2",
 		InputConfig.claim_seat(InputConfig.Device.PAD, 3) == 2)
+	# The second keyboard seat is a separate device as far as seating goes, which
+	# is what lets two people share one keyboard over a stream.
+	check("the arrow/numpad keyboard takes its own seat",
+		InputConfig.claim_seat(InputConfig.Device.KBM_ALT) == 3)
 	# Pads are bound by their ACTUAL joypad id, not by seat order: ids are handed
 	# out in connection order and are not contiguous, and remote players' virtual
 	# pads appear in whatever order people join.
@@ -779,8 +783,28 @@ func _check_lobby_seating() -> void:
 	check("a device already seated cannot take another seat",
 		InputConfig.claim_seat(InputConfig.Device.PAD, 0) == -1)
 	check("nor can the keyboard", InputConfig.claim_seat(InputConfig.Device.KBM) == -1)
-	check("holding the button does not fill the room", InputConfig.claimed_count() == 3,
+	check("nor can the second keyboard",
+		InputConfig.claim_seat(InputConfig.Device.KBM_ALT) == -1)
+	check("holding the button does not fill the room", InputConfig.claimed_count() == 4,
 		"claimed=%d" % InputConfig.claimed_count())
+
+	# The two keyboard seats must not share a single key. Over a stream both
+	# arrive on the same physical keyboard, so one overlapping binding would be
+	# two players driving one character.
+	var clash := ""
+	for base: StringName in InputConfig.ACTIONS:
+		var first := {}
+		for event in InputMap.action_get_events(InputConfig.action(0, base)):
+			if event is InputEventKey:
+				first[event.physical_keycode] = true
+		for other: StringName in InputConfig.ACTIONS:
+			for event in InputMap.action_get_events(InputConfig.action(3, other)):
+				if event is InputEventKey and first.has(event.physical_keycode):
+					clash += " %s/%s" % [base, other]
+	check("the two keyboard seats share no key", clash.is_empty(), clash)
+	# ...and only the mouse seat gets the mouse, since there is one cursor.
+	check("the second keyboard seat aims with keys, not the pointer",
+		InputConfig.aim_vector(3, Vector2.ZERO, null) == Vector2.ZERO)
 
 	check("leaving frees the seat up again", true)
 	InputConfig.release_seat(2)

@@ -66,6 +66,11 @@ func _input(event: InputEvent) -> void:
 		var key := event as InputEventKey
 		if key.keycode == KEY_SPACE:
 			InputConfig.claim_seat(InputConfig.Device.KBM)
+		# The second keyboard seat joins on its own jump key, which is also the
+		# only way to tell it apart from the first: over a stream both seats type
+		# on the same keyboard, so the key pressed IS the identity.
+		elif key.keycode == KEY_KP_ENTER or key.keycode == KEY_KP_0:
+			InputConfig.claim_seat(InputConfig.Device.KBM_ALT)
 
 func _physics_process(delta: float) -> void:
 	if _done:
@@ -132,7 +137,7 @@ func _draw_screen() -> void:
 	_shadowed(font, Vector2(size.x * 0.5 - 130, size.y - 56), msg, 15,
 		COL_READY if _ready_to_start() else COL_DIM)
 	_shadowed(font, Vector2(size.x * 0.5 - 190, size.y - 32),
-		"join: SPACE on keyboard, R1 or A on a pad   ·   host steers with WASD", 12, COL_DIM)
+		"join: SPACE (WASD) · NUMPAD 0 (arrows) · R1/A on a pad   ·   host steers with WASD", 12, COL_DIM)
 
 func _draw_setting(font: Font, at: Vector2, row: int, label: String, value: String) -> void:
 	var box := Rect2(at, Vector2(200, 64))

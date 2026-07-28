@@ -223,6 +223,7 @@ Nova's Supernova is deliberately outrunnable and deliberately undodgeable: it mo
 
 Notes:
 - The controller ultimate chord requires a small simultaneity window (~0.1 s) and suppresses the individual dash/swap actions when the chord lands.
+- A **second keyboard seat** exists for streamed play (arrows to move, numpad to act, key-based aim). Streamed guest keyboards all merge into the host's one key stream, so the *keycode* is the only thing that distinguishes two keyboard players - two clusters is therefore the ceiling, and the second seat has no mouse.
 - All bindings rebindable via `InputMap`; store overrides in `user://input.cfg`.
 - Aim vector is *always live* (feeds aimed wall jumps and dashes even for heroes with untargeted abilities).
 - **Aim guide**: every player draws a short dashed line from their body along the aim, six hero-heights (216 px) long, clipped at the first terrain it meets. Not a laser sight — knowing your exact line across the whole stage would turn aimed abilities into hitscan. Its tip reads as a bar when terrain stopped it and a chevron when it did not, so it doubles as "the hook bites here". Hidden while stunned or frozen, when there is nothing to aim with.

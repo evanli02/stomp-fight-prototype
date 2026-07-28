@@ -8,7 +8,21 @@ extends Node
 ## players can hold different devices. Use action() rather than writing the
 ## namespaced names by hand.
 
-enum Device { KBM, PAD }
+## KBM_ALT is a SECOND keyboard seat on a different key cluster (arrows and the
+## numpad), and it exists for exactly one reason: streamed play.
+##
+## Guest keyboard input over Parsec - or Steam Remote Play - is injected into the
+## host's single system keyboard. There is one key stream and one cursor, and
+## nothing downstream can tell two keyboard guests apart: Godot reports every
+## keyboard as device 0, and telling physical keyboards apart at all needs
+## Windows Raw Input through a native extension. What DOES survive the trip is
+## the keycode. Two people pressing different keys are distinguishable even
+## though two people pressing the same key never will be, so a second seat on a
+## second cluster is the whole of what is possible here.
+##
+## Appended rather than inserted: the existing values are used by name in the
+## harness but their numbers end up in saved seat assignments.
+enum Device { KBM, PAD, KBM_ALT }
 
 ## Pause is the one action that is NOT per seat. Six people share one screen, so
 ## whoever reaches a button first stops the game for everybody — namespacing it
@@ -119,8 +133,11 @@ func release_seat(player_id: int) -> void:
 
 ## What is sitting in a seat, for the lobby and hero select to label rows with.
 func device_label(player_id: int) -> String:
-	if device_of(player_id) == Device.KBM:
-		return "mouse + keyboard"
+	match device_of(player_id):
+		Device.KBM:
+			return "mouse + keyboard"
+		Device.KBM_ALT:
+			return "arrows + numpad"
 	return "pad %d" % pad_index_of(player_id)
 #endregion
 
@@ -149,9 +166,42 @@ func _register_actions(player_id: int, device: Device) -> void:
 		if InputMap.has_action(name):
 			InputMap.erase_action(name)
 		InputMap.add_action(name)
-		var events: Array = _kbm_events(base) if device == Device.KBM 			else _pad_events(base, pad_index_of(player_id))
+		var events: Array = []
+		match device:
+			Device.KBM:
+				events = _kbm_events(base)
+			Device.KBM_ALT:
+				events = _kbm_alt_events(base)
+			_:
+				events = _pad_events(base, pad_index_of(player_id))
 		for event in events:
 			InputMap.action_add_event(name, event)
+
+## The second keyboard seat: arrows to move, numpad to act. One coherent cluster
+## on the right of the board, chosen so it shares no key with the WASD seat -
+## over a stream both seats' keystrokes arrive on the same keyboard, so an
+## overlap would be two players driving one character.
+##
+## Aim is bound to keys here rather than the mouse. There is only one cursor and
+## it belongs to seat 0, so this seat aims in eight directions. That is a real
+## downgrade for Deadeye and Kid and the reason a pad is still the better answer
+## when somebody has one.
+func _kbm_alt_events(base: StringName) -> Array:
+	match base:
+		&"move_left": return [_key(KEY_LEFT)]
+		&"move_right": return [_key(KEY_RIGHT)]
+		&"move_up": return [_key(KEY_UP)]
+		&"move_down": return [_key(KEY_DOWN)]
+		&"jump": return [_key(KEY_KP_0)]
+		&"dash": return [_key(KEY_KP_9)]
+		&"ability": return [_key(KEY_KP_1)]
+		&"swap": return [_key(KEY_KP_3)]
+		&"ultimate": return [_key(KEY_KP_ENTER)]
+		&"aim_up": return [_key(KEY_KP_8)]
+		&"aim_down": return [_key(KEY_KP_2)]
+		&"aim_left": return [_key(KEY_KP_4)]
+		&"aim_right": return [_key(KEY_KP_6)]
+	return []
 
 ## KBM bindings (DESIGN 7). Aim is the mouse cursor, so the aim_* actions are
 ## intentionally unbound here — aim_vector() reads the pointer instead.
@@ -244,7 +294,10 @@ func aim_vector(player_id: int, player_global_pos: Vector2, viewport: Viewport) 
 		action(player_id, &"aim_up"), action(player_id, &"aim_down"))
 	if explicit.length() > 0.2:
 		return explicit.normalized()
-	if device_of(player_id) == Device.PAD:
+	# Only the true mouse seat falls back to the pointer. There is one cursor on
+	# the machine; handing it to a second keyboard seat would aim both of them at
+	# the same place.
+	if device_of(player_id) != Device.KBM:
 		return Vector2.ZERO
 	var camera := viewport.get_camera_2d()
 	var mouse := camera.get_global_mouse_position() if camera else viewport.get_mouse_position()
