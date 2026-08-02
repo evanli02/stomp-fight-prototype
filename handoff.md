@@ -91,6 +91,13 @@ Human-playable scenes:
 - `src/stage/sunken_court.tscn` — two solid mesas over a five-spring trench with no standing
   room; the roof platform costs a dash to reach.
 - `src/stage/playground.tscn` — flat debug box with the state/velocity overlay.
+- `src/stage/training_room.tscn` — **the tuning bench.** Flat floor, two platforms at the
+  held-jump and jump-plus-dash heights, one spring, one pole. Swap cycles **all twelve**
+  heroes (not a 3-hero roster); the other three seats are dummies driven by `DummyDriver`;
+  **F5** frees cooldowns and ultimates, **F6** cycles dummy behaviour (idle / patrol / hop),
+  **F7** resets positions. Reached from the lobby, or booted directly with F6.
+- `src/ui/balance_sheet.tscn` — every hero's `@export` tunables on one page, read live off
+  the ability scenes, so it can never go stale. Also reached from the lobby.
 
 **F3** in any stage toggles the design overlay (grid coordinates, spawns, the reach envelope).
 
