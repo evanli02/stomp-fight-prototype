@@ -601,12 +601,12 @@ func _check_training_toggles() -> void:
 	await step(2)
 
 	check("cooldowns apply normally with the toggle off",
-		not MatchState.unlimited_resources)
+		not MatchState.free_cooldowns)
 	_p1.try_ability()
 	check("...so a fired ability is on cooldown",
 		not MatchState.is_ability_ready(0, &"deadeye"))
 
-	MatchState.unlimited_resources = true
+	MatchState.free_cooldowns = true
 	check("the toggle reports the ability ready again",
 		MatchState.is_ability_ready(0, &"deadeye"),
 		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"deadeye"))
@@ -616,6 +616,10 @@ func _check_training_toggles() -> void:
 	check("the real cooldown is still running underneath",
 		MatchState.cooldown_remaining(0, &"deadeye") > 0.0)
 
+	# The two switches are independent: freeing cooldowns must not free ults.
+	check("free cooldowns alone leave the ult budget honest",
+		not MatchState.free_ultimates)
+	MatchState.free_ultimates = true
 	var spent_before := MatchState.ults_left(0)
 	check("ultimates are free while the toggle is on", _p1.try_ultimate())
 	await step(2)
@@ -623,8 +627,9 @@ func _check_training_toggles() -> void:
 		MatchState.ults_left(0) == spent_before,
 		"%d -> %d" % [spent_before, MatchState.ults_left(0)])
 	check("a second ultimate fires with no gap", _p1.try_ultimate())
+	MatchState.free_ultimates = false
 
-	MatchState.unlimited_resources = false
+	MatchState.free_cooldowns = false
 	# Started explicitly rather than by firing: Deadeye's ultimate refunds his
 	# bolt on purpose, so the ult fired above legitimately cleared the cooldown
 	# this is about. The question here is only whether the gate is honoured

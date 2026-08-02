@@ -1,24 +1,28 @@
 extends MatchStage
-## Training room: a flat, quiet stage for tuning kits.
+## Training room: one person, three bots, every hero, for tuning kits.
 ##
-## Everything here exists to make one question answerable at a time. The layout
-## is deliberately plain — one long floor, two low platforms, one wall on each
-## side to test wall jumps and Sai's hook against, and a single spring — because
-## a stage with opinions makes it impossible to tell whether a number felt wrong
-## or the geometry did.
+## The layout is deliberately plain — one long floor, two platforms at known
+## reach heights, one wall each side, a spring and a pole — because a stage with
+## opinions makes it impossible to tell whether a number felt wrong or the
+## geometry did.
 ##
-## What it adds on top of a normal stage:
-##   * **Any hero, instantly.** Seat 0 cycles all twelve with the swap control,
-##     bypassing the 3-hero roster entirely. Balance work means comparing kits,
-##     and going back to hero select between each one is most of the cost.
-##   * **Dummies.** Every other seat is driven by a DummyDriver instead of a
-##     device — idle, patrolling, or hopping. They never lose lives for good:
-##     the stage puts them back so a session is not interrupted by a round win.
-##   * **A cooldown toggle.** `MatchState.unlimited_resources` off means the
-##     real economy; on means fire anything as often as you like.
-##
-## Nothing in here changes how an ability behaves — that would defeat the point.
-## It changes only what it costs to try one.
+## What it changes about a normal stage:
+##   * **One human, three bots.** Seat 0 is the keyboard; the other three are
+##     driven by DummyDriver. Two patrol and hop occasionally, one stands
+##     still — a still target is the baseline for measuring a hitbox, the
+##     movers are for aim. Bots never lose lives for good.
+##   * **Any hero, instantly.** Swap cycles ALL twelve, not a 3-hero roster.
+##   * **Free ultimates, always** — no budget, no gap — and **F5 toggles
+##     ability cooldowns**. Nothing about how a kit behaves changes; only what
+##     it costs to try one.
+
+const HUMAN_SEAT: int = 0
+## Who does what. The still bot is the ALLY (seat 1 at 2v2) standing near the
+## player: it doubles as the target for ally-cast kits (Saint's Cleanse), and a
+## test subject you have to chase is a worse baseline than one that waits. The
+## two enemies are the movers.
+const IDLE_SEATS: Array[int] = [1]
+const MOVER_SEATS: Array[int] = [2, 3]
 
 const ARENA: Vector2i = Vector2i(72, 40)
 const FLOOR_TOP: float = 496.0
@@ -27,24 +31,16 @@ const HIGH_TOP: float = 256.0
 
 const SPAWNS: Array[Vector2] = [Vector2(280, 472), Vector2(840, 472)]
 
-## Two seats are driven by people, two are targets. They alternate so that each
-## player has an ally dummy AND an enemy dummy: at 2v2 seats 0-1 are team 0 and
-## 2-3 are team 1, so this puts the two players on OPPOSITE teams (they can
-## stomp each other) and gives each of them a teammate to test ally-targeted
-## kits on (Saint's Cleanse has nothing to say otherwise).
-const HUMAN_SEATS: Array[int] = [0, 2]
-const DUMMY_SEATS: Array[int] = [1, 3]
-
 ## Every hero, in roster order — the whole point of the room.
 var _all_heroes: Array[StringName] = []
-## seat -> index into _all_heroes, for the seats a person is driving.
-var _hero_index: Dictionary = {}
-## seat -> DummyDriver, for the seats this room drives itself.
+var _hero_index: int = 0
+## seat -> DummyDriver, for the three seats this room drives itself.
 var _drivers: Dictionary = {}
+## F6 freezes the movers (everything idle) and unfreezes them again.
+var _movers_frozen: bool = false
 var _hint: Label
 ## Edge detection for the room's own keys. Not routed through InputConfig
-## because these are development controls, not per-seat gameplay actions —
-## binding them per seat would put them in everyone's namespace for no reason.
+## because these are development controls, not per-seat gameplay actions.
 var _f5_held: bool = false
 var _f6_held: bool = false
 var _f7_held: bool = false
@@ -89,41 +85,36 @@ func build_terrain() -> void:
 
 func _ready() -> void:
 	# Before super(): MatchStage seats itself from the format, and this room is
-	# always two people plus two targets regardless of what the lobby was set
-	# to — which is also what makes booting this scene straight with F6 work.
+	# always one person plus three bots regardless of what the lobby was set
+	# to — which is also what makes booting the scene straight with F6 work.
 	GameManager.team_size = 2
 	super()
 	_all_heroes = GameManager.roster_ids()
+	_hero_index = maxi(_all_heroes.find(MatchState.active_hero(HUMAN_SEAT)), 0)
 
-	# The second player takes the first pad. Assigned here rather than claimed
-	# in the lobby so the room is self-contained: one keyboard and one
-	# controller is the common bench setup, and seat 2's default binding would
-	# otherwise be the *second* pad.
-	InputConfig.assign_device(HUMAN_SEATS[0], InputConfig.Device.KBM)
-	InputConfig.assign_device(HUMAN_SEATS[1], InputConfig.Device.PAD, 0)
-	for seat: int in HUMAN_SEATS:
-		if seat >= players.size():
-			continue
-		_hero_index[seat] = maxi(_all_heroes.find(MatchState.active_hero(seat)), 0)
-		players[seat].input_source = _human_input(seat)
+	# The room owns its one device: whoever opened it is on the keyboard.
+	# Assigned rather than inherited from the lobby, so the room works the same
+	# whether it was entered from there or booted directly.
+	InputConfig.assign_device(HUMAN_SEAT, InputConfig.Device.KBM)
+	players[HUMAN_SEAT].input_source = _human_input
 
-	for seat: int in DUMMY_SEATS:
-		if seat >= players.size():
-			continue
+	for seat in range(1, players.size()):
 		var driver := DummyDriver.new()
-		# Standing still by default: a still target is the baseline for
-		# measuring a hitbox or a range, and anything that moves adds a
-		# variable to whatever is being tuned. F6 sets them walking.
-		driver.mode = DummyDriver.Mode.IDLE
-		# Staggered so that once they DO move they do not travel as one block.
-		driver.phase = float(seat) * 0.7
+		driver.mode = DummyDriver.Mode.IDLE if seat in IDLE_SEATS else DummyDriver.Mode.HOP
+		# Staggered so the two movers do not travel as one block.
+		driver.phase = float(seat) * 0.9
 		_drivers[seat] = driver
 		players[seat].input_source = driver.poll
-	MatchState.life_lost.connect(_on_dummy_life_lost)
-	# On its own CanvasLayer, not as a child of the stage: a Label parented to a
-	# Node2D lives in world space and rides the camera, which put this straight
-	# through the HUD. Bottom-left, where neither the HUD nor the stage's own
-	# debug readout goes.
+
+	# Ultimates are free the whole time the room is open — no budget, no gap.
+	# Cooldowns start REAL so the first impression of a kit is honest; F5 frees
+	# them.
+	MatchState.free_ultimates = true
+	MatchState.free_cooldowns = false
+	MatchState.life_lost.connect(_on_bot_life_lost)
+
+	# The hint lives on its own CanvasLayer: a Label parented to the stage sits
+	# in world space and rides the camera straight through the HUD.
 	var layer := CanvasLayer.new()
 	layer.layer = 40
 	add_child(layer)
@@ -137,50 +128,49 @@ func _ready() -> void:
 	layer.add_child(_hint)
 
 func _exit_tree() -> void:
-	# The toggle belongs to the room, not the session: a match started after
-	# this must never inherit free ultimates.
-	MatchState.unlimited_resources = false
+	# The switches belong to the room, not the session: a match started after
+	# this must never inherit free anything.
+	MatchState.free_cooldowns = false
+	MatchState.free_ultimates = false
 
-## Dummies are targets, not opponents — a stomped one gets its life straight
-## back, so a tuning session is never interrupted by a round ending.
-func _on_dummy_life_lost(player_id: int, hero_id: StringName, _left: int) -> void:
-	if player_id == 0:
+## Bots are targets, not opponents — a stomped one gets its life straight back,
+## so a tuning session is never interrupted by a round win.
+func _on_bot_life_lost(player_id: int, hero_id: StringName, _left: int) -> void:
+	if player_id == HUMAN_SEAT:
 		return
 	MatchState.restore_lives(player_id, hero_id)
 
-## A human seat's input, with SWAP intercepted. The room owns that button here:
-## left alone, Player.try_swap would rotate the seat's three-hero roster on the
-## same press this uses to walk all twelve, and both would fire.
-##
-## Reusing input_source rather than reading the button in _physics_process is
-## what makes that reliable — the interception happens at the one place the
-## body actually reads its intent, so there is no ordering question about which
-## saw the press first.
-func _human_input(seat: int) -> Callable:
-	return func(body: Player) -> InputFrame:
-		var frame := InputConfig.poll(seat, body)
-		if frame.swap_pressed:
-			frame.swap_pressed = false
-			_cycle_hero(seat)
-		return frame
+## The human's input, with SWAP intercepted. The room owns that button: left
+## alone, Player.try_swap would rotate the seat's three-hero roster on the same
+## press this uses to walk all twelve, and both would fire. Intercepting at the
+## one place the body reads its intent removes the ordering question.
+func _human_input(body: Player) -> InputFrame:
+	var frame := InputConfig.poll(HUMAN_SEAT, body)
+	if frame.swap_pressed:
+		frame.swap_pressed = false
+		_cycle_hero()
+	return frame
 
-## Step a seat to the next hero in the FULL roster. equip_hero is the same call
-## a real swap makes, so the hero arrives fully wired; only MatchState's
-## three-hero roster check is being stepped around.
-func _cycle_hero(seat: int) -> void:
-	if seat >= players.size() or players[seat].stun_remaining > 0.0:
+## Step to the next hero in the FULL roster. equip_hero is the same call a real
+## swap makes, so the hero arrives fully wired; only MatchState's three-hero
+## roster check is being stepped around.
+func _cycle_hero() -> void:
+	if players[HUMAN_SEAT].stun_remaining > 0.0:
 		return
-	_hero_index[seat] = wrapi(int(_hero_index.get(seat, 0)) + 1, 0, _all_heroes.size())
-	players[seat].equip_hero(_all_heroes[_hero_index[seat]])
+	_hero_index = wrapi(_hero_index + 1, 0, _all_heroes.size())
+	players[HUMAN_SEAT].equip_hero(_all_heroes[_hero_index])
 
 func _physics_process(delta: float) -> void:
 	super(delta)
 	if Input.is_physical_key_pressed(KEY_F5) and not _f5_held:
-		MatchState.unlimited_resources = not MatchState.unlimited_resources
+		MatchState.free_cooldowns = not MatchState.free_cooldowns
 	_f5_held = Input.is_physical_key_pressed(KEY_F5)
 	if Input.is_physical_key_pressed(KEY_F6) and not _f6_held:
-		for seat in _drivers:
-			(_drivers[seat] as DummyDriver).cycle()
+		_movers_frozen = not _movers_frozen
+		for seat in MOVER_SEATS:
+			if _drivers.has(seat):
+				(_drivers[seat] as DummyDriver).mode = \
+					DummyDriver.Mode.IDLE if _movers_frozen else DummyDriver.Mode.HOP
 	_f6_held = Input.is_physical_key_pressed(KEY_F6)
 	if Input.is_physical_key_pressed(KEY_F7) and not _f7_held:
 		_reset_bodies()
@@ -192,20 +182,8 @@ func _reset_bodies() -> void:
 		players[i].respawn_at(spawn_for(i))
 
 func _update_hint() -> void:
-	var mode := "?"
-	if not _drivers.is_empty():
-		mode = (_drivers[_drivers.keys()[0]] as DummyDriver).label()
-	var who := ""
-	for seat: int in HUMAN_SEATS:
-		if seat >= players.size():
-			continue
-		# Numbered by SEAT, not by which of the two humans this is — the HUD and
-		# the debug readout both label these bodies P1 and P3, and a hint that
-		# called them P1 and P2 would be describing different players.
-		who += "P%d (%s): %s\n" % [seat + 1, InputConfig.device_label(seat),
-			String(_all_heroes[int(_hero_index.get(seat, 0))]).to_upper()]
-	_hint.text = "TRAINING ROOM\n" + who \
-		+ "swap: next hero (all %d, per player)\n" % _all_heroes.size() \
-		+ "F5 cooldowns: %s\n" % ("OFF - free" if MatchState.unlimited_resources else "on") \
-		+ "F6 dummies: %s\n" % mode \
-		+ "F7 reset positions   ·   F3 reach overlay"
+	_hint.text = "TRAINING ROOM   %s\n" % String(_all_heroes[_hero_index]).to_upper() \
+		+ "swap (RMB): next hero (all %d)   ·   ultimates always free\n" % _all_heroes.size() \
+		+ "F5 ability cooldowns: %s\n" % ("OFF - free" if MatchState.free_cooldowns else "ON - real") \
+		+ "F6 moving bots: %s   ·   F7 reset positions   ·   F3 reach overlay" \
+			% ("frozen" if _movers_frozen else "walking + hopping")

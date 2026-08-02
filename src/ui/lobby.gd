@@ -158,7 +158,7 @@ func _draw_screen() -> void:
 	_draw_tool(font, Vector2(size.x * 0.5 - 250, 232), ROW_BALANCE,
 		"BALANCE SHEET", "every hero's numbers on one page")
 	_draw_tool(font, Vector2(size.x * 0.5 + 50, 232), ROW_TRAINING,
-		"TRAINING ROOM", "2 players, any hero, 2 dummies")
+		"TRAINING ROOM", "any hero, 3 bots, free ultimates")
 
 	_draw_seats(font, size)
 

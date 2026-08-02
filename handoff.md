@@ -92,12 +92,14 @@ Human-playable scenes:
   room; the roof platform costs a dash to reach.
 - `src/stage/playground.tscn` — flat debug box with the state/velocity overlay.
 - `src/stage/training_room.tscn` — **the tuning bench.** Flat floor, two platforms at the
-  held-jump and jump-plus-dash heights, one spring, one pole. **Two players** (seat 0 on the
-  keyboard, seat 2 on the first pad — opposite teams, so they can stomp each other), each
-  with an **ally dummy** standing beside them so ally-targeted kits have a target. Swap
-  cycles **all twelve** heroes per player, not a 3-hero roster. Dummies stand still by
-  default; **F6** sets them patrolling or hopping, **F5** frees cooldowns and ultimates,
-  **F7** resets positions. Reached from the lobby, or booted directly with F6.
+  held-jump and jump-plus-dash heights, one spring, one pole. **One human** (keyboard,
+  seat 0) and **three bots**: the ally beside you stands still (the baseline target, and
+  what ally-cast kits land on), the two enemies walk back and forth and hop occasionally.
+  Swap cycles **all twelve** heroes, not a 3-hero roster. **Ultimates are always free**
+  (no budget, no gap); **F5** toggles ability cooldowns; **F6** freezes/unfreezes the
+  movers; **F7** resets positions. Reached from the lobby, or booted directly with F6.
+  `tools/probe_training.tscn` drives all of that headlessly (12-hero sweep, free ults,
+  bot behaviour over 4 s of frames, switch cleanup) — run it after touching the room.
 - `src/ui/balance_sheet.tscn` — every hero's `@export` tunables on one page, read live off
   the ability scenes, so it can never go stale. Also reached from the lobby.
 
