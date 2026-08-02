@@ -240,28 +240,35 @@ func _check_cooldowns_tick_while_benched() -> void:
 		and MatchState.cooldown_remaining(0, benched) == 0.0,
 		"remaining=%.2f" % MatchState.cooldown_remaining(0, benched))
 
+## DESIGN 2.3, reworked 2026-08-01: ONE ultimate per HERO per round, with the
+## between-uses gap still owned by the player. The interesting half is that
+## those two rules pull in different directions — swapping DOES hand you a
+## fresh ultimate, and does NOT skip the gap.
 func _check_ultimate_economy() -> void:
 	MatchState.reset_round()
+	var first := MatchState.active_hero(0)
 	check("the ultimate starts available", MatchState.ult_available(0))
-	check("a round starts with ULTS_PER_ROUND banked",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND,
+	check("a round starts with one ult per hero",
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER,
 		"left=%d" % MatchState.ults_left(0))
 	check("spending the first ultimate succeeds", MatchState.try_spend_ultimate(0))
-	check("one ultimate is left", MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
+	check("it is spent against the hero who cast it",
+		MatchState.ult_spent(0, first))
+	check("the other two heroes still hold theirs",
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER - 1,
 		"left=%d" % MatchState.ults_left(0))
-	# Banked but not usable: the gap between uses is what stops both going off at
-	# once (DESIGN 2.3).
-	check("the second is blocked by the cooldown", not MatchState.ult_available(0))
-	check("a spend during the cooldown is refused", not MatchState.try_spend_ultimate(0))
+	# The gap is per PLAYER and survives the rework: it exists so a round cannot
+	# be dumped into one scramble, and swapping must not be a way around it.
+	check("the next is blocked by the gap", not MatchState.ult_available(0))
+	check("a spend during the gap is refused", not MatchState.try_spend_ultimate(0))
 	check("the refused spend cost nothing",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
-		"left=%d" % MatchState.ults_left(0))
-	# Per PLAYER, shared across the trio — swapping does not hand you a fresh one.
-	MatchState.swap_to(0, MatchState.next_living_hero(0))
-	check("swapping heroes does not restore an ultimate",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1)
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER - 1)
+	var second := MatchState.next_living_hero(0)
+	MatchState.swap_to(0, second)
+	check("swapping to a fresh hero does not skip the gap",
+		not MatchState.ult_available(0), "cd=%.2f" % MatchState.ult_cooldown_remaining(0))
 	check("the other player's ultimates are untouched",
-		MatchState.ult_available(1) and MatchState.ults_left(1) == MatchState.ULTS_PER_ROUND)
+		MatchState.ult_available(1) and MatchState.ults_left(1) == MatchState.HEROES_PER_PLAYER)
 
 	var waited: bool = false
 	for i in int(MatchState.ULT_COOLDOWN * 60.0) + 30:
@@ -269,14 +276,24 @@ func _check_ultimate_economy() -> void:
 		if MatchState.ult_available(0):
 			waited = true
 			break
-	check("the second ultimate unlocks after the cooldown", waited,
-		"cd=%.2f" % MatchState.ult_cooldown_remaining(0))
-	check("spending the second ultimate succeeds", MatchState.try_spend_ultimate(0))
-	check("both ultimates are now gone", MatchState.ults_left(0) == 0)
+	check("the gap expires", waited, "cd=%.2f" % MatchState.ult_cooldown_remaining(0))
+	check("the fresh hero may then ultimate", MatchState.try_spend_ultimate(0))
+	check("...and that spends THEIR one, not the first hero's",
+		MatchState.ult_spent(0, second) and MatchState.ults_left(0)
+			== MatchState.HEROES_PER_PLAYER - 2)
+
+	# Back to the first hero: theirs is gone for the rest of the round, and no
+	# amount of waiting brings it back.
+	MatchState.swap_to(0, first)
+	MatchState.players[0].ult_cooldown = 0.0
+	check("a hero who spent theirs cannot ultimate again",
+		not MatchState.ult_available(0))
+	check("...and trying is refused", not MatchState.try_spend_ultimate(0))
 
 	MatchState.reset_round()
-	check("the round reset restores both ultimates",
-		MatchState.ult_available(0) and MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND)
+	check("the round reset restores every hero's ultimate",
+		MatchState.ult_available(0)
+		and MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER)
 
 ## M4 abilities. The load-bearing check is the last one: whatever a hero does,
 ## it cannot cost a life. Only stomps do that (CLAUDE.md rule 1).

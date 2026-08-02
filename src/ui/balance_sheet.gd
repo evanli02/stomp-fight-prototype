@@ -306,7 +306,7 @@ func _format(name: String, value: Variant) -> String:
 
 func _unit_for(name: String) -> String:
 	# Every entry in the stun table is seconds and none of them says so in its
-	# name (`stun_duel_loss`, `stun_nova_ult`), so the prefix decides.
+	# name (`stun_duel_loss`, `stun_cerebelle_ult`), so the prefix decides.
 	if name.begins_with("stun_"):
 		return "s"
 	var best := ""

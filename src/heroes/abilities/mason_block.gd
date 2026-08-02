@@ -6,7 +6,7 @@ class_name MasonBlock extends Ability
 @export var place_distance: float = 46.0
 ## Launch out of any face — above half a stage spring's, so bouncing off the
 ## block is a real launch rather than a nudge.
-@export var bounce_speed: float = 470.0
+@export var bounce_speed: float = 620.0
 ## Long enough to be a piece of the fight, not a flicker: place it, then play
 ## around it for a while.
 @export var block_lifetime: float = 6.5

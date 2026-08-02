@@ -16,7 +16,7 @@ class_name SaintBenediction extends Ability
 ## early-out — the stomp system stays the only thing that decides whether a
 ## stomp lands (CLAUDE.md 1). Nothing here reaches a life.
 
-@export var duration: float = 7.0
+@export var duration: float = 20.0
 @export var speed_mult: float = 1.25
 @export var impulse_mult: float = 1.18
 

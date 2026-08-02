@@ -14,4 +14,4 @@ class_name CerebelleSupernova extends Ability
 func _execute(_aim: Vector2) -> void:
 	var ring := ShockwaveRing.new()
 	player.spawn_effect(ring)
-	ring.launch(player, ring_speed, reach, player.combat.stun_nova_ult)
+	ring.launch(player, ring_speed, reach, player.combat.stun_cerebelle_ult)

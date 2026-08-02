@@ -11,14 +11,14 @@ class_name SaiSlash extends Ability
 ## where the body actually fits inside the arena, so the slash can never leave
 ## Sai buried or out of bounds.
 
-@export var distance: float = 520.0
+@export var distance: float = 600.0
 ## Half-width of the cut. Widened by half a character height each side, so the
 ## whole corridor grew by about one body — the slash is an ultimate, and dodging
 ## it should take a real move, not a crouch.
 @export var corridor: float = 52.0
 @export var slow_mult: float = 0.415
 @export var impair_mult: float = 0.3
-@export var debuff_time: float = 7.0
+@export var debuff_time: float = 10.0
 
 ## Endpoint search: how far apart the candidate landing spots are.
 const RESOLVE_STEP: float = 12.0

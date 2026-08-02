@@ -5,7 +5,7 @@ class_name WindBeam extends Node2D
 ## himself. Pure displacement, no stun, no life.
 
 var width: float = 44.0
-var push: float = 700.0
+var push: float = 1000.0
 const LIFE: float = 0.28
 
 var from_point: Vector2 = Vector2.ZERO

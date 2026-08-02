@@ -25,7 +25,7 @@ class_name CombatConfig extends Resource
 @export var stun_deadeye_bolt: float = 1.0
 @export var stun_line: float = 0.5
 @export var stun_explosion: float = 0.65
-@export var stun_nova_ult: float = 1.3
+@export var stun_cerebelle_ult: float = 2.0
 ## Per freeze, not total: the block re-freezes a falling body every
 ## freeze + FALL_GAP seconds (see FreezeBlock), so the total time held is
 ## several of these — a body falling straight through eats 3-4.

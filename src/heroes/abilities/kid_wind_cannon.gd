@@ -6,7 +6,7 @@ class_name KidWindCannon extends Ability
 ## Half-width of the column. Everyone inside it is shoved, allies included.
 @export var width: float = 44.0
 ## The shove, in px/s. Applied once, the instant it fires.
-@export var push: float = 700.0
+@export var push: float = 1000.0
 
 func _execute(aim: Vector2) -> void:
 	var beam := WindBeam.new()

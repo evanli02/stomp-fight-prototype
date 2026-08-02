@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Kid"
 accent_color = Color(1, 0.545098, 0.180392, 1)
-ability_cooldown = 8.5
+ability_cooldown = 8.0
 ability_text = "Wind Cannon: a stage-crossing gust along your aim, through walls, shoving everyone in it - allies too."
 ultimate_text = "EMP: after a beat, every enemy is slowed and locked out of dash, ability, and ultimate."
 sprite_frames = ExtResource("2")

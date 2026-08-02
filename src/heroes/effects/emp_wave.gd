@@ -8,7 +8,7 @@ var delay: float = 0.6
 var slow_mult: float = 0.35
 ## Long: the EMP is a window the whole team plays inside, not a beat. An
 ## ultimate that turns the tech off should leave time to actually collect on it.
-var duration: float = 9.0
+var duration: float = 14.0
 const FADE: float = 0.5
 
 var caster_team: int = -1

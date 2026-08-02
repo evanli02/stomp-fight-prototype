@@ -14,7 +14,7 @@ class_name VoodooPhantom extends Ability
 ## Terra's slam. The combat harness asserts both halves.
 
 ## Noticeably longer than a cast of the ability.
-@export var duration: float = 12.0
+@export var duration: float = 13.0
 ## More run and more dash than Soul Ignition — but the JUMP is deliberately
 ## untouched (no impulse buff here): a ghost that also out-jumped everyone
 ## would leave no answer to him at all. The dash buff is dash-only.
@@ -22,6 +22,10 @@ class_name VoodooPhantom extends Ability
 @export var dash_mult: float = 1.45
 ## The pass-through stun. Refreshes, never stacks.
 @export var pass_stun_time: float = 2.0
+## A ghost gets a second jump. Not an impulse buff — the ult deliberately leaves
+## the ordinary jump alone (see above) — but an extra one per airtime, which is
+## reach rather than raw height, and reads as floating rather than as leaping.
+@export var air_jump_impulse: float = -520.0
 
 ## The negative skin, loaded once. Generated beside the ordinary frames by
 ## assets/tools/generate_characters.py (see `VARIANTS` there).
@@ -37,6 +41,9 @@ func _execute(_aim: Vector2) -> void:
 
 	player.grant_speed_buff(speed_mult, duration)
 	player.grant_dash_buff(dash_mult, duration)
+	# One extra jump per airtime, with a puff in the PHANTOM colour so it reads
+	# as part of the ultimate rather than as Fei's.
+	player.grant_air_jumps(1, duration, _phantom_accent(), air_jump_impulse)
 	player.begin_phasing(duration)
 	player.begin_contact_stun(pass_stun_time, duration)
 	player.apply_skin_override(load(PHANTOM_FRAMES) as SpriteFrames)

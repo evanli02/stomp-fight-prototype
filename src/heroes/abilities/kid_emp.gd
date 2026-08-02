@@ -10,7 +10,7 @@ class_name KidEmp extends Ability
 ## Speed-cap multiplier on every enemy for the window.
 @export var slow_mult: float = 0.35
 ## How long the slow AND the dash/ability/ultimate lockout run.
-@export var duration: float = 9.0
+@export var duration: float = 14.0
 
 func _execute(_aim: Vector2) -> void:
 	var wave := EmpWave.new()
