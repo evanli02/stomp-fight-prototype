@@ -525,3 +525,6 @@ makes sense:
    (straight down through the roof, into a channel, at the outer wall).
 8. One art follow-up left open: Vesper has no `sleep` pose (the Sleeping state reuses
    `stun`). The twelve-card hero select is resolved — it is a shared Smash-style grid now.
+6. **Online follow-ups** (IMPLEMENTATION 9a lists them): replicate ability-effect visuals to
+   clients, select screens over the wire, client-side prediction, a relay or WebRTC signaling
+   service for browser play — and rollback if the game earns it.

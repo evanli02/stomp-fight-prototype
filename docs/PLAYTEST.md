@@ -3,6 +3,12 @@
 How to get Overstomp in front of friends who are not in the room. Nothing here
 involves publishing to Steam, a Steamworks account, or an app ID.
 
+**There is now a third option: real online play.** The Windows build hosts and
+joins over ENet (lobby -> HOST ONLINE / JOIN), no streaming involved — see
+`docs/ITCH.md` for the session walkthrough, the port-forwarding caveat, and what
+v1 deliberately does not do. Streaming (below) remains the right choice when
+someone cannot forward a port, wants the select screens, or is on a browser.
+
 **Read this before picking a route.** Both options below stream the game from
 your machine and forward guests' controllers back as extra local gamepads, which
 is exactly what Overstomp needs and why it works with no netcode. They differ in

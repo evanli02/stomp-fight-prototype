@@ -16,7 +16,8 @@ overstomp/
 │   ├── IMPLEMENTATION.md      # This file
 │   ├── SETUP.md               # Environment install guide
 │   ├── MAPS.md                # Stage-building guide: reach envelope, terrain catalog
-│   ├── PLAYTEST.md            # Building the .exe + remote playtesting
+│   ├── PLAYTEST.md            # Remote playtesting: streaming and online
+│   ├── ITCH.md                # itch.io page, butler, the online support matrix
 │   ├── NEW_HEROES.md          # Authoritative spec for the second hero wave (M7)
 │   └── OPUS_PROMPT.md         # Kickoff prompt for implementation sessions
 ├── src/
@@ -30,8 +31,8 @@ overstomp/
 │   ├── STYLE_GUIDE.md
 │   └── tools/                 # pixel.py canvas + character/placeholder/sfx generators (stdlib only)
 ├── tests/                     # Headless harnesses (movement, combat, match, terrain)
-├── tools/                     # build_windows.ps1, measure_reach, screenshot_* (dev utilities)
-└── export_presets.cfg         # Windows Desktop export (committed; holds no secrets)
+├── tools/                     # build_windows.ps1, build_itch.ps1, measure_reach, screenshot_*
+└── export_presets.cfg         # Windows Desktop + Web exports (committed; no secrets)
 ```
 
 ## 2. Autoloads (singletons)
