@@ -284,6 +284,19 @@ func choose_stage(stage_id: StringName) -> void:
 		current_stage = stage_id
 	start_round()
 
+## An online match without the select screens: every seat gets a fallback trio
+## and the match starts on the current stage. The rosters come from the same
+## table a stage booted standalone uses, so the trios are the ones every debug
+## path has always produced.
+func start_quick_match() -> void:
+	var rosters := {}
+	for seat in seat_count():
+		var ids: Array[StringName] = []
+		for h in MatchStage.SEAT_ROSTERS[seat % MatchStage.SEAT_ROSTERS.size()]:
+			ids.append(h)
+		rosters[seat] = ids
+	start_match(rosters, seat_teams())
+
 func start_round() -> void:
 	MatchState.reset_round()
 	set_phase(Phase.ROUND_ACTIVE)

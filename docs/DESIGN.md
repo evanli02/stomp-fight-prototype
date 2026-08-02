@@ -275,7 +275,7 @@ Notes:
 - In-round HUD: your 3 hero portraits with life pips (2 each), ability cooldown bar + seconds, ultimate lamps (team-visible), enemy roster life state. Laid out **by team** - team 0 down the left edge, team 1 down the right - so which side of the screen a block is on always answers whose it is. Blocks scale down as the format grows; hero names are the first thing dropped, since the accent stripe already carries identity.
 
 ## 11. Out of scope for v0.x (explicitly)
-- Online netcode (design for it: fixed-tick simulation, input-driven, deterministic where cheap — see IMPLEMENTATION.md §Networking posture).
+- Rollback/predictive netcode. (A v1 host-authoritative online mode exists — IMPLEMENTATION.md §9a: clients send inputs and render host snapshots, feeling their own actions one round trip late. Rollback would need deterministic custom physics and remains out of scope; the fixed tick, input abstraction and seeded RNG keep it possible.)
 - Ranked/progression, cosmetics, more than the 12 rostered heroes (8 live + the second wave of 4), more than 5 stages.
 
 ## 12. Tunables index

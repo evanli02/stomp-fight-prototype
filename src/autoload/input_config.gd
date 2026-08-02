@@ -22,7 +22,7 @@ extends Node
 ##
 ## Appended rather than inserted: the existing values are used by name in the
 ## harness but their numbers end up in saved seat assignments.
-enum Device { KBM, PAD, KBM_ALT }
+enum Device { KBM, PAD, KBM_ALT, NET }
 
 ## Pause is the one action that is NOT per seat. Six people share one screen, so
 ## whoever reaches a button first stops the game for everybody — namespacing it
@@ -108,6 +108,19 @@ func device_seated(device: Device, pad_index: int = 0) -> bool:
 			return true
 	return false
 
+## Sit a remote player in the lowest free seat. No InputMap actions are bound:
+## a NET seat's intent arrives over the wire, and poll() reads it from Net
+## instead of from devices. Called by Net when a client asks for a seat.
+func claim_remote_seat() -> int:
+	for seat in MAX_LOCAL_PLAYERS:
+		if _claimed.has(seat):
+			continue
+		_claimed[seat] = true
+		_device_of[seat] = Device.NET
+		_poll_cache.erase(seat)
+		return seat
+	return -1
+
 ## Sit a physical device in the lowest free seat and bind it there. Returns the
 ## seat, or -1 if the device is already seated or every seat is taken.
 ##
@@ -138,6 +151,8 @@ func device_label(player_id: int) -> String:
 			return "mouse + keyboard"
 		Device.KBM_ALT:
 			return "arrows + numpad"
+		Device.NET:
+			return "online"
 	return "pad %d" % pad_index_of(player_id)
 #endregion
 
@@ -254,6 +269,13 @@ func poll(player_id: int, body: Node2D = null) -> InputFrame:
 	var cached: Dictionary = _poll_cache.get(player_id, {})
 	if cached.get("frame", -1) == now:
 		return cached["input"]  # the chord resolver may only advance once a tick
+
+	# A NET seat's device is the network: the frame the client sent this tick.
+	# Cached like a local poll so edge latching happens exactly once per tick.
+	if device_of(player_id) == Device.NET:
+		var remote: InputFrame = Net.frame_for_seat(player_id)
+		_poll_cache[player_id] = { "frame": now, "input": remote }
+		return remote
 
 	var frame := InputFrame.new()
 	frame.move = Input.get_vector(

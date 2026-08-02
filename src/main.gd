@@ -31,6 +31,10 @@ func _ready() -> void:
 	# must not be the thing _show() frees. It runs while the tree is paused, so
 	# it can undo the pause it caused.
 	add_child(PAUSE_MENU.instantiate())
+	# Online-client flow: the host's round events are what advance the shell —
+	# GameManager's phases never change on a client (IMPLEMENTATION.md 9a).
+	Net.client_round_started.connect(_on_client_round_started)
+	Net.session_ended.connect(_on_session_ended)
 	# Lobby first: it is the only screen that decides how many seats exist, and
 	# every screen after it sizes itself from GameManager.team_size.
 	_show_lobby()
@@ -52,6 +56,15 @@ func _on_round_started(_index: int) -> void:
 		push_error("No scene registered for stage '%s'" % GameManager.current_stage)
 		return
 	_show(scene.instantiate())
+
+## The host already set current_stage before the event went out, so the host
+## path's scene lookup is reused verbatim.
+func _on_client_round_started(_stage_id: StringName, index: int) -> void:
+	_on_round_started(index)
+
+func _on_session_ended(_reason: String) -> void:
+	MatchState.clear_players()
+	_show_lobby()
 
 func _show_lobby() -> void:
 	var screen := LOBBY.instantiate()
@@ -76,6 +89,12 @@ func _show_training_room() -> void:
 ## screen up — so the two paths into hero select (here, and a future rematch)
 ## cannot get out of step.
 func _on_lobby_confirmed() -> void:
+	# An online match skips the select screens for now: fallback trios, the
+	# host's current stage, no stage select between rounds. Select screens over
+	# the wire are the documented follow-up (docs/ITCH.md).
+	if Net.is_host() and Net.client_count() > 0:
+		GameManager.start_quick_match()
+		return
 	GameManager.begin_hero_select()
 
 func _show_hero_select() -> void:

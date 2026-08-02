@@ -166,6 +166,29 @@ const CROUCH_INPUT_THRESHOLD: float = 0.5
 const CONTACT_RETRIGGER_PAD: float = 0.15
 
 @onready var sprite: AnimatedSprite2D = %Sprite
+
+## Online client replica (IMPLEMENTATION.md 9a): the body does not simulate —
+## position, velocity, facing and pose stream in from the host. Physics
+## processing is off, so states, stomps and abilities never run here; _process
+## keeps running and drives the sprite from what the snapshot said.
+var puppet: bool = false
+var puppet_anim: StringName = &"idle"
+
+func make_puppet() -> void:
+	puppet = true
+	set_physics_process(false)
+
+## One host snapshot applied. Velocity is kept even though nothing integrates
+## it, because effects and future interpolation read it; grace drives the blink
+## and stun the HUD flag, exactly as they would locally.
+func apply_net_snapshot(pos: Vector2, vel: Vector2, face: int, anim: StringName,
+		grace: float, stun: float) -> void:
+	global_position = pos
+	velocity = vel
+	facing = face
+	puppet_anim = anim
+	grace_remaining = grace
+	stun_remaining = stun
 @onready var state_machine: StateMachine = %StateMachine
 @onready var head_hurtbox: Area2D = %HeadHurtbox
 @onready var stomp_box: Area2D = %StompBox
@@ -796,6 +819,12 @@ func _process(_delta: float) -> void:
 ## state that caused them: the landing squash, and a one-shot like the pop.
 func _update_animation() -> void:
 	if sprite.sprite_frames == null:
+		return
+	# A puppet wears the pose the host said, nothing else: its state machine
+	# never ran, so asking it would answer with stale nonsense.
+	if puppet:
+		if sprite.sprite_frames.has_animation(puppet_anim) 				and sprite.animation != puppet_anim:
+			sprite.play(puppet_anim)
 		return
 	if _oneshot != &"":
 		if sprite.is_playing():

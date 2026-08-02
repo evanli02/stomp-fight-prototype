@@ -488,6 +488,17 @@ them into `screenshots/` for eyeballing without a full match.
 
 ---
 
+**Online play v1 + itch.** `Net` autoload (IMPLEMENTATION 9a): host-authoritative ENet — the
+host simulates everything exactly as local play always did, clients send InputFrames (entering
+through `InputConfig.poll`, the seam §9 always promised) and render snapshots as puppets, with
+the MatchState mirror re-emitting real signals so HUD/log/audio need zero changes. Verified by
+`net_harness.tscn`, which runs TWO real processes over real localhost ENet and asserts both
+halves of the round trip. v1 gaps on purpose: no prediction, no effect visuals on clients, no
+select screens online (fallback trios via `start_quick_match`), desktop-to-desktop only.
+`docs/ITCH.md` covers the store page, butler, and why web builds can't host.
+
+---
+
 ## 8. Open threads
 
 Nothing is mid-edit; the tree is clean and green. Reasonable next moves, in the order that

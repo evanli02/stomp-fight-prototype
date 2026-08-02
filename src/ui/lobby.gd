@@ -29,7 +29,9 @@ const ROW_FORMAT: int = 0
 const ROW_BESTOF: int = 1
 const ROW_BALANCE: int = 2
 const ROW_TRAINING: int = 3
-const ROW_COUNT: int = 4
+const ROW_HOST: int = 4
+const ROW_JOIN: int = 5
+const ROW_COUNT: int = 6
 const NAV_REPEAT: float = 0.2
 const NAV_DEADZONE: float = 0.5
 
@@ -49,6 +51,13 @@ var _bestof_index: int = 1
 var _row: int = 0
 var _nav_cooldown: float = 0.0
 var _done: bool = false
+## The IP entry box, alive only while the JOIN row is being answered. A real
+## Control in a code-drawn UI, because typing an address needs a text field and
+## nothing else here does.
+var _ip_edit: LineEdit = null
+## One line of session state under the online cards ("hosting :30567 - 1
+## connected", "could not reach 1.2.3.4", ...). Cosmetic only.
+var _net_status: String = ""
 
 func _ready() -> void:
 	InputConfig.clear_seats()
@@ -63,12 +72,25 @@ func _ready() -> void:
 	_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_canvas)
 	_canvas.draw.connect(_draw_screen)
+	# Coming back to the lobby ends any online session: the lobby re-seats
+	# everyone from scratch (clear_seats above), and a half-remembered session
+	# whose seats were just wiped is worse than no session.
+	Net.leave("returned to lobby")
+	Net.session_ended.connect(func(reason: String) -> void:
+		_net_status = reason)
 
 ## Joins only. Everything continuous — cursors, held directions — is polled on
 ## the physics tick below; this is here because a join has to identify the
 ## device, and only the raw event carries that.
 func _input(event: InputEvent) -> void:
 	if _done:
+		return
+	# While the IP box is up, the keyboard is typing an address, not joining.
+	if _ip_edit != null:
+		return
+	# A connected client's devices drive its own machine's seat 0; pressing the
+	# join keys here must not also claim seats in a lobby the host owns.
+	if Net.is_client():
 		return
 	if event is InputEventJoypadButton and event.pressed:
 		var pad := event as InputEventJoypadButton
@@ -87,7 +109,10 @@ func _input(event: InputEvent) -> void:
 func _physics_process(delta: float) -> void:
 	if _done:
 		return
-	_handle_host(delta)
+	# A client's lobby is a waiting room: the host owns every setting and the
+	# start button, and the client's next screen arrives as a Net round event.
+	if not Net.is_client() and _ip_edit == null:
+		_handle_host(delta)
 	_canvas.queue_redraw()
 
 ## Seat 0 is the host. Before anyone has joined nobody holds seat 0, so its
@@ -116,8 +141,55 @@ func _handle_host(delta: float) -> void:
 		balance_sheet_requested.emit()
 	elif _row == ROW_TRAINING:
 		_start_training()
+	elif _row == ROW_HOST:
+		_toggle_hosting()
+	elif _row == ROW_JOIN:
+		_open_ip_entry()
 	elif _ready_to_start():
 		_confirm()
+
+#region Online
+func _toggle_hosting() -> void:
+	if Net.is_host():
+		Net.leave("stopped hosting")
+		_net_status = "stopped hosting"
+		return
+	var err := Net.host()
+	_net_status = "hosting on port %d" % Net.DEFAULT_PORT if err == OK \
+		else "could not host (port in use?)"
+
+## A real LineEdit dropped into the code-drawn screen: typing an address needs a
+## text field, and nothing else in this UI does. Enter joins, Esc cancels.
+func _open_ip_entry() -> void:
+	if _ip_edit != null or Net.is_online():
+		return
+	_ip_edit = LineEdit.new()
+	_ip_edit.text = "127.0.0.1"
+	_ip_edit.placeholder_text = "host ip"
+	_ip_edit.position = Vector2(_canvas.size.x * 0.5 - 120, _canvas.size.y - 120)
+	_ip_edit.size = Vector2(240, 34)
+	add_child(_ip_edit)
+	_ip_edit.grab_focus()
+	_ip_edit.select_all()
+	_ip_edit.text_submitted.connect(_join_submitted)
+	_ip_edit.gui_input.connect(func(ev: InputEvent) -> void:
+		var key := ev as InputEventKey
+		if key != null and key.pressed and key.keycode == KEY_ESCAPE:
+			_close_ip_entry())
+
+func _join_submitted(text: String) -> void:
+	_close_ip_entry()
+	var parts := text.strip_edges().split(":")
+	var port := int(parts[1]) if parts.size() > 1 and parts[1].is_valid_int() \
+		else Net.DEFAULT_PORT
+	var err := Net.join(parts[0], port)
+	_net_status = "joining %s..." % parts[0] if err == OK else "bad address"
+
+func _close_ip_entry() -> void:
+	if _ip_edit != null:
+		_ip_edit.queue_free()
+		_ip_edit = null
+#endregion
 
 ## The training room seats two people and two standing targets, and assigns its
 ## own devices (keyboard + first pad), so it does not care who joined the lobby.
@@ -159,12 +231,30 @@ func _draw_screen() -> void:
 		"BALANCE SHEET", "every hero's numbers on one page")
 	_draw_tool(font, Vector2(size.x * 0.5 + 50, 232), ROW_TRAINING,
 		"TRAINING ROOM", "any hero, 3 bots, free ultimates")
+	# Online, flanking the dev tools. Host on the left, join on the right.
+	_draw_tool(font, Vector2(size.x * 0.5 - 460, 232), ROW_HOST,
+		"STOP HOSTING" if Net.is_host() else "HOST ONLINE",
+		"%d connected" % Net.client_count() if Net.is_host() else "port %d" % Net.DEFAULT_PORT)
+	_draw_tool(font, Vector2(size.x * 0.5 + 260, 232), ROW_JOIN,
+		"JOIN", "connect to a host by ip")
+	if not _net_status.is_empty():
+		_shadowed(font, Vector2(size.x * 0.5 - 150, 322), _net_status, 12, COL_READY)
 
 	_draw_seats(font, size)
+
+	# A connected client sees a waiting room, not controls it does not have.
+	if Net.is_client():
+		var who := "connected — you are P%d" % (Net.my_seat + 1) if Net.my_seat >= 0 \
+			else "connecting..."
+		_shadowed(font, Vector2(size.x * 0.5 - 150, size.y - 56),
+			who + "   ·   waiting for the host to start", 15, COL_READY)
+		return
 
 	var msg := ""
 	if _row == ROW_BALANCE or _row == ROW_TRAINING:
 		msg = "press ABILITY (LMB / L1) to open"
+	elif _row == ROW_HOST or _row == ROW_JOIN:
+		msg = "press ABILITY (LMB / L1) to select"
 	elif _ready_to_start():
 		msg = "press ABILITY (LMB / L1) to start"
 	else:

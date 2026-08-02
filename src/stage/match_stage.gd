@@ -86,6 +86,17 @@ func _ready() -> void:
 	else:
 		# round_started already fired before this scene existed.
 		_spawn_all()
+	# An online client renders this stage but never simulates it: bodies become
+	# puppets driven by host snapshots, and terrain stops ticking — an element
+	# that shoved a puppet would be fighting the host over where the body is
+	# (IMPLEMENTATION.md 9a).
+	if Net.is_client():
+		set_physics_process(false)
+		for p in players:
+			p.make_puppet()
+		for child in get_children():
+			if child is TerrainElement:
+				child.set_physics_process(false)
 	queue_redraw()
 
 ## Bring the seat count up to whatever format is being played. The scene ships
@@ -240,7 +251,10 @@ func _on_round_won(team_id: int) -> void:
 	banner.text = "P%d TAKES THE ROUND  (%d-%d)" % [
 		team_id + 1, MatchState.wins_for(0), MatchState.wins_for(1)]
 	banner.show()
-	GameManager.end_round()
+	# Only the authority advances the match: a client's next round arrives as a
+	# Net event, and running the results countdown here too would double it.
+	if not Net.is_client():
+		GameManager.end_round()
 
 func _on_match_won(team_id: int) -> void:
 	banner.text = "P%d WINS THE MATCH" % [team_id + 1]
