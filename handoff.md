@@ -32,7 +32,7 @@ stages, with sound and a pause menu. Netcode is out of scope by design — remot
 by streaming instead (`docs/PLAYTEST.md`), and §9 of `docs/IMPLEMENTATION.md` holds the posture
 that keeps a real implementation possible later.
 
-All four harnesses are green — **movement 78, combat 54, match 305, terrain 74 = 511 checks**,
+All four harnesses are green — **movement 78, combat 54, match 328, terrain 74 = 534 checks**,
 zero script errors. (This line goes stale easily; re-count it rather than trusting it.)
 
 ---
