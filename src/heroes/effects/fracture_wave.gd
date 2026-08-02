@@ -14,17 +14,17 @@ class_name FractureWave extends Node2D
 ## Wider than Kid's cannon (44) by a lot: this is the ultimate version of the
 ## shape, and dodging it should mean not being in the half of the stage it
 ## crossed, not stepping one body-width aside.
-const HALF_WIDTH: float = 90.0
+var half_width: float = 90.0
 ## Longer than any stage dimension — in a sealed arena the wave always ends on
 ## terrain, which is the point: there is always a wall to be thrown against.
 const MAX_RANGE: float = 2400.0
 ## The hurl. Fast enough that "instantly pushed to the wall" is what it looks
 ## like — most of the stage is crossed inside a couple of tenths of a second —
 ## while still being real velocity that terrain resolves honestly.
-const PUSH_SPEED: float = 2600.0
-const SLOW_MULT: float = 0.805
-const SLOW_TIME: float = 11.0
-const IMPAIR_TIME: float = 8.5
+var push_speed: float = 2600.0
+var slow_mult: float = 0.805
+var slow_time: float = 11.0
+var impair_time: float = 8.5
 const LIFE: float = 0.45
 
 var accent: Color = Color(0.71, 0.40, 0.11)
@@ -60,14 +60,14 @@ func launch(caster: Player, dir: Vector2) -> void:
 		var along := offset.dot(direction)
 		if along < 0.0 or along > _reach:
 			continue
-		if (offset - direction * along).length() > HALF_WIDTH:
+		if (offset - direction * along).length() > half_width:
 			continue
 		p.apply_stun(caster.combat.stun_terra_ult)
 		# The stun keeps momentum by design, which is exactly what carries them
 		# the rest of the way to the wall.
-		p.set_velocity_override(direction * PUSH_SPEED)
-		p.apply_slow(SLOW_MULT, SLOW_TIME, &"fracture")
-		p.apply_impairment(0.0, IMPAIR_TIME, &"fracture")
+		p.set_velocity_override(direction * push_speed)
+		p.apply_slow(slow_mult, slow_time, &"fracture")
+		p.apply_impairment(0.0, impair_time, &"fracture")
 
 func _process(delta: float) -> void:
 	_age += delta
@@ -82,17 +82,17 @@ func _draw() -> void:
 	var n := Vector2(-dir.y, dir.x)
 	# The corridor: a translucent slab from Terra to the wall it broke on.
 	var corners: PackedVector2Array = [
-		n * HALF_WIDTH, dir * _reach + n * HALF_WIDTH,
-		dir * _reach - n * HALF_WIDTH, -n * HALF_WIDTH,
+		n * half_width, dir * _reach + n * half_width,
+		dir * _reach - n * half_width, -n * half_width,
 	]
 	draw_colored_polygon(corners, Color(accent.r, accent.g, accent.b, fade * 0.28))
 	for lane: float in [-1.0, 1.0]:
-		draw_line(n * lane * HALF_WIDTH, dir * _reach + n * lane * HALF_WIDTH,
+		draw_line(n * lane * half_width, dir * _reach + n * lane * half_width,
 			Color(accent.r, accent.g, accent.b, fade * 0.9), 2.5)
 	# Cross-ripples sweeping toward the impact, selling the direction.
 	for i in 5:
 		var at := dir * minf(60.0 + i * (_reach / 5.0) + _age * 1600.0, _reach)
-		draw_line(at - n * HALF_WIDTH, at + n * HALF_WIDTH, Color(1, 1, 1, fade * 0.35), 1.5)
+		draw_line(at - n * half_width, at + n * half_width, Color(1, 1, 1, fade * 0.35), 1.5)
 	# The impact face: the wall the wave (and everyone in it) stopped at.
-	draw_line(dir * _reach - n * HALF_WIDTH, dir * _reach + n * HALF_WIDTH,
+	draw_line(dir * _reach - n * half_width, dir * _reach + n * half_width,
 		Color(1, 1, 1, fade), 4.0)

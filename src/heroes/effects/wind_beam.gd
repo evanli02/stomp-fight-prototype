@@ -4,8 +4,8 @@ class_name WindBeam extends Node2D
 ## walls — and it blows EVERYONE in the column, allies included, except Kid
 ## himself. Pure displacement, no stun, no life.
 
-const WIDTH: float = 44.0
-const PUSH: float = 700.0
+var width: float = 44.0
+var push: float = 700.0
 const LIFE: float = 0.28
 
 var from_point: Vector2 = Vector2.ZERO
@@ -31,9 +31,9 @@ func blow(caster: Player, dir: Vector2) -> void:
 		if along < 0.0:
 			continue
 		var lateral := (offset - direction * along).length()
-		if lateral > WIDTH:
+		if lateral > width:
 			continue
-		p.apply_impulse(direction * PUSH)
+		p.apply_impulse(direction * push)
 
 func _process(delta: float) -> void:
 	_age += delta
@@ -48,10 +48,10 @@ func _draw() -> void:
 	var n := Vector2(-dir.y, dir.x)
 	var reach := 1400.0
 	for lane: float in [-1.0, 0.0, 1.0]:
-		var off := n * lane * WIDTH * 0.5
+		var off := n * lane * width * 0.5
 		draw_line(off, dir * reach + off,
 			Color(accent.r, accent.g, accent.b, fade * (0.7 - absf(lane) * 0.25)), 2.0)
 	for i in 6:
 		var at := dir * (80.0 + i * 200.0 + _age * 900.0)
-		draw_line(at - n * WIDTH * 0.5, at + n * WIDTH * 0.5,
+		draw_line(at - n * width * 0.5, at + n * width * 0.5,
 			Color(1, 1, 1, fade * 0.4), 1.0)

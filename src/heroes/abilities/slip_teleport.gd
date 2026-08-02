@@ -5,6 +5,15 @@ class_name SlipTeleport extends Ability
 ## after each use, slow for enemies, haste for allies.
 
 @export var recast_window: float = 5.0
+## How long both ends go dark after a trip, so the pair cannot ping-pong.
+@export var pad_downtime: float = 1.5
+## Enemies arrive slowed; allies arrive hastened. Same door, different terms.
+@export var enemy_slow_mult: float = 0.48
+@export var enemy_slow_time: float = 4.0
+@export var ally_haste_mult: float = 1.3
+@export var ally_haste_time: float = 4.0
+## How long the pair stands before it expires.
+@export var pad_lifetime: float = 25.0
 
 var _first: TeleporterPad = null
 var _recast_remaining: float = 0.0
@@ -45,6 +54,12 @@ func _make_pad(at: Vector2) -> TeleporterPad:
 	var pad := TeleporterPad.new()
 	pad.global_position = at
 	pad.owner_team = player.team_id
+	pad.downtime = pad_downtime
+	pad.slow_mult = enemy_slow_mult
+	pad.slow_time = enemy_slow_time
+	pad.haste_mult = ally_haste_mult
+	pad.haste_time = ally_haste_time
+	pad.lifetime = pad_lifetime
 	if player.hero != null:
 		pad.accent = player.hero.accent_color
 	player.spawn_effect(pad)

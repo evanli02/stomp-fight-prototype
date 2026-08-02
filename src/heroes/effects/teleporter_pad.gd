@@ -6,11 +6,11 @@ class_name TeleporterPad extends TerrainElement
 ## people who own it.
 
 const PAD_SIZE: Vector2 = Vector2(34, 42)
-const DOWNTIME: float = 1.5
-const SLOW_MULT: float = 0.48
-const SLOW_TIME: float = 4.0
-const HASTE_MULT: float = 1.3
-const HASTE_TIME: float = 4.0
+var downtime: float = 1.5
+var slow_mult: float = 0.48
+var slow_time: float = 4.0
+var haste_mult: float = 1.3
+var haste_time: float = 4.0
 
 var pair: TeleporterPad = null
 var owner_team: int = -1
@@ -27,7 +27,7 @@ func active() -> bool:
 	return _downtime <= 0.0 and pair != null and is_instance_valid(pair)
 
 func go_dark() -> void:
-	_downtime = DOWNTIME
+	_downtime = downtime
 
 func tick(delta: float) -> void:
 	lifetime -= delta
@@ -47,9 +47,9 @@ func on_body_entered(p: Player) -> void:
 	pair.go_dark()
 	p.global_position = pair.global_position
 	if p.team_id == owner_team:
-		p.grant_speed_buff(HASTE_MULT, HASTE_TIME)
+		p.grant_speed_buff(haste_mult, haste_time)
 	else:
-		p.apply_slow(SLOW_MULT, SLOW_TIME, &"teleport")
+		p.apply_slow(slow_mult, slow_time, &"teleport")
 
 func _draw() -> void:
 	var half := PAD_SIZE * 0.5
