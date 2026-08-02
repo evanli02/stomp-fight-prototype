@@ -106,6 +106,9 @@ var surface_slip: float = 0.0
 ## Timers and contact facts live on the player rather than in any one state so
 ## that b-hop and perfect wall jump can share them across transitions.
 var input: InputFrame = InputFrame.new()
+## Scripted stand-in for this body's device (see _physics_process). Unset on a
+## real player, so a match always reads the device.
+var input_source: Callable = Callable()
 var facing: int = 1
 var time_since_landing: float = INF
 var time_since_wall_contact: float = INF
@@ -763,7 +766,13 @@ func _update_animation() -> void:
 		sprite.play(anim)
 
 func _physics_process(delta: float) -> void:
-	input = InputConfig.poll(player_id, self)
+	# Devices are not the only possible source of intent. `input_source` is the
+	# seam a scripted driver plugs into — the training room's dummies today, a
+	# rollback layer replaying received frames later (IMPLEMENTATION.md 9). It
+	# takes the body and returns an InputFrame; everything downstream cannot
+	# tell the difference, which is the whole point of InputFrame existing.
+	input = input_source.call(self) if input_source.is_valid() \
+		else InputConfig.poll(player_id, self)
 	_tick_timers(delta)
 	_handle_hero_input()
 	state_machine.tick(delta)

@@ -63,6 +63,7 @@ func _run() -> void:
 	await _check_abilities()
 	await _check_sai_grapple()
 	await _check_second_wave()
+	await _check_training_toggles()
 	await _check_aim_line()
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
@@ -589,6 +590,69 @@ func _find_rope() -> GrappleRope:
 		if rope != null:
 			return rope
 	return null
+
+## The training room's two switches. Both reach into the economy the rest of
+## this file guards, so they are worth pinning: off must change nothing, and on
+## must not corrupt the counters it bypasses.
+func _check_training_toggles() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"deadeye")
+	await step(2)
+
+	check("cooldowns apply normally with the toggle off",
+		not MatchState.unlimited_resources)
+	_p1.try_ability()
+	check("...so a fired ability is on cooldown",
+		not MatchState.is_ability_ready(0, &"deadeye"))
+
+	MatchState.unlimited_resources = true
+	check("the toggle reports the ability ready again",
+		MatchState.is_ability_ready(0, &"deadeye"),
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"deadeye"))
+	# The underlying timer is untouched — the toggle bypasses the check rather
+	# than clearing state, so flipping it back restores the real cooldown
+	# instead of handing out a free reset.
+	check("the real cooldown is still running underneath",
+		MatchState.cooldown_remaining(0, &"deadeye") > 0.0)
+
+	var spent_before := MatchState.ults_left(0)
+	check("ultimates are free while the toggle is on", _p1.try_ultimate())
+	await step(2)
+	check("...and the round's ult budget is not spent",
+		MatchState.ults_left(0) == spent_before,
+		"%d -> %d" % [spent_before, MatchState.ults_left(0)])
+	check("a second ultimate fires with no gap", _p1.try_ultimate())
+
+	MatchState.unlimited_resources = false
+	# Started explicitly rather than by firing: Deadeye's ultimate refunds his
+	# bolt on purpose, so the ult fired above legitimately cleared the cooldown
+	# this is about. The question here is only whether the gate is honoured
+	# again, not what any one kit did to the timer.
+	MatchState.start_cooldown(0, &"deadeye", 4.0)
+	check("flipping it back restores the real cooldown",
+		not MatchState.is_ability_ready(0, &"deadeye"))
+	# Dummies: the driver is an input source, so a body wearing one is driven
+	# without any device and without touching movement code.
+	var driver := DummyDriver.new()
+	_p2.input_source = driver.poll
+	var frame: InputFrame = driver.poll(_p2)
+	check("a dummy driver produces movement input", not is_zero_approx(frame.move.x),
+		"move=%s" % frame.move)
+	check("a dummy driver presses nothing else", not frame.ability_pressed
+		and not frame.ultimate_pressed and not frame.swap_pressed)
+	_p2.input_source = Callable()
+	await step(2)
+
+	# Restoring lives is what keeps a training dummy stompable forever.
+	MatchState.lose_life(1, MatchState.active_hero(1))
+	var mauled := MatchState.lives_of(1, MatchState.active_hero(1))
+	MatchState.restore_lives(1, MatchState.active_hero(1))
+	check("restore_lives puts a dummy back to full",
+		MatchState.lives_of(1, MatchState.active_hero(1)) == MatchState.LIVES_PER_HERO,
+		"%d -> %d" % [mauled, MatchState.lives_of(1, MatchState.active_hero(1))])
+	MatchState.reset_round()
+	await step(2)
 
 ## The second wave's rules (docs/NEW_HEROES.md §3). Every row of that file's
 ## interaction table that does not involve a stomp lives here; the stomp ones

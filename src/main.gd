@@ -11,6 +11,11 @@ const LOBBY := preload("res://src/ui/lobby.tscn")
 const HERO_SELECT := preload("res://src/ui/hero_select.tscn")
 const STAGE_SELECT := preload("res://src/ui/stage_select.tscn")
 const PAUSE_MENU := preload("res://src/ui/pause_menu.tscn")
+## Development destinations, reachable from the lobby. Neither is part of the
+## match flow — the balance sheet returns to the lobby, and the training room
+## runs its own match that no phase change ever advances.
+const BALANCE_SHEET := preload("res://src/ui/balance_sheet.tscn")
+const TRAINING_ROOM := preload("res://src/stage/training_room.tscn")
 
 var _current: Node = null
 
@@ -52,6 +57,20 @@ func _show_lobby() -> void:
 	var screen := LOBBY.instantiate()
 	_show(screen)
 	screen.lobby_confirmed.connect(_on_lobby_confirmed)
+	screen.balance_sheet_requested.connect(_show_balance_sheet)
+	screen.training_room_requested.connect(_show_training_room)
+
+func _show_balance_sheet() -> void:
+	var screen := BALANCE_SHEET.instantiate()
+	_show(screen)
+	screen.closed.connect(_show_lobby)
+
+## The training room starts its own match from its own rosters (MatchStage does
+## that whenever it finds no players registered), so this only has to put the
+## scene up. Leaving it is the pause menu's quit-to-lobby, like any stage.
+func _show_training_room() -> void:
+	MatchState.clear_players()
+	_show(TRAINING_ROOM.instantiate())
 
 ## begin_hero_select flips the phase, and the phase handler is what puts the
 ## screen up — so the two paths into hero select (here, and a future rematch)

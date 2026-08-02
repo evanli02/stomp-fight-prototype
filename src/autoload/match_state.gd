@@ -31,6 +31,12 @@ const ULT_COOLDOWN: float = 10.0
 var players: Dictionary = {}
 var round_wins: Dictionary = {}          # team_id -> wins
 var last_round_loser_team: int = -1
+## Training-room switch: ability cooldowns and the ultimate budget stop
+## applying, so a kit can be fired back to back while its numbers are being
+## tuned. Set ONLY by the training room, cleared when it exits — a match never
+## turns this on, and `reset_round` deliberately does not touch it (the toggle
+## belongs to the session, not the round).
+var unlimited_resources: bool = false
 
 func clear_players() -> void:
 	## Wipe the roster before a scene registers its own. Round wins survive —
@@ -124,6 +130,8 @@ func cooldown_remaining(player_id: int, hero_id: StringName) -> float:
 	return players[player_id].cooldowns.get(hero_id, 0.0)
 
 func is_ability_ready(player_id: int, hero_id: StringName) -> bool:
+	if unlimited_resources:
+		return true
 	return cooldown_remaining(player_id, hero_id) <= 0.0
 
 ## Ticked by GameManager during ROUND_ACTIVE only, so cooldowns do not burn down
@@ -139,6 +147,8 @@ func tick_cooldowns(delta: float) -> void:
 			players[pid].ult_cooldown = maxf(players[pid].ult_cooldown - delta, 0.0)
 
 func ult_available(player_id: int) -> bool:
+	if unlimited_resources:
+		return true
 	var p: Dictionary = players[player_id]
 	return p.ults_left > 0 and p.ult_cooldown <= 0.0
 
@@ -154,6 +164,9 @@ func try_spend_ultimate(player_id: int) -> bool:
 	## consumes it.
 	if not ult_available(player_id):
 		return false
+	if unlimited_resources:
+		ultimate_spent.emit(player_id)   # the HUD and audio still want the event
+		return true
 	players[player_id].ults_left -= 1
 	players[player_id].ult_cooldown = ULT_COOLDOWN
 	ultimate_spent.emit(player_id)
@@ -161,6 +174,14 @@ func try_spend_ultimate(player_id: int) -> bool:
 #endregion
 
 #region Combat results
+## Put a hero's lives back without resetting the round. The training room calls
+## this on its dummies so they can be stomped over and over without the round
+## ending; nothing in a real match does.
+func restore_lives(player_id: int, hero_id: StringName) -> void:
+	if not players.has(player_id):
+		return
+	players[player_id].heroes[hero_id] = LIVES_PER_HERO
+
 func lose_life(player_id: int, hero_id: StringName) -> void:
 	var p: Dictionary = players[player_id]
 	if p.heroes.get(hero_id, 0) <= 0:
