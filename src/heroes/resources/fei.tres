@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Fei"
 accent_color = Color(0.239216, 0.862745, 0.517647, 1)
-ability_cooldown = 5.6
+ability_cooldown = 4.5
 ability_text = "Sky Step: a second jump in mid-air, stronger than a normal one. Not aimed; momentum untouched."
 ultimate_text = "Tailwind: for 8s her jump comes back every 0.3s."
 sprite_frames = ExtResource("2")

@@ -30,7 +30,7 @@ const RETRIGGER: float = 0.18
 ## Launch out of whichever face was touched, in px/s. Above half a stage spring
 ## (those run 760-820): a real reposition and a real interruption, not a free
 ## crossing of the stage.
-var bounce_speed: float = 470.0
+var bounce_speed: float = 620.0
 var lifetime: float = 6.5
 var accent: Color = Color(1, 0.71, 0.33)
 

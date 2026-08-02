@@ -15,9 +15,21 @@ extends CanvasLayer
 ## everyone else only joins or leaves.
 
 signal lobby_confirmed()
+## The two development destinations. They hang off the lobby rather than the
+## pause menu because both want a session that has not started yet: the balance
+## sheet reads hero data with no match in flight, and the training room starts
+## its own.
+signal balance_sheet_requested()
+signal training_room_requested()
 
 const FORMATS: Array[int] = [1, 2, 3]
 const BEST_OF: Array[int] = [1, 3, 5]
+## Rows the host cursor moves through: two settings, then the two dev tools.
+const ROW_FORMAT: int = 0
+const ROW_BESTOF: int = 1
+const ROW_BALANCE: int = 2
+const ROW_TRAINING: int = 3
+const ROW_COUNT: int = 4
 const NAV_REPEAT: float = 0.2
 const NAV_DEADZONE: float = 0.5
 
@@ -88,18 +100,30 @@ func _handle_host(delta: float) -> void:
 		_nav_cooldown = 0.0
 	elif _nav_cooldown <= 0.0:
 		if absf(frame.move.y) >= NAV_DEADZONE:
-			_row = wrapi(_row + (1 if frame.move.y > 0.0 else -1), 0, 2)
+			_row = wrapi(_row + (1 if frame.move.y > 0.0 else -1), 0, ROW_COUNT)
 		else:
 			var step := 1 if frame.move.x > 0.0 else -1
-			if _row == 0:
+			if _row == ROW_FORMAT:
 				_format_index = wrapi(_format_index + step, 0, FORMATS.size())
-			else:
+			elif _row == ROW_BESTOF:
 				_bestof_index = wrapi(_bestof_index + step, 0, BEST_OF.size())
 		_nav_cooldown = NAV_REPEAT
 	# Ability, not jump: jump is the join button, and the host pressing start
 	# should not read as one more person sitting down.
-	if frame.ability_pressed and _ready_to_start():
+	if not frame.ability_pressed:
+		return
+	if _row == ROW_BALANCE:
+		balance_sheet_requested.emit()
+	elif _row == ROW_TRAINING:
+		_start_training()
+	elif _ready_to_start():
 		_confirm()
+
+## The training room seats two people and two standing targets, and assigns its
+## own devices (keyboard + first pad), so it does not care who joined the lobby.
+func _start_training() -> void:
+	_done = true
+	training_room_requested.emit()
 
 func _seats_needed() -> int:
 	return GameManager.TEAMS * FORMATS[_format_index]
@@ -125,17 +149,28 @@ func _draw_screen() -> void:
 	_shadowed(font, Vector2(size.x * 0.5 - 150, 92),
 		"stomp heads. nothing else takes a life.", 13, COL_DIM)
 
-	_draw_setting(font, Vector2(size.x * 0.5 - 250, 160), 0, "FORMAT",
+	_draw_setting(font, Vector2(size.x * 0.5 - 250, 160), ROW_FORMAT, "FORMAT",
 		"%dv%d" % [FORMATS[_format_index], FORMATS[_format_index]])
-	_draw_setting(font, Vector2(size.x * 0.5 + 50, 160), 1, "MATCH",
+	_draw_setting(font, Vector2(size.x * 0.5 + 50, 160), ROW_BESTOF, "MATCH",
 		"best of %d" % BEST_OF[_bestof_index])
+	# Dev tools, visually quieter than the match settings above them — they are
+	# always available but are not what most sessions are here for.
+	_draw_tool(font, Vector2(size.x * 0.5 - 250, 232), ROW_BALANCE,
+		"BALANCE SHEET", "every hero's numbers on one page")
+	_draw_tool(font, Vector2(size.x * 0.5 + 50, 232), ROW_TRAINING,
+		"TRAINING ROOM", "any hero, 3 bots, free ultimates")
 
 	_draw_seats(font, size)
 
-	var msg := "press ABILITY (LMB / L1) to start" if _ready_to_start() \
-		else "waiting for %d more" % (_seats_needed() - InputConfig.claimed_count())
+	var msg := ""
+	if _row == ROW_BALANCE or _row == ROW_TRAINING:
+		msg = "press ABILITY (LMB / L1) to open"
+	elif _ready_to_start():
+		msg = "press ABILITY (LMB / L1) to start"
+	else:
+		msg = "waiting for %d more" % (_seats_needed() - InputConfig.claimed_count())
 	_shadowed(font, Vector2(size.x * 0.5 - 130, size.y - 56), msg, 15,
-		COL_READY if _ready_to_start() else COL_DIM)
+		COL_READY if (_ready_to_start() or _row >= ROW_BALANCE) else COL_DIM)
 	_shadowed(font, Vector2(size.x * 0.5 - 190, size.y - 32),
 		"join: SPACE (WASD) · NUMPAD 0 (arrows) · R1/A on a pad   ·   host steers with WASD", 12, COL_DIM)
 
@@ -147,12 +182,22 @@ func _draw_setting(font: Font, at: Vector2, row: int, label: String, value: Stri
 	_shadowed(font, at + Vector2(14, 24), label, 12, COL_DIM)
 	_shadowed(font, at + Vector2(14, 50), value, 22, COL_TEXT)
 
+func _draw_tool(font: Font, at: Vector2, row: int, label: String, hint: String) -> void:
+	var box := Rect2(at, Vector2(200, 44))
+	var selected: bool = _row == row
+	_canvas.draw_rect(box, COL_CARD)
+	_canvas.draw_rect(box, Color(1, 1, 1) if selected else COL_FRAME, false,
+		3.0 if selected else 1.0)
+	_shadowed(font, at + Vector2(14, 20), label, 14,
+		COL_TEXT if selected else COL_DIM)
+	_shadowed(font, at + Vector2(14, 36), hint, 10, COL_DIM)
+
 func _draw_seats(font: Font, size: Vector2) -> void:
 	var needed := _seats_needed()
 	var per_team: int = FORMATS[_format_index]
 	var row_w := per_team * SEAT.x + (per_team - 1) * SEAT_GAP
 	for team in GameManager.TEAMS:
-		var top := 276.0 + team * (SEAT.y + 58.0)
+		var top := 300.0 + team * (SEAT.y + 50.0)
 		_shadowed(font, Vector2(size.x * 0.5 - row_w * 0.5, top - 8), "TEAM %d" % (team + 1),
 			13, COL_DIM)
 		for slot in per_team:

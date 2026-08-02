@@ -32,6 +32,8 @@ func physics_update(delta: float) -> void:
 		return
 	if try_ground_jump():  # coyote window
 		return
+	if try_air_jump():     # granted mid-air jump (Voodoo's Phantom)
+		return
 	if _holding:
 		var can_extend := player.input.jump_held \
 			and _hold_time < player.movement.jump_hold_time_max \

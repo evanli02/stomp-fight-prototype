@@ -43,6 +43,25 @@ func try_crouch() -> bool:
 	machine.change_state(&"Slide", {"perfect": perfect})
 	return true
 
+## A mid-air jump handed out by a window rather than earned from the ground
+## (Voodoo's Phantom). Checked only AFTER try_ground_jump has declined, so
+## coyote time is always spent first — otherwise stepping off a ledge and
+## jumping would silently burn the granted charge instead of the free one.
+##
+## Fixed height and not hold-extendable, like Fei's: it is already a jump you
+## did not pay a cooldown for.
+func try_air_jump() -> bool:
+	if not player.has_buffered_jump() or not player.can_air_jump():
+		return false
+	player.consume_jump_buffer()
+	machine.change_state(&"Air", {
+		"jump": true,
+		"impulse_y": player.consume_air_jump(),
+		"extendable": false,
+		"anim": &"cast",
+	})
+	return true
+
 ## Buffered jump off ground or coyote time. A jump inside the b-hop window keeps
 ## 100% of horizontal momentum (DESIGN 4.2) — the perfect flag carries that.
 func try_ground_jump() -> bool:

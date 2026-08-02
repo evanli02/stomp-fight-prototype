@@ -24,7 +24,7 @@ class_name SikuPillar extends Ability
 ## The launch: replaces velocity.y, keeps velocity.x. A medium distance — above
 ## a held jump's apex, well below a stage spring's 760-820, and comfortably
 ## past the pillar's own height so a launched body clears the cap.
-@export var launch_velocity: float = -640.0
+@export var launch_velocity: float = -800.0
 ## Clearance the cast needs above the ground: the pillar, plus a standing body
 ## on top of it, plus a little slack.
 @export var required_headroom: float = 122.0

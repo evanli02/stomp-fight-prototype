@@ -63,6 +63,7 @@ func _run() -> void:
 	await _check_abilities()
 	await _check_sai_grapple()
 	await _check_second_wave()
+	await _check_training_toggles()
 	await _check_aim_line()
 	await _check_round_win_and_reset()
 	await _check_stage_registry()
@@ -239,28 +240,35 @@ func _check_cooldowns_tick_while_benched() -> void:
 		and MatchState.cooldown_remaining(0, benched) == 0.0,
 		"remaining=%.2f" % MatchState.cooldown_remaining(0, benched))
 
+## DESIGN 2.3, reworked 2026-08-01: ONE ultimate per HERO per round, with the
+## between-uses gap still owned by the player. The interesting half is that
+## those two rules pull in different directions — swapping DOES hand you a
+## fresh ultimate, and does NOT skip the gap.
 func _check_ultimate_economy() -> void:
 	MatchState.reset_round()
+	var first := MatchState.active_hero(0)
 	check("the ultimate starts available", MatchState.ult_available(0))
-	check("a round starts with ULTS_PER_ROUND banked",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND,
+	check("a round starts with one ult per hero",
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER,
 		"left=%d" % MatchState.ults_left(0))
 	check("spending the first ultimate succeeds", MatchState.try_spend_ultimate(0))
-	check("one ultimate is left", MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
+	check("it is spent against the hero who cast it",
+		MatchState.ult_spent(0, first))
+	check("the other two heroes still hold theirs",
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER - 1,
 		"left=%d" % MatchState.ults_left(0))
-	# Banked but not usable: the gap between uses is what stops both going off at
-	# once (DESIGN 2.3).
-	check("the second is blocked by the cooldown", not MatchState.ult_available(0))
-	check("a spend during the cooldown is refused", not MatchState.try_spend_ultimate(0))
+	# The gap is per PLAYER and survives the rework: it exists so a round cannot
+	# be dumped into one scramble, and swapping must not be a way around it.
+	check("the next is blocked by the gap", not MatchState.ult_available(0))
+	check("a spend during the gap is refused", not MatchState.try_spend_ultimate(0))
 	check("the refused spend cost nothing",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1,
-		"left=%d" % MatchState.ults_left(0))
-	# Per PLAYER, shared across the trio — swapping does not hand you a fresh one.
-	MatchState.swap_to(0, MatchState.next_living_hero(0))
-	check("swapping heroes does not restore an ultimate",
-		MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND - 1)
+		MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER - 1)
+	var second := MatchState.next_living_hero(0)
+	MatchState.swap_to(0, second)
+	check("swapping to a fresh hero does not skip the gap",
+		not MatchState.ult_available(0), "cd=%.2f" % MatchState.ult_cooldown_remaining(0))
 	check("the other player's ultimates are untouched",
-		MatchState.ult_available(1) and MatchState.ults_left(1) == MatchState.ULTS_PER_ROUND)
+		MatchState.ult_available(1) and MatchState.ults_left(1) == MatchState.HEROES_PER_PLAYER)
 
 	var waited: bool = false
 	for i in int(MatchState.ULT_COOLDOWN * 60.0) + 30:
@@ -268,14 +276,24 @@ func _check_ultimate_economy() -> void:
 		if MatchState.ult_available(0):
 			waited = true
 			break
-	check("the second ultimate unlocks after the cooldown", waited,
-		"cd=%.2f" % MatchState.ult_cooldown_remaining(0))
-	check("spending the second ultimate succeeds", MatchState.try_spend_ultimate(0))
-	check("both ultimates are now gone", MatchState.ults_left(0) == 0)
+	check("the gap expires", waited, "cd=%.2f" % MatchState.ult_cooldown_remaining(0))
+	check("the fresh hero may then ultimate", MatchState.try_spend_ultimate(0))
+	check("...and that spends THEIR one, not the first hero's",
+		MatchState.ult_spent(0, second) and MatchState.ults_left(0)
+			== MatchState.HEROES_PER_PLAYER - 2)
+
+	# Back to the first hero: theirs is gone for the rest of the round, and no
+	# amount of waiting brings it back.
+	MatchState.swap_to(0, first)
+	MatchState.players[0].ult_cooldown = 0.0
+	check("a hero who spent theirs cannot ultimate again",
+		not MatchState.ult_available(0))
+	check("...and trying is refused", not MatchState.try_spend_ultimate(0))
 
 	MatchState.reset_round()
-	check("the round reset restores both ultimates",
-		MatchState.ult_available(0) and MatchState.ults_left(0) == MatchState.ULTS_PER_ROUND)
+	check("the round reset restores every hero's ultimate",
+		MatchState.ult_available(0)
+		and MatchState.ults_left(0) == MatchState.HEROES_PER_PLAYER)
 
 ## M4 abilities. The load-bearing check is the last one: whatever a hero does,
 ## it cannot cost a life. Only stomps do that (CLAUDE.md rule 1).
@@ -589,6 +607,74 @@ func _find_rope() -> GrappleRope:
 		if rope != null:
 			return rope
 	return null
+
+## The training room's two switches. Both reach into the economy the rest of
+## this file guards, so they are worth pinning: off must change nothing, and on
+## must not corrupt the counters it bypasses.
+func _check_training_toggles() -> void:
+	MatchState.reset_round()
+	_reset_bodies()
+	_p1.equip_hero(&"deadeye")
+	await step(2)
+
+	check("cooldowns apply normally with the toggle off",
+		not MatchState.free_cooldowns)
+	_p1.try_ability()
+	check("...so a fired ability is on cooldown",
+		not MatchState.is_ability_ready(0, &"deadeye"))
+
+	MatchState.free_cooldowns = true
+	check("the toggle reports the ability ready again",
+		MatchState.is_ability_ready(0, &"deadeye"),
+		"remaining=%.2f" % MatchState.cooldown_remaining(0, &"deadeye"))
+	# The underlying timer is untouched — the toggle bypasses the check rather
+	# than clearing state, so flipping it back restores the real cooldown
+	# instead of handing out a free reset.
+	check("the real cooldown is still running underneath",
+		MatchState.cooldown_remaining(0, &"deadeye") > 0.0)
+
+	# The two switches are independent: freeing cooldowns must not free ults.
+	check("free cooldowns alone leave the ult budget honest",
+		not MatchState.free_ultimates)
+	MatchState.free_ultimates = true
+	var spent_before := MatchState.ults_left(0)
+	check("ultimates are free while the toggle is on", _p1.try_ultimate())
+	await step(2)
+	check("...and the round's ult budget is not spent",
+		MatchState.ults_left(0) == spent_before,
+		"%d -> %d" % [spent_before, MatchState.ults_left(0)])
+	check("a second ultimate fires with no gap", _p1.try_ultimate())
+	MatchState.free_ultimates = false
+
+	MatchState.free_cooldowns = false
+	# Started explicitly rather than by firing: Deadeye's ultimate refunds his
+	# bolt on purpose, so the ult fired above legitimately cleared the cooldown
+	# this is about. The question here is only whether the gate is honoured
+	# again, not what any one kit did to the timer.
+	MatchState.start_cooldown(0, &"deadeye", 4.0)
+	check("flipping it back restores the real cooldown",
+		not MatchState.is_ability_ready(0, &"deadeye"))
+	# Dummies: the driver is an input source, so a body wearing one is driven
+	# without any device and without touching movement code.
+	var driver := DummyDriver.new()
+	_p2.input_source = driver.poll
+	var frame: InputFrame = driver.poll(_p2)
+	check("a dummy driver produces movement input", not is_zero_approx(frame.move.x),
+		"move=%s" % frame.move)
+	check("a dummy driver presses nothing else", not frame.ability_pressed
+		and not frame.ultimate_pressed and not frame.swap_pressed)
+	_p2.input_source = Callable()
+	await step(2)
+
+	# Restoring lives is what keeps a training dummy stompable forever.
+	MatchState.lose_life(1, MatchState.active_hero(1))
+	var mauled := MatchState.lives_of(1, MatchState.active_hero(1))
+	MatchState.restore_lives(1, MatchState.active_hero(1))
+	check("restore_lives puts a dummy back to full",
+		MatchState.lives_of(1, MatchState.active_hero(1)) == MatchState.LIVES_PER_HERO,
+		"%d -> %d" % [mauled, MatchState.lives_of(1, MatchState.active_hero(1))])
+	MatchState.reset_round()
+	await step(2)
 
 ## The second wave's rules (docs/NEW_HEROES.md §3). Every row of that file's
 ## interaction table that does not involve a stomp lives here; the stomp ones

@@ -12,7 +12,7 @@ Engine: Godot 4.4+ (GDScript)
 1. **The stomp is sacred.** Only a head-stomp removes a life. Abilities and ultimates create openings; they never kill directly.
 2. **Movement is the skill ceiling.** Momentum, b-hops, wall-jump chains, and dash management separate good players from great ones.
 3. **Heroes are utility, not stats.** All heroes share identical movement, hitboxes, and hurtboxes. A hero is exactly one ability + one ultimate.
-4. **Rounds are drafts.** Picking 3 heroes per round, swapping freely mid-round, and spending two shared ultimates per round is the strategic layer.
+4. **Rounds are drafts.** Picking 3 heroes per round, swapping freely mid-round, and spending each hero's one ultimate is the strategic layer — a trio is three ultimates, so what you pick is what you get to cast.
 
 ---
 
@@ -35,9 +35,9 @@ Engine: Godot 4.4+ (GDScript)
 4. Repeat until one team reaches the required round wins.
 
 ### 2.3 The ultimate economy
-- Each player gets **two ultimate activations per round**, shared across their 3 heroes, with a **~10 s cooldown between them**.
+- **Each of a player's 3 heroes gets one ultimate activation per round.** Once a hero has used theirs, it is gone for the rest of the round *for that hero* — the other two still hold their own. A **~10 s cooldown between activations** applies per *player*, across heroes.
 - They may be spent at any time in the round by whichever hero is currently active.
-- Spending one (even to no effect) consumes it. Two-with-a-gap makes the ult a resource you plan around across a round rather than one all-or-nothing moment, while the gap stops both being dumped into the same scramble.
+- Spending one (even to no effect) consumes that hero's. One-per-hero is what makes the trio a **draft**: a shared pool meant the best ultimate of the three got cast twice and the other two were decoration, whereas now every pick you make is an ultimate you are choosing to bring. The gap is deliberately per player and not per hero, so swapping hands you a fresh ultimate but never lets a whole round be dumped into one scramble. *Changed from two-per-player by the project owner on 2026-08-01.*
 
 ### 2.4 Hero swap rules
 - Swap is instantaneous and cooldown-free.
@@ -160,7 +160,7 @@ Every state is a node under a `StateMachine`; heroes plug abilities in *around* 
 
 | # | Hero | Ability (CD) | Ultimate | Fantasy |
 |---|---|---|---|---|
-| 9 | **Voodoo** (bright purple) | **Soul Ignition** (18 s): an 8 s self-empowerment window — faster run, bigger jump/dash/slide-jump, purple flames; touching an enemy knocks them back and slows their whole kit 3 s (reset, never stacked) | **Phantom**: ignite completely in **green** — the fastest run and dash in the game, the **jump deliberately untouched** — and phase through bodies, wearing an inverted skin (mask included); passing through an enemy stuns 2 s. **Supersedes Soul Ignition**: casting it ends an active ignition and puts it on a full cooldown, and the ability cannot be used while it runs. Falling through a head is still a stomp | Masked spirit brawler, purple head-flames |
+| 9 | **Voodoo** (bright purple) | **Soul Ignition** (18 s): an 8 s self-empowerment window — faster run, bigger jump/dash/slide-jump, purple flames; touching an enemy knocks them back and slows their whole kit 3 s (reset, never stacked) | **Phantom**: ignite completely in **green** — the fastest run and dash in the game, the ordinary jump untouched but a **second mid-air jump** granted (one per airtime, green puff) — and phase through bodies, wearing an inverted skin (mask included); passing through an enemy stuns 2 s. **Supersedes Soul Ignition**: casting it ends an active ignition and puts it on a full cooldown, and the ability cannot be used while it runs. Falling through a head is still a stomp | Masked spirit brawler, purple head-flames |
 | 10 | **Saint** (white) | **Cleanse** (11 s): strip every debuff and stun from himself and all allies; castable while stunned **or slept** — but never through Kid's EMP | **Benediction**: cleanse, then bless the team — empowered movement, debuff/stun immunity, and the first stomp on each blessed ally costs the blessing instead of a life | Battle priest crossed with a monk |
 | 11 | **Vesper** (black, neon pink tells) | **Sleep Dart** (3.5 s): a fast dart (780 px/s) that briefly slows and adds a stack (12–15 s life, reset on re-hit); the third stack sleeps the target ~6.5 s — walk-only at a crawl, no momentum, nothing else | **Deep Sleep**: a huge slow sphere through walls and bodies alike; enemies touched drop from the air and sleep ~1.5× the dart's window | Shinobi assassin, hooded, half-masked |
 | 12 | **Siku** (ice blue) | **Pillar** (10 s, ground only): a 3-body-wide, ~2⅓-body-tall ice pillar erupts underneath her, launching everyone standing there — Siku included — straight up with horizontal speed kept; icy top, melts in 5 s. **Refused under a low ceiling** (anti-stuck) | **Frostbite**: five fast ice pulses from her body, one every ~3.5 s, a frost aura on her for the whole storm; each catch is a 1.5 s stun and a dead drop | Arctic hunter in a fur-ringed parka |
@@ -178,7 +178,7 @@ Sleep is the one status that is neither a stun nor a slow, and it is worth stati
 - Duration refreshes, never stacks.
 - Saint's Cleanse removes it (and Saint himself can cast **through** his own sleep — the EMP is the only thing that locks him); Saint's Benediction prevents it.
 
-**Ability cooldowns are ordered, not uniform**: Sai 4.7 s < Vesper 5 s < Deadeye 5.2 s < Fei 5.6 s < Cerebelle 6.7 s < Slip 8 s < Kid 8.5 s < Terra 9 s = Voodoo 9 s < Mason 10 s = Siku 10 s < Saint 11 s. The cheaper an ability is to press, the less it should decide on its own — Sai's is pure mobility, Mason's and Siku's place terrain that outlives the press, Saint's undoes four other kits at once.
+**Ability cooldowns are ordered, not uniform**: Vesper 2.5 s < Sai 4.5 s = Fei 4.5 s < Deadeye 5.2 s < Cerebelle 6.7 s < Terra 8 s = Kid 8 s < Slip 8 s < Mason 10 s = Siku 10 s < Saint 11 s < Voodoo 18 s. The cheaper an ability is to press, the less it should decide on its own — Sai's is pure mobility, Mason's and Siku's place terrain that outlives the press, Saint's undoes four other kits at once.
 
 Cerebelle's Supernova is deliberately outrunnable and deliberately undodgeable: it moves well below a capped run, so reacting early keeps you ahead of it, but it covers the entire stage, so there is no edge to escape past. Escaping it outright is what Slip's teleport and the portal terrain are for, rather than something movement alone should solve.
 
@@ -187,7 +187,7 @@ Cerebelle's Supernova is deliberately outrunnable and deliberately undodgeable: 
 - Cooldowns reset between rounds. The unspent ultimate does **not** carry over.
 
 ### 5.4 Stun rules (unified)
-- Stun sources (live values in `combat_config.tres`): stomp (0.6 s), duel loss (0.38 s), Deadeye bolt (1.0 s; 6.5 s from the loaded shot), stun line (0.5 s), explosion (0.65 s), Cerebelle ult (1.3 s), Mason ult block (0.45 s per freeze, re-applied as a body falls through), Terra ult (2.0 s). Pending with the second wave: Voodoo's pass-through (3 s), Siku's pulses (1.5 s), and Vesper's sleep — which is its own debuff, not a stun (see `NEW_HEROES.md`).
+- Stun sources (live values in `combat_config.tres`): stomp (0.6 s), duel loss (0.38 s), Deadeye bolt (1.0 s; 6.5 s from the loaded shot), stun line (0.5 s), explosion (0.65 s), Cerebelle ult (2.0 s), Mason ult block (0.45 s per freeze, re-applied as a body falls through), Terra ult (2.0 s). The second wave's stuns live on their own kits rather than in this table, because they are hero-specific rather than shared: Voodoo's pass-through (2 s), Siku's pulses (0.75 s). Vesper's sleep is its own debuff, not a stun (see `NEW_HEROES.md` and §5.2a).
 - While stunned: no inputs, momentum preserved, gravity applies, cannot swap heroes.
 - Stuns do **not** stack; a new stun refreshes to `max(remaining, new)`. Every other status follows the same rule — slow, impairment, disrupt, sleep, sleep stacks, and both of Saint's buffs.
 - Stunned players' head hurtboxes remain **active** (stun into stomp is the core combo) *except* during post-stomp grace.
@@ -206,7 +206,7 @@ Cerebelle's Supernova is deliberately outrunnable and deliberately undodgeable: 
 
 | Element | Behavior |
 |---|---|
-| **Pole** | Grab to instantly zero momentum and refill the dash; crawl up/down; **hold down to ride it down fast**; **down + jump to let go**; **dash for a boosted drop straight down** at terminal velocity, spending a charge; or jump off either side (aimable). The "reset button" of movement, and vertical ground you can travel rather than only hang on. |
+| **Pole** | Grab to instantly zero momentum (it does **not** refill dash charges — a pole is a reposition, not a stamina station); crawl up/down; **hold down to ride it down fast**; **down + jump to let go**; **dash for a boosted drop straight down** at terminal velocity, spending a charge; or jump off either side (aimable). The "reset button" of movement, and vertical ground you can travel rather than only hang on. |
 | **Ice** | Near-zero friction: momentum cap raised slightly, redirect much slower, no skid-stop. B-hop window is more lenient on ice. |
 | **Stun line** | Glowing tripwire; touching it stuns ~0.4 s (momentum kept). Head hurtbox stays active — classic setup tool. |
 | **Jump spring** | Fixed strong launch on contact (overrides vertical velocity); can be b-hop-chained. |

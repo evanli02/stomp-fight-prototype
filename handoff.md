@@ -32,7 +32,7 @@ stages, with sound and a pause menu. Netcode is out of scope by design — remot
 by streaming instead (`docs/PLAYTEST.md`), and §9 of `docs/IMPLEMENTATION.md` holds the posture
 that keeps a real implementation possible later.
 
-All four harnesses are green — **movement 78, combat 54, match 305, terrain 74 = 511 checks**,
+All four harnesses are green — **movement 78, combat 54, match 328, terrain 74 = 534 checks**,
 zero script errors. (This line goes stale easily; re-count it rather than trusting it.)
 
 ---
@@ -91,6 +91,17 @@ Human-playable scenes:
 - `src/stage/sunken_court.tscn` — two solid mesas over a five-spring trench with no standing
   room; the roof platform costs a dash to reach.
 - `src/stage/playground.tscn` — flat debug box with the state/velocity overlay.
+- `src/stage/training_room.tscn` — **the tuning bench.** Flat floor, two platforms at the
+  held-jump and jump-plus-dash heights, one spring, one pole. **One human** (keyboard,
+  seat 0) and **three bots**: the ally beside you stands still (the baseline target, and
+  what ally-cast kits land on), the two enemies walk back and forth and hop occasionally.
+  Swap cycles **all twelve** heroes, not a 3-hero roster. **Ultimates are always free**
+  (no budget, no gap); **F5** toggles ability cooldowns; **F6** freezes/unfreezes the
+  movers; **F7** resets positions. Reached from the lobby, or booted directly with F6.
+  `tools/probe_training.tscn` drives all of that headlessly (12-hero sweep, free ults,
+  bot behaviour over 4 s of frames, switch cleanup) — run it after touching the room.
+- `src/ui/balance_sheet.tscn` — every hero's `@export` tunables on one page, read live off
+  the ability scenes, so it can never go stale. Also reached from the lobby.
 
 **F3** in any stage toggles the design overlay (grid coordinates, spawns, the reach envelope).
 
@@ -103,8 +114,8 @@ to load.
 ## 3. Roster (8 live heroes + 4 designed)
 
 Heroes are identical in movement and hitboxes. Identity is ability + ultimate + cosmetics only.
-Cooldown order is Sai 4.7 < Deadeye 5.2 < Fei 5.6 < Cerebelle 6.7 < Slip 8 < Kid 8.5 <
-Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
+Cooldown order after the 2026-08-01 balance pass: Vesper 2.5 < Sai 4.5 = Fei 4.5 < Deadeye
+5.2 < Cerebelle 6.7 < Terra 8 = Kid 8 = Slip 8 < Mason 10 = Siku 10 < Saint 11 < Voodoo 18.
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
@@ -315,7 +326,7 @@ approach in the game — with diagonals explicitly untouched.
 ## 7. Documentation corrected alongside this file
 
 `CLAUDE.md` and `SKILL.md` both still described the old one-ultimate-per-round economy, which a
-fresh session would have read as binding and "fixed" back. Both now say two per round with a
+fresh session would have read as binding and "fixed" back. Both said two per round with a
 ~10 s gap. Also updated: the GUT-tests workflow rule (replaced with the four headless
 harnesses), the note that Terra's slam is not a rule-1 exception, current hitbox geometry, the
 directional air-dash taxes, and six new entries on the "things Claude gets wrong here"

@@ -17,20 +17,32 @@ signal cooldown_started(player_id: int, hero_id: StringName, duration: float)
 
 const LIVES_PER_HERO: int = 2
 const HEROES_PER_PLAYER: int = 3
-## Ultimates per player per round, and the gap enforced between them
-## (DESIGN 2.3). Two makes the ult a resource you can plan around instead of a
-## single all-or-nothing moment; the gap stops both going off at once.
-const ULTS_PER_ROUND: int = 2
+## ONE ultimate per HERO per round (DESIGN 2.3), with a gap enforced between any
+## two of a player's ultimates. Changed from two-per-player on 2026-08-01: a
+## shared pool meant the best ultimate in a trio got used twice and the other
+## two were decoration. Per hero, every pick you make is an ultimate you are
+## choosing to bring, which is what makes the trio a draft.
+##
+## The gap survives the change and is still per PLAYER — it exists so a player
+## cannot dump their whole round into one scramble, and swapping heroes must not
+## be a way around that.
 const ULT_COOLDOWN: float = 10.0
 
 ## player_id -> {
 ##   team: int, heroes: { hero_id: lives_remaining }, order: Array[StringName],
-##   active: StringName, ults_left: int, ult_cooldown: float,
+##   active: StringName, ults_used: { hero_id: bool }, ult_cooldown: float,
 ##   cooldowns: { hero_id: seconds }
 ## }
 var players: Dictionary = {}
 var round_wins: Dictionary = {}          # team_id -> wins
 var last_round_loser_team: int = -1
+## Training-room switches, split because the room wants them independent:
+## ultimates are ALWAYS free there (no budget, no gap) while ability cooldowns
+## are a toggle. Set ONLY by the training room, cleared when it exits — a match
+## never turns either on, and `reset_round` deliberately does not touch them
+## (they belong to the session, not the round).
+var free_cooldowns: bool = false
+var free_ultimates: bool = false
 
 func clear_players() -> void:
 	## Wipe the roster before a scene registers its own. Round wins survive —
@@ -48,15 +60,17 @@ func register_player(player_id: int, team_id: int, hero_ids: Array[StringName]) 
 	assert(hero_ids.size() > 0 and hero_ids.size() <= HEROES_PER_PLAYER)
 	var heroes := {}
 	var cooldowns := {}
+	var ults_used := {}
 	for h in hero_ids:
 		heroes[h] = LIVES_PER_HERO
 		cooldowns[h] = 0.0
+		ults_used[h] = false
 	players[player_id] = {
 		"team": team_id,
 		"heroes": heroes,
 		"order": hero_ids.duplicate(),
 		"active": hero_ids[0],
-		"ults_left": ULTS_PER_ROUND,
+		"ults_used": ults_used,
 		"ult_cooldown": 0.0,
 		"cooldowns": cooldowns,
 	}
@@ -124,6 +138,8 @@ func cooldown_remaining(player_id: int, hero_id: StringName) -> float:
 	return players[player_id].cooldowns.get(hero_id, 0.0)
 
 func is_ability_ready(player_id: int, hero_id: StringName) -> bool:
+	if free_cooldowns:
+		return true
 	return cooldown_remaining(player_id, hero_id) <= 0.0
 
 ## Ticked by GameManager during ROUND_ACTIVE only, so cooldowns do not burn down
@@ -138,29 +154,60 @@ func tick_cooldowns(delta: float) -> void:
 		if players[pid].ult_cooldown > 0.0:
 			players[pid].ult_cooldown = maxf(players[pid].ult_cooldown - delta, 0.0)
 
+## Whether the player's ACTIVE hero can ultimate right now: that hero has not
+## spent theirs this round, and the player is not inside the gap.
 func ult_available(player_id: int) -> bool:
+	if free_ultimates:
+		return true
 	var p: Dictionary = players[player_id]
-	return p.ults_left > 0 and p.ult_cooldown <= 0.0
+	return not ult_spent(player_id, p.active) and p.ult_cooldown <= 0.0
 
+## Has this specific hero used their one ultimate this round (DESIGN 2.3)?
+func ult_spent(player_id: int, hero_id: StringName) -> bool:
+	if not players.has(player_id):
+		return false
+	return bool(players[player_id].ults_used.get(hero_id, false))
+
+## How many of the player's heroes still hold an unspent ultimate. Drives the
+## HUD's lamp row, which now has one lamp per hero rather than per charge.
 func ults_left(player_id: int) -> int:
-	return players[player_id].ults_left
+	if not players.has(player_id):
+		return 0
+	var count := 0
+	for h in players[player_id].ults_used:
+		if not players[player_id].ults_used[h]:
+			count += 1
+	return count
 
 func ult_cooldown_remaining(player_id: int) -> float:
 	return players[player_id].ult_cooldown
 
 func try_spend_ultimate(player_id: int) -> bool:
-	## ULTS_PER_ROUND per player per round, shared across their 3 heroes, with
-	## ULT_COOLDOWN between them (DESIGN 2.3). Spending one even to no effect
-	## consumes it.
+	## One ultimate per HERO per round, with ULT_COOLDOWN between any two of the
+	## player's (DESIGN 2.3). Spending one even to no effect consumes it — for
+	## that hero, for the rest of the round.
 	if not ult_available(player_id):
 		return false
-	players[player_id].ults_left -= 1
+	if free_ultimates:
+		ultimate_spent.emit(player_id)   # the HUD and audio still want the event
+		return true
+	# Spent against the ACTIVE hero: it is that hero's one use for the round,
+	# and swapping afterwards brings a hero who still has their own.
+	players[player_id].ults_used[players[player_id].active] = true
 	players[player_id].ult_cooldown = ULT_COOLDOWN
 	ultimate_spent.emit(player_id)
 	return true
 #endregion
 
 #region Combat results
+## Put a hero's lives back without resetting the round. The training room calls
+## this on its dummies so they can be stomped over and over without the round
+## ending; nothing in a real match does.
+func restore_lives(player_id: int, hero_id: StringName) -> void:
+	if not players.has(player_id):
+		return
+	players[player_id].heroes[hero_id] = LIVES_PER_HERO
+
 func lose_life(player_id: int, hero_id: StringName) -> void:
 	var p: Dictionary = players[player_id]
 	if p.heroes.get(hero_id, 0) <= 0:
@@ -219,7 +266,10 @@ func reset_round() -> void:
 		# cooldown ticking into the next round.
 		for h in p.cooldowns:
 			p.cooldowns[h] = 0.0
-		p.ults_left = ULTS_PER_ROUND
+		# Same reasoning as the cooldowns above: reset by the dict's own keys so
+		# an off-roster hero equipped by a debug scene cannot keep a spent ult.
+		for h in p.ults_used:
+			p.ults_used[h] = false
 		p.ult_cooldown = 0.0
 		p.active = p.order[0]
 #endregion

@@ -156,28 +156,42 @@ func _draw_player(font: Font, pid: int, roster: Array, origin: Vector2, s: float
 			_text(font, pos + Vector2(card.x - 22.0 * s, 16.0 * s), "%.0f" % ceilf(cd),
 				int(maxf(9.0, 11.0 * s)), accent)
 
-	# Ultimates are per PLAYER, not per hero (DESIGN 2.3): one lamp each, plus the
-	# gap between uses when one is still cooling down.
+	# ONE ultimate per HERO per round (DESIGN 2.3), so there is a lamp per hero
+	# in roster order, lit while that hero still holds theirs — the lamp row
+	# lines up with the portrait row above it, which is what makes "which of my
+	# three has an ult left" answerable at a glance. The player-wide gap drains
+	# across whichever lamp belongs to the hero currently out.
 	var ult_pos := top + Vector2(0, card.y + 6.0 * s)
 	var left := MatchState.ults_left(pid)
 	var cd_ult := MatchState.ult_cooldown_remaining(pid)
 	var lamp := 14.0 * s
-	for i in MatchState.ULTS_PER_ROUND:
+	# `active` is already in scope from the portrait row above — same hero, same
+	# question, so the lamp row and the portraits cannot disagree about who is out.
+	for i in roster.size():
+		var hero_id: StringName = roster[i]
 		var box := Rect2(ult_pos + Vector2(i * (lamp + 4.0 * s), 0), Vector2(lamp, lamp))
-		_canvas.draw_rect(box, COL_ULT if i < left else COL_PIP_OFF)
-		if i < left and cd_ult > 0.0:
-			# Draining fill: the charge is banked but not yet usable.
+		var held: bool = not MatchState.ult_spent(pid, hero_id)
+		_canvas.draw_rect(box, COL_ULT if held else COL_PIP_OFF)
+		if held and hero_id == active and cd_ult > 0.0:
+			# Draining fill: this hero's ult is unspent but the player is still
+			# inside the gap, so it is banked and not yet usable.
 			var frac: float = clampf(1.0 - cd_ult / MatchState.ULT_COOLDOWN, 0.0, 1.0)
 			_canvas.draw_rect(box, COL_PIP_OFF)
 			_canvas.draw_rect(Rect2(box.position, Vector2(lamp * frac, lamp)), COL_ULT)
+		# The hero who is actually out is outlined, so the row says whose ult the
+		# ULT button would spend right now.
+		if hero_id == active:
+			_canvas.draw_rect(box, COL_ACTIVE, false, maxf(1.0, s))
 	var label := "ULT x%d" % left
 	if cd_ult > 0.0:
 		label = "ULT %.0fs" % cd_ult
+	elif MatchState.ult_spent(pid, active):
+		label = "ult spent"
 	elif left == 0:
 		label = "no ults"
 	# Mirrored blocks put the label on the inboard side, so it never runs off the
 	# right edge of the screen at 3v3 where the block is already at the margin.
-	var label_at := ult_pos + Vector2(MatchState.ULTS_PER_ROUND * (lamp + 4.0 * s) + 6.0 * s,
+	var label_at := ult_pos + Vector2(roster.size() * (lamp + 4.0 * s) + 6.0 * s,
 		lamp * 0.85)
 	if mirrored:
 		label_at = ult_pos + Vector2(-6.0 * s - 52.0 * s, lamp * 0.85)

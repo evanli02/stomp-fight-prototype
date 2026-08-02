@@ -30,7 +30,7 @@ overstomp/
 │   ├── STYLE_GUIDE.md
 │   └── tools/                 # pixel.py canvas + character/placeholder/sfx generators (stdlib only)
 ├── tests/                     # Headless harnesses (movement, combat, match, terrain)
-├── tools/                     # build_windows.ps1, measure_reach (stage metrics)
+├── tools/                     # build_windows.ps1, measure_reach, screenshot_* (dev utilities)
 └── export_presets.cfg         # Windows Desktop export (committed; holds no secrets)
 ```
 
@@ -103,8 +103,11 @@ apply_slow(mult, dur)                     # speed-cap multiplier; strongest wins
 apply_impairment(mult, dur)               # scales jump/dash/wall-jump; 0 disables
 apply_disrupt(dur)                        # EMP: no dash, no ability, no ultimate
 apply_freeze(dur)                         # pinned mid-air, gravity suspended
+input_source: Callable                    # stands in for the device poll (dummies today, rollback later)
 grant_impulse_buff(mult, dur)             # buff-side twin of impairment; launch_mult() multiplies both
 grant_dash_buff(mult, dur)                # dash-only (Voodoo's Phantom: run+dash, never the jump)
+grant_air_jumps(n, dur, accent, impulse)  # granted mid-air jumps, refreshed per airtime
+can_air_jump() / consume_air_jump()       # spent by PlayerState.try_air_jump; pays for its own puff
 grant_debuff_immunity(dur)                # Saint: every apply_* above becomes a no-op
 grant_stomp_ward(dur)                     # Saint: next stomp spends the blessing, not the life
 clear_all_debuffs()                       # Saint: stun/slow/impair/disrupt/freeze/sleep/stacks/tags
@@ -267,5 +270,6 @@ Keep sections terse; this doc is a map, not a manual. Detailed rationale belongs
   - `match_harness.tscn` — DESIGN 2 and 5 rules: every hero's ability and ultimate firing, going on cooldown, being refused on cooldown, the ult being spendable exactly once, the cooldown waiver, and — the load-bearing one — that **no ability of any hero can cost a life**; hero-select pick rules (no duplicates in one trio, duplicates across players, undo, auto-fill), rosters, swap validation and cycling, swap preserving position/velocity, stun blocking swap and ult, cooldowns ticking while benched, the one-ult-per-round economy, round win, and the reset between rounds. Run after touching MatchState, GameManager, hero select, or the swap path.
   - Teleporting a body into place inside a harness needs a settle frame. If whatever it was resting on has moved, the next `move_and_slide()` can depenetrate it across the arena with its velocity untouched — `combat_harness.place()` re-asserts the position a frame later for exactly this reason.
   - `Godot --headless --path . res://tests/<harness>.tscn`. A newly added `class_name` needs `Godot --headless --path . --import` first, or the harness cannot see the class.
+- **Balance work** has its own two screens, both off the lobby and neither part of the match flow: `src/ui/balance_sheet.tscn` lists every hero's `@export` tunables (instantiated from the real ability scenes and enumerated, so it cannot go stale), and `src/stage/training_room.tscn` is a flat bench with all-twelve hero cycling, `DummyDriver` targets, and F5/F6/F7 for cooldowns, dummy behaviour and position reset. `MatchState.free_cooldowns` / `free_ultimates` bypass the cooldown and ult-budget *checks* without clearing their timers, so turning them back off restores the real state; the room keeps ultimates free for its whole life and leaves cooldowns as an F5 toggle.
 - **Generated art** has a loader check: `Godot --headless --path . --script res://tests/verify_frames.gd` confirms every hero's SpriteFrames resource parses and holds every animation the states can ask for. Run it after regenerating characters. The movement harness separately asserts that no state names an animation the sheets lack.
 - Harness inputs go through `InputConfig.action(player_id, base)`. The `aim_*` actions are unbound on KBM specifically so a harness can pin an exact aim; without that, aim falls back to a mouse pointer that headless leaves at the origin.

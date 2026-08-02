@@ -83,6 +83,17 @@ var stomp_ward_remaining: float = 0.0
 ## every Area2D that watches for players still see a phasing body.
 var phasing_remaining: float = 0.0
 var _phase_exceptions: Array = []
+## Granted mid-air jumps (Voodoo's Phantom). `charges` is how many one airtime
+## is worth, `used` resets on every surface touch — so it is a double jump, not
+## a flight budget. Fei's is a whole ability with its own cooldown and stays
+## that way; this is the passive version a window can hand out.
+var air_jump_charges: int = 0
+var air_jump_used: int = 0
+var air_jump_remaining: float = 0.0
+## Colour of the puff the granted jump kicks off, so the VFX matches whatever
+## window granted it rather than the hero's ordinary accent.
+var air_jump_accent: Color = Color.WHITE
+var air_jump_impulse: float = -520.0
 ## Voodoo's touch window: what a body contact does to an enemy while it runs,
 ## and who is still exempt from the last one.
 var contact_window_remaining: float = 0.0
@@ -106,6 +117,9 @@ var surface_slip: float = 0.0
 ## Timers and contact facts live on the player rather than in any one state so
 ## that b-hop and perfect wall jump can share them across transitions.
 var input: InputFrame = InputFrame.new()
+## Scripted stand-in for this body's device (see _physics_process). Unset on a
+## real player, so a match always reads the device.
+var input_source: Callable = Callable()
 var facing: int = 1
 var time_since_landing: float = INF
 var time_since_wall_contact: float = INF
@@ -279,7 +293,35 @@ func clear_movement_buffs() -> void:
 	impulse_buff_remaining = 0.0
 	dash_buff_mult = 1.0
 	dash_buff_remaining = 0.0
+	air_jump_charges = 0
+	air_jump_used = 0
+	air_jump_remaining = 0.0
 	_end_contact_window()
+
+## Hand out mid-air jumps for a window (Voodoo's Phantom). Refreshed per
+## airtime, not per window: touching anything gives the charge back, so it
+## behaves like a double jump rather than a fuel tank.
+func grant_air_jumps(charges: int, dur: float, accent: Color, impulse: float) -> void:
+	air_jump_charges = maxi(air_jump_charges, charges)
+	air_jump_remaining = maxf(air_jump_remaining, dur)
+	air_jump_accent = accent
+	air_jump_impulse = impulse
+
+func can_air_jump() -> bool:
+	return air_jump_remaining > 0.0 and air_jump_used < air_jump_charges \
+		and not is_on_floor()
+
+## Spend one, and pay for its VFX. The puff is spawned here rather than by the
+## ability that granted it because the grant outlives the ability node — Voodoo
+## can swap out mid-Phantom and the window keeps running on the body.
+func consume_air_jump() -> float:
+	air_jump_used += 1
+	air_dash_locked = false
+	var puff := WindPuff.new()
+	puff.global_position = global_position + Vector2(0.0, 14.0)
+	puff.accent = air_jump_accent
+	spawn_effect(puff)
+	return air_jump_impulse
 
 func grant_dash_buff(mult: float, dur: float) -> void:
 	## Lengthens dashes only; jumps and wall jumps are untouched. Same refresh
@@ -636,6 +678,9 @@ func respawn_at(spawn_position: Vector2) -> void:
 	impulse_buff_remaining = 0.0
 	dash_buff_mult = 1.0
 	dash_buff_remaining = 0.0
+	air_jump_charges = 0
+	air_jump_used = 0
+	air_jump_remaining = 0.0
 	debuff_immune_remaining = 0.0
 	stomp_ward_remaining = 0.0
 	# A ghost that outlived its window would be permanent: nothing else ever
@@ -763,7 +808,13 @@ func _update_animation() -> void:
 		sprite.play(anim)
 
 func _physics_process(delta: float) -> void:
-	input = InputConfig.poll(player_id, self)
+	# Devices are not the only possible source of intent. `input_source` is the
+	# seam a scripted driver plugs into — the training room's dummies today, a
+	# rollback layer replaying received frames later (IMPLEMENTATION.md 9). It
+	# takes the body and returns an InputFrame; everything downstream cannot
+	# tell the difference, which is the whole point of InputFrame existing.
+	input = input_source.call(self) if input_source.is_valid() \
+		else InputConfig.poll(player_id, self)
 	_tick_timers(delta)
 	_handle_hero_input()
 	state_machine.tick(delta)
@@ -834,6 +885,11 @@ func _tick_timers(delta: float) -> void:
 		dash_buff_remaining -= delta
 		if dash_buff_remaining <= 0.0:
 			dash_buff_mult = 1.0
+	if air_jump_remaining > 0.0:
+		air_jump_remaining -= delta
+		if air_jump_remaining <= 0.0:
+			air_jump_charges = 0
+			air_jump_used = 0
 	if debuff_immune_remaining > 0.0:
 		debuff_immune_remaining -= delta
 	if stomp_ward_remaining > 0.0:
@@ -894,6 +950,7 @@ func _post_move(was_on_floor: bool) -> void:
 			_on_landed()
 		coyote_remaining = movement.coyote_time
 		air_dash_locked = false
+		air_jump_used = 0        # a granted air jump is per airtime, like the dash lock
 		_reset_wall_chain()
 
 	var on_jumpable_wall := is_on_wall() and wall_is_jumpable(get_wall_normal())

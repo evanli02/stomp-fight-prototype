@@ -12,14 +12,14 @@ class_name SikuFrostbite extends Ability
 ## ability is freed the moment its hero is swapped out, and a storm that stopped
 ## because Siku rotated would be an ultimate spent on nothing.
 
-@export var pulse_count: int = 5
+@export var pulse_count: int = 6
 ## 3-4s band between pulses.
-@export var pulse_gap: float = 3.5
+@export var pulse_gap: float = 2.5
 ## Significantly faster than Supernova's 250: dodging Frostbite is jumping the
 ## wave, not walking away from it.
-@export var pulse_speed: float = 520.0
+@export var pulse_speed: float = 650.0
 @export var pulse_reach: float = 1800.0
-@export var stun_time: float = 1.5
+@export var stun_time: float = 0.75
 
 func _execute(_aim: Vector2) -> void:
 	var storm := FrostbitePulses.new()

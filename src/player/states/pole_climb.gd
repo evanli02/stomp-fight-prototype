@@ -31,11 +31,17 @@ func enter(params: Dictionary = {}) -> void:
 	_jump_off = params.get("jump_off", Vector2(280, -420))
 	_top = params.get("top", -INF)
 	_bottom = params.get("bottom", INF)
-	# The grab itself is the reset (DESIGN 6.2).
+	# The grab kills momentum and clears the airborne dash LOCK — a pole is a
+	# surface, and touching a surface is what lifts that lock everywhere else.
+	#
+	# It deliberately does NOT refill dash charges (owner ruling 2026-08-01).
+	# Handing back a full bar made the pole a free stamina station: hop on, hop
+	# off, dash again, with the recharge timer skipped entirely. Charges are a
+	# resource you spend and wait out, and no piece of terrain should be able to
+	# opt out of that.
 	player.velocity = Vector2.ZERO
 	player.momentum_charge = 0.0
 	player.air_dash_locked = false
-	player.dash_charges_left = player.movement.dash_charges
 	player.global_position.x = _pole_x
 	Audio.play(&"pole_grab", 0.7)
 

@@ -9,7 +9,7 @@
 script = ExtResource("1")
 hero_name = "Sai"
 accent_color = Color(1, 0.431373, 0.780392, 1)
-ability_cooldown = 4.7
+ability_cooldown = 4.5
 ability_text = "Grapple Hook: hook anything the aim touches, at any range, and swing. Five reversals, then the rope lets go. Jump off to launch with the momentum."
 ultimate_text = "Sai Slash: cross a long line instantly through bodies AND terrain. Everyone hit is slowed with jump/dash/wall jump gutted."
 sprite_frames = ExtResource("2")
