@@ -119,15 +119,10 @@ func _handle_host(delta: float) -> void:
 	elif _ready_to_start():
 		_confirm()
 
-## The training room seats one real player and fills the rest with dummies, so
-## it does not care how many devices have joined — but it still needs a seat for
-## whoever is driving. 2v2 gives one ally to test team abilities on (Saint's
-## cleanse has nothing to say in a 1v1) and two enemies to stomp.
+## The training room seats two people and two standing targets, and assigns its
+## own devices (keyboard + first pad), so it does not care who joined the lobby.
 func _start_training() -> void:
 	_done = true
-	GameManager.team_size = 2
-	if not InputConfig.seat_claimed(0):
-		InputConfig.claim_seat(InputConfig.Device.KBM)
 	training_room_requested.emit()
 
 func _seats_needed() -> int:
@@ -163,7 +158,7 @@ func _draw_screen() -> void:
 	_draw_tool(font, Vector2(size.x * 0.5 - 250, 232), ROW_BALANCE,
 		"BALANCE SHEET", "every hero's numbers on one page")
 	_draw_tool(font, Vector2(size.x * 0.5 + 50, 232), ROW_TRAINING,
-		"TRAINING ROOM", "any hero, dummies, free cooldowns")
+		"TRAINING ROOM", "2 players, any hero, 2 dummies")
 
 	_draw_seats(font, size)
 

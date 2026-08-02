@@ -27,9 +27,18 @@ const HIGH_TOP: float = 256.0
 
 const SPAWNS: Array[Vector2] = [Vector2(280, 472), Vector2(840, 472)]
 
+## Two seats are driven by people, two are targets. They alternate so that each
+## player has an ally dummy AND an enemy dummy: at 2v2 seats 0-1 are team 0 and
+## 2-3 are team 1, so this puts the two players on OPPOSITE teams (they can
+## stomp each other) and gives each of them a teammate to test ally-targeted
+## kits on (Saint's Cleanse has nothing to say otherwise).
+const HUMAN_SEATS: Array[int] = [0, 2]
+const DUMMY_SEATS: Array[int] = [1, 3]
+
 ## Every hero, in roster order — the whole point of the room.
 var _all_heroes: Array[StringName] = []
-var _hero_index: int = 0
+## seat -> index into _all_heroes, for the seats a person is driving.
+var _hero_index: Dictionary = {}
 ## seat -> DummyDriver, for the seats this room drives itself.
 var _drivers: Dictionary = {}
 var _hint: Label
@@ -79,13 +88,34 @@ func build_terrain() -> void:
 	add_child(pole)
 
 func _ready() -> void:
+	# Before super(): MatchStage seats itself from the format, and this room is
+	# always two people plus two targets regardless of what the lobby was set
+	# to — which is also what makes booting this scene straight with F6 work.
+	GameManager.team_size = 2
 	super()
 	_all_heroes = GameManager.roster_ids()
-	_hero_index = maxi(_all_heroes.find(MatchState.active_hero(0)), 0)
-	# Every seat but the first is a target.
-	for seat in range(1, players.size()):
+
+	# The second player takes the first pad. Assigned here rather than claimed
+	# in the lobby so the room is self-contained: one keyboard and one
+	# controller is the common bench setup, and seat 2's default binding would
+	# otherwise be the *second* pad.
+	InputConfig.assign_device(HUMAN_SEATS[0], InputConfig.Device.KBM)
+	InputConfig.assign_device(HUMAN_SEATS[1], InputConfig.Device.PAD, 0)
+	for seat: int in HUMAN_SEATS:
+		if seat >= players.size():
+			continue
+		_hero_index[seat] = maxi(_all_heroes.find(MatchState.active_hero(seat)), 0)
+		players[seat].input_source = _human_input(seat)
+
+	for seat: int in DUMMY_SEATS:
+		if seat >= players.size():
+			continue
 		var driver := DummyDriver.new()
-		# Staggered so a row of dummies does not move as one wide block.
+		# Standing still by default: a still target is the baseline for
+		# measuring a hitbox or a range, and anything that moves adds a
+		# variable to whatever is being tuned. F6 sets them walking.
+		driver.mode = DummyDriver.Mode.IDLE
+		# Staggered so that once they DO move they do not travel as one block.
 		driver.phase = float(seat) * 0.7
 		_drivers[seat] = driver
 		players[seat].input_source = driver.poll
@@ -118,15 +148,33 @@ func _on_dummy_life_lost(player_id: int, hero_id: StringName, _left: int) -> voi
 		return
 	MatchState.restore_lives(player_id, hero_id)
 
+## A human seat's input, with SWAP intercepted. The room owns that button here:
+## left alone, Player.try_swap would rotate the seat's three-hero roster on the
+## same press this uses to walk all twelve, and both would fire.
+##
+## Reusing input_source rather than reading the button in _physics_process is
+## what makes that reliable — the interception happens at the one place the
+## body actually reads its intent, so there is no ordering question about which
+## saw the press first.
+func _human_input(seat: int) -> Callable:
+	return func(body: Player) -> InputFrame:
+		var frame := InputConfig.poll(seat, body)
+		if frame.swap_pressed:
+			frame.swap_pressed = false
+			_cycle_hero(seat)
+		return frame
+
+## Step a seat to the next hero in the FULL roster. equip_hero is the same call
+## a real swap makes, so the hero arrives fully wired; only MatchState's
+## three-hero roster check is being stepped around.
+func _cycle_hero(seat: int) -> void:
+	if seat >= players.size() or players[seat].stun_remaining > 0.0:
+		return
+	_hero_index[seat] = wrapi(int(_hero_index.get(seat, 0)) + 1, 0, _all_heroes.size())
+	players[seat].equip_hero(_all_heroes[_hero_index[seat]])
+
 func _physics_process(delta: float) -> void:
 	super(delta)
-	var frame := InputConfig.poll(0)
-	# Swap cycles ALL twelve rather than the three-hero roster. equip_hero is
-	# the same call a real swap makes, so the hero arrives fully wired; only the
-	# roster check is being stepped around.
-	if frame.swap_pressed and players[0].stun_remaining <= 0.0:
-		_hero_index = wrapi(_hero_index + 1, 0, _all_heroes.size())
-		players[0].equip_hero(_all_heroes[_hero_index])
 	if Input.is_physical_key_pressed(KEY_F5) and not _f5_held:
 		MatchState.unlimited_resources = not MatchState.unlimited_resources
 	_f5_held = Input.is_physical_key_pressed(KEY_F5)
@@ -147,8 +195,17 @@ func _update_hint() -> void:
 	var mode := "?"
 	if not _drivers.is_empty():
 		mode = (_drivers[_drivers.keys()[0]] as DummyDriver).label()
-	_hint.text = "TRAINING ROOM   %s\n" % _all_heroes[_hero_index].to_upper() \
-		+ "swap: next hero (all %d)\n" % _all_heroes.size() \
+	var who := ""
+	for seat: int in HUMAN_SEATS:
+		if seat >= players.size():
+			continue
+		# Numbered by SEAT, not by which of the two humans this is — the HUD and
+		# the debug readout both label these bodies P1 and P3, and a hint that
+		# called them P1 and P2 would be describing different players.
+		who += "P%d (%s): %s\n" % [seat + 1, InputConfig.device_label(seat),
+			String(_all_heroes[int(_hero_index.get(seat, 0))]).to_upper()]
+	_hint.text = "TRAINING ROOM\n" + who \
+		+ "swap: next hero (all %d, per player)\n" % _all_heroes.size() \
 		+ "F5 cooldowns: %s\n" % ("OFF - free" if MatchState.unlimited_resources else "on") \
 		+ "F6 dummies: %s\n" % mode \
 		+ "F7 reset positions   ·   F3 reach overlay"

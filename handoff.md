@@ -92,9 +92,11 @@ Human-playable scenes:
   room; the roof platform costs a dash to reach.
 - `src/stage/playground.tscn` — flat debug box with the state/velocity overlay.
 - `src/stage/training_room.tscn` — **the tuning bench.** Flat floor, two platforms at the
-  held-jump and jump-plus-dash heights, one spring, one pole. Swap cycles **all twelve**
-  heroes (not a 3-hero roster); the other three seats are dummies driven by `DummyDriver`;
-  **F5** frees cooldowns and ultimates, **F6** cycles dummy behaviour (idle / patrol / hop),
+  held-jump and jump-plus-dash heights, one spring, one pole. **Two players** (seat 0 on the
+  keyboard, seat 2 on the first pad — opposite teams, so they can stomp each other), each
+  with an **ally dummy** standing beside them so ally-targeted kits have a target. Swap
+  cycles **all twelve** heroes per player, not a 3-hero roster. Dummies stand still by
+  default; **F6** sets them patrolling or hopping, **F5** frees cooldowns and ultimates,
   **F7** resets positions. Reached from the lobby, or booted directly with F6.
 - `src/ui/balance_sheet.tscn` — every hero's `@export` tunables on one page, read live off
   the ability scenes, so it can never go stale. Also reached from the lobby.
