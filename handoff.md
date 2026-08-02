@@ -114,8 +114,8 @@ to load.
 ## 3. Roster (8 live heroes + 4 designed)
 
 Heroes are identical in movement and hitboxes. Identity is ability + ultimate + cosmetics only.
-Cooldown order is Sai 4.7 < Deadeye 5.2 < Fei 5.6 < Cerebelle 6.7 < Slip 8 < Kid 8.5 <
-Terra 9 < Mason 10 (Deadeye was cut under Fei in the 2026-07-28 rework pass).
+Cooldown order after the 2026-08-01 balance pass: Vesper 2.5 < Sai 4.5 = Fei 4.5 < Deadeye
+5.2 < Cerebelle 6.7 < Terra 8 = Kid 8 = Slip 8 < Mason 10 = Siku 10 < Saint 11 < Voodoo 18.
 
 | Hero | Colour | Ability (CD) | Ultimate |
 |---|---|---|---|
@@ -326,7 +326,7 @@ approach in the game — with diagonals explicitly untouched.
 ## 7. Documentation corrected alongside this file
 
 `CLAUDE.md` and `SKILL.md` both still described the old one-ultimate-per-round economy, which a
-fresh session would have read as binding and "fixed" back. Both now say two per round with a
+fresh session would have read as binding and "fixed" back. Both said two per round with a
 ~10 s gap. Also updated: the GUT-tests workflow rule (replaced with the four headless
 harnesses), the note that Terra's slam is not a rule-1 exception, current hitbox geometry, the
 directional air-dash taxes, and six new entries on the "things Claude gets wrong here"

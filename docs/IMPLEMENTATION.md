@@ -106,6 +106,8 @@ apply_freeze(dur)                         # pinned mid-air, gravity suspended
 input_source: Callable                    # stands in for the device poll (dummies today, rollback later)
 grant_impulse_buff(mult, dur)             # buff-side twin of impairment; launch_mult() multiplies both
 grant_dash_buff(mult, dur)                # dash-only (Voodoo's Phantom: run+dash, never the jump)
+grant_air_jumps(n, dur, accent, impulse)  # granted mid-air jumps, refreshed per airtime
+can_air_jump() / consume_air_jump()       # spent by PlayerState.try_air_jump; pays for its own puff
 grant_debuff_immunity(dur)                # Saint: every apply_* above becomes a no-op
 grant_stomp_ward(dur)                     # Saint: next stomp spends the blessing, not the life
 clear_all_debuffs()                       # Saint: stun/slow/impair/disrupt/freeze/sleep/stacks/tags
