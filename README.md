@@ -1,6 +1,6 @@
 # OVERSTOMP
 
-A 1v1 / 2v2 / 3v3 **stomp-to-kill hero platform fighter** for Godot 4.4+. Pick 3 superheroes a round, swap freely, and eliminate the enemy team the only way possible: by jumping on their heads. Fast momentum movement (b-hops, wall-jump chains, omni-dashes) meets hero utility abilities and a one-ultimate-per-round economy. Pixel art aiming for the lighting of *Arcane*; game feel aiming for *Mario* legs and *Smash* brains.
+A 1v1 / 2v2 / 3v3 **stomp-to-kill hero platform fighter** for Godot 4.4+. Pick 3 superheroes a round, swap freely, and eliminate the enemy team the only way possible: by jumping on their heads. Fast momentum movement (b-hops, wall-jump chains, omni-dashes) meets hero utility abilities and a two-ultimate-per-round economy.
 
 **Status: skeleton.** Design and architecture are complete; systems are contracted stubs awaiting implementation (milestones in `docs/IMPLEMENTATION.md` §7).
 
